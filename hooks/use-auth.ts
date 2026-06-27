@@ -29,6 +29,7 @@ function getAuthConfig(): AuthConfig {
       (typeof window !== 'undefined' ? window.location.origin : ''),
   };
 
+  // Convert comma-separated scopes to space-separated (OAuth spec)
   const scopesEnv = process.env.NEXT_PUBLIC_DERIV_OAUTH_SCOPES ?? '';
   if (scopesEnv) {
     config.scopes = scopesEnv
@@ -49,8 +50,16 @@ function getAuthConfig(): AuthConfig {
     }
   }
 
+  // Override with live per-click params from landing URL (e.g. Scaleo t= token).
+  // These are present in window.location.search when the user arrives via an
+  // affiliate link and haven't been removed yet (OAuth params aren't in the URL
+  // at this point — they only appear after Deriv redirects back with ?code=).
   const landing = parseLandingParams();
   if (landing) {
+    // Only override the token when the landing URL actually carries one (t=).
+    // parseLandingParams returns a non-null result for any utm_* param, so an
+    // unguarded write would clobber a valid env token with '' on generic
+    // marketing links (e.g. ?utm_source=google with no t=).
     if (landing.affiliateToken) {
       config.affiliateToken = landing.affiliateToken;
       config.affiliateTokenParam = landing.affiliateTokenParam;
@@ -63,6 +72,10 @@ function getAuthConfig(): AuthConfig {
   return config;
 }
 
+// Build the auth config and, if we don't already have an affiliate token (from
+// a resolved/Format-3 referral link or live landing params), try to resolve a
+// fresh per-user token via the app-builder BFF proxy. Strictly non-blocking:
+// any failure leaves the config untouched so login/sign-up always proceeds.
 async function getAuthConfigWithReferral(): Promise<AuthConfig> {
   const config = getAuthConfig();
   if (!config.affiliateToken) {
@@ -114,6 +127,7 @@ export function useAuth(): UseAuthReturn {
   const activeAccountIdRef = useRef<string | null>(null);
   const tabHiddenAtRef = useRef<number | null>(null);
 
+  // Fetch OTP WebSocket URL for an account
   const fetchOTPUrl = useCallback(
     async (accountId: string, authInfo: AuthInfo): Promise<string> => {
       return getWebSocketOTP(accountId, authInfo, getAuthConfig().clientId);
@@ -121,6 +135,7 @@ export function useAuth(): UseAuthReturn {
     []
   );
 
+  // Complete auth: fetch accounts → get OTP → set WS URL
   const completeAuth = useCallback(
     async (authInfo: AuthInfo) => {
       const fetchedAccounts = await fetchAccounts(authInfo, getAuthConfig().clientId);
@@ -139,6 +154,7 @@ export function useAuth(): UseAuthReturn {
     [fetchOTPUrl]
   );
 
+  // Initialize: check for OAuth callback or existing session
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
@@ -147,27 +163,7 @@ export function useAuth(): UseAuthReturn {
       const url = new URL(window.location.href);
       const code = url.searchParams.get('code');
 
-      // ── Token passed from parent site (executiveprimemarkets.site) via ?token= ──
-      const parentToken = url.searchParams.get('token');
-      if (parentToken) {
-        setAuthState('authenticating');
-        try {
-          const authInfo: AuthInfo = {
-            access_token: parentToken,
-            token_type: 'Bearer',
-          } as AuthInfo;
-          await completeAuth(authInfo);
-          // Clean token from URL without reload
-          url.searchParams.delete('token');
-          window.history.replaceState({}, '', url.toString());
-        } catch (err) {
-          setError(err instanceof Error ? err.message : 'Token login failed');
-          setAuthState('unauthenticated');
-        }
-        return;
-      }
-
-      // Standard OAuth callback
+      // Phase 3-5: Handle OAuth callback
       if (code) {
         setAuthState('authenticating');
         try {
@@ -184,7 +180,9 @@ export function useAuth(): UseAuthReturn {
       // Check for existing session
       const storedAuth = getAuthInfo();
       if (storedAuth) {
+        // Check if token is expired
         if (storedAuth.expires_at && Date.now() / 1000 > storedAuth.expires_at) {
+          // Try to refresh
           try {
             const refreshed = await refreshAccessToken(
               storedAuth.refresh_token,
@@ -192,12 +190,14 @@ export function useAuth(): UseAuthReturn {
             );
             await completeAuth(refreshed);
           } catch {
+            // Refresh failed — fall back to unauthenticated (public WS)
             clearAllAuthData();
             setAuthState('unauthenticated');
           }
           return;
         }
 
+        // Valid stored session — restore accounts and get fresh OTP
         const storedAccounts = getDerivAccounts();
         if (storedAccounts && storedAccounts.length > 0) {
           setAccounts(storedAccounts);
@@ -209,10 +209,12 @@ export function useAuth(): UseAuthReturn {
             setWsUrl(otpUrl);
             setAuthState('authenticated');
           } catch {
+            // OTP fetch failed — token may be invalid, clear and fallback
             clearAllAuthData();
             setAuthState('unauthenticated');
           }
         } else {
+          // Have auth info but no accounts — re-fetch
           try {
             await completeAuth(storedAuth);
           } catch {
@@ -226,10 +228,13 @@ export function useAuth(): UseAuthReturn {
     init();
   }, [completeAuth, fetchOTPUrl]);
 
+  // Keep ref in sync so visibility handler always has the current account ID
   useEffect(() => {
     activeAccountIdRef.current = activeAccountId;
   }, [activeAccountId]);
 
+  // Refresh the OTP WebSocket URL when returning to the tab after >30s of inactivity.
+  // OTP URLs are single-use, so a stale URL will cause reconnect failures.
   useEffect(() => {
     if (authState !== 'authenticated') return;
 
@@ -261,14 +266,18 @@ export function useAuth(): UseAuthReturn {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [authState, fetchOTPUrl]);
 
+  // Phase 1: Initiate login — includes partner attribution params, resolving a
+  // fresh per-user Scaleo token via the BFF proxy when needed (non-blocking).
   const login = useCallback(async () => {
     await initiateLogin(await getAuthConfigWithReferral());
   }, []);
 
+  // Initiate sign-up — adds prompt=registration and partner attribution params
   const signUp = useCallback(async () => {
     await initiateSignUp(await getAuthConfigWithReferral());
   }, []);
 
+  // Logout: close WS (handled by useDerivWS cleanup), clear storage, reset state
   const logout = useCallback(() => {
     coreLogout();
     setAccounts([]);
@@ -278,6 +287,8 @@ export function useAuth(): UseAuthReturn {
     setError(null);
   }, []);
 
+  // Account switch: fetch new OTP first, then update accountId and wsUrl together
+  // so reconnectKey and url change in the same render cycle with the correct OTP.
   const switchAccount = useCallback(
     async (accountId: string) => {
       const authInfo = getAuthInfo();
@@ -286,6 +297,7 @@ export function useAuth(): UseAuthReturn {
       try {
         const account = accounts.find(a => a.account_id === accountId);
         if (account) setAccountType(account.account_type);
+        // Fetch OTP before updating accountId so reconnectKey and url are consistent
         const otpUrl = await fetchOTPUrl(accountId, authInfo);
         setActiveLoginId(accountId);
         setActiveAccountId(accountId);
