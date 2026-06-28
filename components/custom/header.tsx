@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import type { AuthState, DerivAccount } from '@deriv/core';
 
@@ -59,7 +58,6 @@ export function Header({
     .trim()
     .charAt(0)
     .toUpperCase() || 'D';
-  const [accountSwitcherOpen, setAccountSwitcherOpen] = useState(false);
   const isAuthenticated = authState === 'authenticated';
   const isAuthenticating = authState === 'authenticating';
 
@@ -86,54 +84,18 @@ export function Header({
       <div className="flex items-center gap-3">
         {actions}
         {isAuthenticated && activeAccount && (
-          <Popover open={accountSwitcherOpen} onOpenChange={setAccountSwitcherOpen}>
-            <PopoverTrigger asChild>
-              <button className="flex items-center gap-2 rounded-lg border border-border px-3 hover:bg-muted/50 transition-colors">
-                <div className="text-left">
-                  <AccountLabel type={activeAccount.account_type} />
-                  <p className="text-base font-bold text-foreground">
-                    {formatBalance(activeAccount.balance)} {activeAccount.currency}
-                  </p>
-                </div>
-                <svg
-                  className={cn(
-                    'w-4 h-4 text-muted-foreground transition-transform',
-                    accountSwitcherOpen && 'rotate-180'
-                  )}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-64 p-2">
-              <div className="space-y-1">
-                {accounts.map((account) => (
-                  <button
-                    key={account.account_id}
-                    onClick={() => {
-                      onSwitchAccount(account.account_id);
-                      setAccountSwitcherOpen(false);
-                    }}
-                    className={cn(
-                      'w-full text-left rounded-lg px-3 py-2.5 transition-colors',
-                      account.account_id === activeAccount.account_id
-                        ? 'bg-muted'
-                        : 'hover:bg-muted/50'
-                    )}
-                  >
-                    <AccountLabel type={account.account_type} />
-                    <p className="text-base font-bold text-foreground">
-                      {formatBalance(account.balance)} {account.currency}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </PopoverContent>
-          </Popover>
+          // Display-only badge: shows which account is active (real/demo) but
+          // is no longer clickable. Switching accounts now happens only from
+          // the main homepage's account switcher; this avoids triggering this
+          // sub-app's own (currently broken) switchAccount/OTP call.
+          <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-1.5">
+            <div className="text-left">
+              <AccountLabel type={activeAccount.account_type} />
+              <p className="text-base font-bold text-foreground">
+                {formatBalance(activeAccount.balance)} {activeAccount.currency}
+              </p>
+            </div>
+          </div>
         )}
         {/*
           Standalone Logout button, and the Log in / Sign up buttons, are
