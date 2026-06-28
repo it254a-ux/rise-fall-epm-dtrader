@@ -135,22 +135,16 @@ export function Header({
             </PopoverContent>
           </Popover>
         )}
-        {isAuthenticated ? (
-          <Button variant="destructive" onClick={onLogout}>
-            Logout
-          </Button>
-        ) : (
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={onLogin} disabled={isAuthenticating}>
-              {isAuthenticating ? 'Logging in...' : 'Log in'}
-            </Button>
-            {onSignUp && (
-              <Button size="sm" onClick={onSignUp} disabled={isAuthenticating}>
-                Sign up
-              </Button>
-            )}
-          </div>
-        )}
+        {/*
+          Standalone Logout button, and the Log in / Sign up buttons, are
+          intentionally removed from this header. The main app (homepage)
+          already has its own Log In / Log Out buttons, and this sub-app is
+          only ever opened inside an iframe after the user has already
+          authenticated there — so duplicate auth buttons here were
+          redundant and confusing. onLogin, onSignUp, onLogout are still
+          passed in and wired up everywhere else; nothing about auth/session
+          logic changed, only these buttons' visibility.
+        */}
       </div>
     </header>
   );
