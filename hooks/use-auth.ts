@@ -127,10 +127,17 @@ export function useAuth(): UseAuthReturn {
       setAccounts(fetchedAccounts);
 
       if (fetchedAccounts.length > 0) {
-        const firstAccount = fetchedAccounts[0];
-        setActiveAccountId(firstAccount.account_id);
+        const url = new URL(window.location.href);
+        const requestedAcct = url.searchParams.get('acct');
+        const targetAccount =
+          (requestedAcct && fetchedAccounts.find(a => a.account_id === requestedAcct)) ||
+          fetchedAccounts[0];
 
-        const otpUrl = await fetchOTPUrl(firstAccount.account_id, authInfo);
+        setActiveAccountId(targetAccount.account_id);
+        setActiveLoginId(targetAccount.account_id);
+        setAccountType(targetAccount.account_type);
+
+        const otpUrl = await fetchOTPUrl(targetAccount.account_id, authInfo);
         setWsUrl(otpUrl);
       }
 
@@ -159,6 +166,7 @@ export function useAuth(): UseAuthReturn {
           await completeAuth(authInfo);
           // Clean token from URL without reload
           url.searchParams.delete('token');
+          url.searchParams.delete('acct');
           window.history.replaceState({}, '', url.toString());
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Token login failed');
