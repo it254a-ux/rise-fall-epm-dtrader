@@ -34,7 +34,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: (label: string) => void }
   const isDark = theme !== 'light';
 
   return (
-    <nav className="fixed left-0 top-0 z-40 flex h-screen w-[72px] flex-col items-center gap-7 bg-[#0e0e0e] pt-6 border-r border-white/5">
+    <nav className="hidden lg:flex fixed left-0 top-0 z-40 h-screen w-[72px] flex-col items-center gap-7 bg-[#0e0e0e] pt-6 border-r border-white/5">
       {TOP_ITEMS.map(({ label, icon: Icon }) => (
         <button
           key={label}
