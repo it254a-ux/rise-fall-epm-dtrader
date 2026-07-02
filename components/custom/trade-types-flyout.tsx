@@ -1,26 +1,32 @@
 'use client';
+
 import { useState, useRef, useEffect } from 'react';
+
+export interface TradeTypesFlyoutProps {
+  activeTradeType: string;
+  onSelectTradeType: (type: string) => void;
+}
 
 const CATEGORIES = [
   {
     heading: 'Growth based',
-    items: [{ label: 'Accumulators', fire: true, active: false, comingSoon: true }],
+    items: [{ label: 'Accumulators', value: 'accumulators', fire: true, comingSoon: true }],
   },
   {
     heading: 'Directional',
-    items: [{ label: 'Rise/Fall', fire: true, active: true, comingSoon: false }],
+    items: [{ label: 'Rise/Fall', value: 'rise-fall', fire: true, comingSoon: false }],
   },
   {
     heading: 'Digit based',
     items: [
-      { label: 'Matches/Differs', fire: false, active: false, comingSoon: true },
-      { label: 'Over/Under', fire: false, active: false, comingSoon: true },
-      { label: 'Even/Odd', fire: false, active: false, comingSoon: true },
+      { label: 'Matches/Differs', value: 'matches-differs', fire: false, comingSoon: true },
+      { label: 'Over/Under', value: 'over-under', fire: false, comingSoon: true },
+      { label: 'Even/Odd', value: 'even-odd', fire: false, comingSoon: true },
     ],
   },
 ];
 
-export function TradeTypesFlyout() {
+export function TradeTypesFlyout({ activeTradeType, onSelectTradeType }: TradeTypesFlyoutProps) {
   const [open, setOpen] = useState(false);
   const [hovering, setHovering] = useState(false);
   const [tab, setTab] = useState<'all' | 'most'>('all');
@@ -52,9 +58,6 @@ export function TradeTypesFlyout() {
         ))}
       </button>
 
-      {/* Custom tooltip, matches the reference screenshot's solid dark bubble
-          (not the browser's native title tooltip). Only shown when the panel
-          itself is closed. */}
       {!open && hovering && (
         <div className="absolute top-full left-0 mt-2 whitespace-nowrap rounded-lg bg-neutral-800 text-white text-sm px-3 py-2 shadow-lg z-[70]">
           Explore trade types
@@ -93,14 +96,17 @@ export function TradeTypesFlyout() {
                 <p className="text-xs font-medium text-muted-foreground mb-1">{cat.heading}</p>
                 {cat.items.map(item => (
                   <button
-                    key={item.label}
+                    key={item.value}
                     disabled={item.comingSoon}
                     title={item.comingSoon ? 'Coming soon' : undefined}
                     onClick={() => {
-                      if (!item.comingSoon) setOpen(false);
+                      if (!item.comingSoon) {
+                        onSelectTradeType(item.value);
+                        setOpen(false);
+                      }
                     }}
                     className={`flex items-center gap-2 rounded-xl px-4 py-3 text-left text-base font-medium transition-colors
-                      ${item.active ? 'bg-foreground/10 text-foreground' : 'text-foreground'}
+                      ${activeTradeType === item.value ? 'bg-foreground/10 text-foreground' : 'text-foreground'}
                       ${item.comingSoon ? 'opacity-50 cursor-not-allowed' : 'hover:bg-foreground/5 cursor-pointer'}
                     `}
                   >
