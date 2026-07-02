@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { ContractTypeTabs } from './contract-type-tabs';
 import type { AuthState, DerivAccount } from '@deriv/core';
 
 interface HeaderProps {
@@ -80,6 +81,9 @@ export function Header({
         <h1 className="text-lg font-semibold text-foreground hidden sm:block">
           {process.env.NEXT_PUBLIC_DERIV_APP_NAME ?? 'Deriv Trading'}
         </h1>
+      </div>
+      <div className="hidden md:flex items-center flex-1 justify-center px-4">
+        <ContractTypeTabs />
       </div>
       <div className="flex items-center gap-3">
         {actions}
