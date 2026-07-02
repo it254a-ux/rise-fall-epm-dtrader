@@ -78,9 +78,6 @@ export function Header({
             onError={() => setLogoError(true)}
           />
         )}
-        <h1 className="text-lg font-semibold text-foreground hidden sm:block">
-          {process.env.NEXT_PUBLIC_DERIV_APP_NAME ?? 'Deriv Trading'}
-        </h1>
       </div>
       <div className="hidden md:flex items-center flex-1 justify-center px-4">
         <ContractTypeTabs />
