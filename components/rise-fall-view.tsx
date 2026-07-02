@@ -113,7 +113,7 @@ export function RiseFallView({
   allowEquals,
   setAllowEquals,
   stake,
-  setStake,
+  onStakeChange,
   duration,
   setDuration,
   durationOptions,
@@ -149,7 +149,7 @@ export function RiseFallView({
     buyContract,
     openPositions,
     stake,
-    setStake,
+    setStake: onStakeChange,
     isAuthenticated: authState === 'authenticated',
     isConnected,
   });
@@ -233,7 +233,7 @@ export function RiseFallView({
                         onAllowEqualsChange={setAllowEquals}
                         isConnected={isConnected}
                         stake={stake}
-                        onStakeChange={setStake}
+                        onStakeChange={onStakeChange}
                         duration={duration}
                         onDurationChange={setDuration}
                         durationOptions={durationOptions}
@@ -256,7 +256,7 @@ export function RiseFallView({
                     ) : (
                       <AutomatedPanel
                         stake={stake}
-                        onStakeChange={setStake}
+                        onStakeChange={onStakeChange}
                         proposal={proposal}
                         isRunning={martingale.isRunning}
                         onRun={martingale.start}
