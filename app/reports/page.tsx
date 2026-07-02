@@ -51,7 +51,6 @@ export default function ReportsPage() {
         onLogout={logout}
         onSwitchAccount={switchAccount}
         logoSrc={logoSrc}
-        actions={<ThemeToggle />}
       />
 
       {/* Spacer to push content below fixed header — authenticated users have a taller header */}
