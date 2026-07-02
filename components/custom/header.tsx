@@ -85,30 +85,16 @@ export function Header({
         <ContractTypeTabs />
       </div>
       <div className="flex items-center gap-3">
-        {actions}
-        {isAuthenticated && activeAccount && (
-          // Display-only badge: shows which account is active (real/demo) but
-          // is no longer clickable. Switching accounts now happens only from
-          // the main homepage's account switcher; this avoids triggering this
-          // sub-app's own (currently broken) switchAccount/OTP call.
-          <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-1.5">
-            <div className="text-left">
-              <AccountLabel type={activeAccount.account_type} />
-              <p className="text-base font-bold text-foreground">
-                {formatBalance(activeAccount.balance)} {activeAccount.currency}
-              </p>
-            </div>
-          </div>
-        )}
         {/*
-          Standalone Logout button, and the Log in / Sign up buttons, are
-          intentionally removed from this header. The main app (homepage)
-          already has its own Log In / Log Out buttons, and this sub-app is
-          only ever opened inside an iframe after the user has already
-          authenticated there — so duplicate auth buttons here were
-          redundant and confusing. onLogin, onSignUp, onLogout are still
-          passed in and wired up everywhere else; nothing about auth/session
-          logic changed, only these buttons' visibility.
+          Balance badge and theme toggle (passed in via `actions`) are
+          intentionally NOT rendered here. This sub-app only ever loads
+          inside an iframe on the main site (executive-prime-market-app),
+          which already shows the account balance and its own theme
+          control in its own header — showing them again here just
+          duplicated that bar. Auth state (authState, accounts,
+          activeAccount, onLogin/onLogout/onSwitchAccount) is untouched
+          and still passed through normally; only this duplicate display
+          was removed.
         */}
       </div>
     </header>
