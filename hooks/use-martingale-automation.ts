@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ProposalInfo, BuyResult, OpenPosition } from '@deriv/core';
+import type { ProposalInfo, BuyResult } from '@deriv/core';
+import type { OpenPosition } from '../lib/types';
 
 interface UseMartingaleAutomationProps {
   proposal: ProposalInfo | null;
