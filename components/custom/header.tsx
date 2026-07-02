@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ContractTypeTabs } from './contract-type-tabs';
+import { TradeTypesFlyout } from './trade-types-flyout';
 import type { AuthState, DerivAccount } from '@deriv/core';
 
 interface HeaderProps {
@@ -78,6 +79,7 @@ export function Header({
             onError={() => setLogoError(true)}
           />
         )}
+        <TradeTypesFlyout />
       </div>
       <div className="hidden md:flex items-center flex-1 justify-center px-4">
         <ContractTypeTabs />
