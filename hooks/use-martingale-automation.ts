@@ -73,8 +73,8 @@ export function useMartingaleAutomation({
 
       // Check if any open position just closed (settled)
       const settled = openPositions.find(p => {
-        const wasOpen = prevPositionsRef.current.some(prev => prev.contractId === p.contractId);
-        return wasOpen && p.isSettled;
+        const wasOpen = prevPositionsRef.current.some(prev => prev.contract_id === p.contract_id);
+        return wasOpen && p.is_settled;
       });
 
       if (settled) {
@@ -98,7 +98,7 @@ export function useMartingaleAutomation({
       }
 
       // Fire next trade if no active position and proposal matches intended stake
-      const hasActivePosition = openPositions.some(p => !p.isSettled);
+      const hasActivePosition = openPositions.some(p => !p.is_settled);
       if (!hasActivePosition && !roundActiveRef.current) {
         const currentAsk = proposal?.askPrice ?? 0;
         const intended = Math.round(intendedStakeRef.current * 100) / 100;
