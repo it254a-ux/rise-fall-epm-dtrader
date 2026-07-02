@@ -38,7 +38,7 @@ export default function RiseFallPage() {
       allowEquals={trading.allowEquals}
       setAllowEquals={trading.setAllowEquals}
       stake={trading.stake}
-      setStake={trading.setStake}
+      onStakeChange={trading.setStake}
       duration={trading.duration}
       setDuration={trading.setDuration}
       durationOptions={trading.durationOptions}
