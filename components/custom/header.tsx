@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ContractTypeTabs } from './contract-type-tabs';
 import { TradeTypesFlyout } from './trade-types-flyout';
@@ -14,20 +13,11 @@ interface HeaderProps {
   onLogin: () => Promise<void>;
   onLogout: () => void;
   onSwitchAccount: (accountId: string) => Promise<void>;
-  /** When provided, a Sign up button is rendered to the right of the Log in button. */
   onSignUp?: () => Promise<void>;
-  /** Logo source URL or data URL. When omitted, a placeholder badge is shown until
-   *  the user provides a logo via the app builder (passed as a data URL via PREVIEW_BRANDING). */
   logoSrc?: string;
-  /** App name used to derive the fallback logo letter when no logoSrc is provided.
-   *  Falls back to NEXT_PUBLIC_DERIV_APP_NAME env var, then 'Deriv Trading'. */
   appName?: string;
-  /** Optional controls rendered to the left of the login/logout button (e.g. a theme toggle). */
-  actions?: React.ReactNode;
-}
-
-function formatBalance(balance: string): string {
-  return Number(balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  activeTradeType?: string;
+  onSelectTradeType?: (type: string) => void;
 }
 
 function AccountLabel({ type }: { type: 'demo' | 'real' }) {
@@ -53,15 +43,14 @@ export function Header({
   onSignUp,
   logoSrc,
   appName,
-  actions,
+  activeTradeType = 'rise-fall',
+  onSelectTradeType,
 }: HeaderProps) {
   const [logoError, setLogoError] = useState(false);
   const logoLetter = (appName ?? process.env.NEXT_PUBLIC_DERIV_APP_NAME ?? 'Deriv Trading')
     .trim()
     .charAt(0)
     .toUpperCase() || 'D';
-  const isAuthenticated = authState === 'authenticated';
-  const isAuthenticating = authState === 'authenticating';
 
   return (
     <header className="fixed top-0 left-0 lg:left-[72px] right-0 z-50 flex items-center justify-between px-4 py-3 border-b bg-background/80 backdrop-blur-sm">
@@ -71,7 +60,6 @@ export function Header({
             {logoLetter}
           </div>
         ) : (
-          // eslint-disable-next-line @next/next/no-img-element -- next/image is avoided here intentionally: it errors in the optimizer when /logo.png is absent locally; a plain img with onError gives the same silent fallback behaviour
           <img
             src={logoSrc}
             alt="App Logo"
@@ -79,24 +67,18 @@ export function Header({
             onError={() => setLogoError(true)}
           />
         )}
-        <TradeTypesFlyout />
+        <TradeTypesFlyout
+          activeTradeType={activeTradeType}
+          onSelectTradeType={onSelectTradeType ?? (() => {})}
+        />
       </div>
       <div className="hidden md:flex items-center flex-1 justify-center px-4">
-        <ContractTypeTabs />
+        <ContractTypeTabs
+          activeTab={activeTradeType}
+          onTabChange={onSelectTradeType ?? (() => {})}
+        />
       </div>
-      <div className="flex items-center gap-3">
-        {/*
-          Balance badge and theme toggle (passed in via `actions`) are
-          intentionally NOT rendered here. This sub-app only ever loads
-          inside an iframe on the main site (executive-prime-market-app),
-          which already shows the account balance and its own theme
-          control in its own header — showing them again here just
-          duplicated that bar. Auth state (authState, accounts,
-          activeAccount, onLogin/onLogout/onSwitchAccount) is untouched
-          and still passed through normally; only this duplicate display
-          was removed.
-        */}
-      </div>
+      <div className="flex items-center gap-3" />
     </header>
   );
 }
