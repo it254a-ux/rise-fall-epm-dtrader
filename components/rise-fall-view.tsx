@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Footer } from '@/components/custom/footer';
@@ -9,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import { useContractMarkers } from '@/hooks/use-contract-markers';
 import { TradeControls } from './trade-controls';
+import { TradeModeToggle } from '@/components/custom/trade-mode-toggle';
 import type {
   AuthState,
   DerivAccount,
@@ -142,6 +144,7 @@ export function RiseFallView({
 }: RiseFallViewProps) {
   const isMobile = useIsMobile();
   const contractMarkers = useContractMarkers(openPositions, activeSymbol?.underlying_symbol, isMobile);
+  const [tradeMode, setTradeMode] = useState<'manual' | 'automated'>('manual');
 
   if (error) {
     return (
@@ -215,33 +218,45 @@ export function RiseFallView({
             ) : (
               <Card className="lg:h-[min(33.6rem,66vh)] lg:min-h-[384px] lg:overflow-y-auto">
                 <CardContent className="pt-4">
-                  <TradeControls
-                    direction={direction}
-                    onDirectionChange={setDirection}
-                    allowEquals={allowEquals}
-                    onAllowEqualsChange={setAllowEquals}
-                    isConnected={isConnected}
-                    stake={stake}
-                    onStakeChange={setStake}
-                    duration={duration}
-                    onDurationChange={setDuration}
-                    durationOptions={durationOptions}
-                    durationUnit={durationUnit}
-                    onDurationUnitChange={setDurationUnit}
-                    endDate={endDate}
-                    onEndDateChange={setEndDate}
-                    endTime={endTime}
-                    onEndTimeChange={setEndTime}
-                    ws={ws}
-                    activeSymbol={activeSymbol}
-                    proposal={proposal}
-                    onBuy={buyContract}
-                    isBuying={isBuying}
-                    buyResult={buyResult}
-                    buyError={buyError}
-                    onClearBuyResult={clearBuyResult}
-                    isAuthenticated={authState === 'authenticated'}
-                  />
+                  <TradeModeToggle mode={tradeMode} onModeChange={setTradeMode} />
+
+                  {tradeMode === 'manual' ? (
+                    <TradeControls
+                      direction={direction}
+                      onDirectionChange={setDirection}
+                      allowEquals={allowEquals}
+                      onAllowEqualsChange={setAllowEquals}
+                      isConnected={isConnected}
+                      stake={stake}
+                      onStakeChange={setStake}
+                      duration={duration}
+                      onDurationChange={setDuration}
+                      durationOptions={durationOptions}
+                      durationUnit={durationUnit}
+                      onDurationUnitChange={setDurationUnit}
+                      endDate={endDate}
+                      onEndDateChange={setEndDate}
+                      endTime={endTime}
+                      onEndTimeChange={setEndTime}
+                      ws={ws}
+                      activeSymbol={activeSymbol}
+                      proposal={proposal}
+                      onBuy={buyContract}
+                      isBuying={isBuying}
+                      buyResult={buyResult}
+                      buyError={buyError}
+                      onClearBuyResult={clearBuyResult}
+                      isAuthenticated={authState === 'authenticated'}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center text-center gap-2 py-12">
+                      <div className="text-3xl">🚧</div>
+                      <p className="text-sm font-medium text-foreground">Automated trading</p>
+                      <p className="text-xs text-muted-foreground max-w-[220px]">
+                        Coming soon — Martingale strategy builder is in progress.
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
