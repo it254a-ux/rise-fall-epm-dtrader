@@ -1,12 +1,12 @@
 'use client';
 
-import { Home, Clock, FileText, LifeBuoy, Globe, Moon, Sun, CircleUserRound } from 'lucide-react';
+import { Home, Clock, FileText, LifeBuoy, Globe, Moon, Sun, CircleUserRound, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from 'next-themes';
 
 interface NavItem {
   label: string;
-  icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
+  icon: LucideIcon;
 }
 
 const TOP_ITEMS: NavItem[] = [
