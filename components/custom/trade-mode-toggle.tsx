@@ -8,7 +8,10 @@ interface TradeModeToggleProps {
 export function TradeModeToggle({ mode, onModeChange }: TradeModeToggleProps) {
   return (
     <div className="flex items-center justify-between mb-3">
-      <button className="flex items-center gap-1 text-sm font-semibold text-foreground hover:text-primary">
+      <button
+        onClick={() => onModeChange('automated')}
+        className="flex items-center gap-1 text-sm font-semibold text-foreground hover:text-primary"
+      >
         Automate Rise/Fall
         <span className="text-muted-foreground">›</span>
       </button>
