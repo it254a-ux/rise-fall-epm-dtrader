@@ -35,7 +35,7 @@ export function AutomatedPanel({
   const [lossThreshold, setLossThreshold] = useState('50');
   const [allowEquals, setAllowEquals] = useState(false);
 
-  const currentStake = proposal?.askPrice ?? Number(stake) || 0;
+  const currentStake = (proposal?.askPrice ?? Number(stake)) || 0;
 
   return (
     <div className="flex flex-col gap-4">
