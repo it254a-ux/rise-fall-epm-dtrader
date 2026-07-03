@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Footer } from '@/components/custom/footer';
 import { Header } from '@/components/custom/header';
 import { Sidebar } from '@/components/custom/sidebar';
+import { ModeRail } from '@/components/custom/mode-rail';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import { useContractMarkers } from '@/hooks/use-contract-markers';
@@ -149,10 +150,6 @@ export function RiseFallView({
   const [tradeMode, setTradeMode] = useState<'manual' | 'automated'>('manual');
   const isAuthenticated = authState === 'authenticated';
 
-  // Martingale automation engine — reuses the same stake/proposal/buyContract/
-  // openPositions primitives TradeControls already drives, just automates
-  // firing the next trade. See use-martingale-automation.ts for the safety
-  // guards around not double-buying and not buying against a stale proposal.
   const automation = useMartingaleAutomation({
     isConnected,
     isAuthenticated,
@@ -167,8 +164,6 @@ export function RiseFallView({
     openPositions,
   });
 
-  // Stop any running automation if the user switches back to manual mode,
-  // so a manual buy can never race against an automated one.
   const handleModeChange = (mode: 'manual' | 'automated') => {
     if (mode === 'manual' && automation.isRunning) {
       automation.stop();
@@ -193,12 +188,8 @@ export function RiseFallView({
 
   return (
     <>
-      {/* Desktop-only left nav rail (Home / Positions / Reports / Help /
-          Language / Theme / Account). Hidden on mobile — see sidebar.tsx. */}
       <Sidebar />
 
-      {/* lg:pl-[72px] reserves space so nothing sits under the fixed sidebar
-          on desktop. No effect on mobile, where the sidebar is hidden. */}
       <main className="flex flex-col bg-background max-lg:h-dvh lg:overflow-visible lg:pl-[72px]">
         <Header
           authState={authState}
@@ -211,18 +202,14 @@ export function RiseFallView({
           logoSrc={logoSrc}
           appName={appName}
         />
-        {/* Spacer to push content below fixed header — taller when authenticated (account bar visible) */}
         <div className={authState === 'authenticated' ? 'h-[76px] shrink-0' : 'h-[66px] shrink-0'} />
 
-        {/*
-         * Content area.
-         * Mobile (< lg): flex-col, no outer scroll — the chart is pinned at 40 dvh
-         *   (edge-to-edge, no horizontal padding) and the controls panel below it
-         *   scrolls independently only when content exceeds the remaining space.
-         * Desktop (≥ lg): reverts to natural block flow so the page can grow.
-         */}
         <div className="flex w-full max-w-7xl mx-auto flex-col max-lg:px-0 max-lg:py-0 px-3 py-2 sm:px-4 sm:py-4 gap-2 sm:gap-3 max-lg:flex-1 max-lg:min-h-0 max-lg:overflow-hidden lg:flex-none lg:overflow-visible">
-          <div className="max-lg:flex max-lg:flex-col max-lg:flex-1 max-lg:min-h-0 lg:grid lg:grid-cols-[1fr_400px] lg:gap-4">
+          {/* Third column (lg:auto) holds the floating Manual/Automated rail,
+              positioned outside the trade panel card itself — matches the
+              reference site, where these icons sit at the page's far right
+              edge rather than inside the panel header. */}
+          <div className="max-lg:flex max-lg:flex-col max-lg:flex-1 max-lg:min-h-0 lg:grid lg:grid-cols-[1fr_400px_auto] lg:gap-4">
             {/* Column 1: Chart */}
             <div className="max-lg:shrink-0 flex flex-col gap-2 max-lg:px-3 max-lg:pb-2 pt-2 lg:py-0">
               <div className="max-lg:h-[45dvh] lg:h-[min(33.6rem,66vh)] lg:min-h-[384px]">
@@ -254,6 +241,9 @@ export function RiseFallView({
               ) : (
                 <Card className="lg:h-[min(33.6rem,66vh)] lg:min-h-[384px] lg:overflow-y-auto">
                   <CardContent className="pt-4">
+                    {/* Breadcrumb header — shown in both manual and automated
+                        mode, matching the reference site. The actual mode
+                        switch lives in ModeRail, not here. */}
                     <TradeModeToggle mode={tradeMode} onModeChange={handleModeChange} />
 
                     {tradeMode === 'manual' ? (
@@ -299,10 +289,12 @@ export function RiseFallView({
                 </Card>
               )}
             </div>
+
+            {/* Column 3: floating Manual/Automated rail (desktop only) */}
+            <ModeRail mode={tradeMode} onModeChange={handleModeChange} />
           </div>
         </div>
 
-        {/* Fixed footer */}
         <div className="fixed bottom-0 left-0 lg:left-[72px] right-0 py-2 text-center bg-background/80 backdrop-blur-sm">
           <Footer />
         </div>
