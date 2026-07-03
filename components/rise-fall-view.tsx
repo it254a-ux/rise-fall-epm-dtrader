@@ -6,13 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Footer } from '@/components/custom/footer';
 import { Header } from '@/components/custom/header';
 import { Sidebar } from '@/components/custom/sidebar';
+import { ThemeToggle } from '@/components/custom/theme-toggle';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import { useContractMarkers } from '@/hooks/use-contract-markers';
 import { TradeControls } from './trade-controls';
-import { TradeModeToggle } from '@/components/custom/trade-mode-toggle';
 import { AutomatedPanel } from '@/components/custom/automated-panel';
-import { useMartingaleAutomation } from '@/hooks/use-martingale-automation';
+import { TradeModeToggle } from '@/components/custom/trade-mode-toggle';
+import { useMartingaleAutomation } from '../hooks/use-martingale-automation';
 import type {
   AuthState,
   DerivAccount,
@@ -59,7 +60,7 @@ export interface RiseFallViewProps {
   allowEquals: boolean;
   setAllowEquals: (value: boolean) => void;
   stake: string;
-  onStakeChange: (value: string) => void;
+  setStake: (value: string) => void;
   duration: number;
   setDuration: (value: number) => void;
   durationOptions: DurationOption[];
@@ -81,15 +82,20 @@ export interface RiseFallViewProps {
   sellContract: (contractId: number, bidPrice: string) => Promise<void>;
   sellingId: number | null;
 
-  // Chart data
+  // Chart data (elevated to page so preview can inject frozen mocks)
   chartData: SmartChartChartData | undefined;
   getQuotes: UseSmartChartsApiReturn['getQuotes'];
   subscribeQuotes: UseSmartChartsApiReturn['subscribeQuotes'];
   unsubscribeQuotes: UseSmartChartsApiReturn['unsubscribeQuotes'];
+  /** Passed to SmartChart. Set to false for a frozen preview. Defaults to true. */
   isLive?: boolean;
+  /**
+   * Unix epoch (seconds) to freeze the chart at. When set, SmartCharts renders
+   * a static historical snapshot and never sets up a live subscription.
+   */
   endEpoch?: number;
 
-  // Branding
+  // Branding (used by preview route; no-op in the real app)
   logoSrc?: string;
   appName?: string;
 }
@@ -113,7 +119,7 @@ export function RiseFallView({
   allowEquals,
   setAllowEquals,
   stake,
-  onStakeChange,
+  setStake,
   duration,
   setDuration,
   durationOptions,
@@ -142,17 +148,34 @@ export function RiseFallView({
   const isMobile = useIsMobile();
   const contractMarkers = useContractMarkers(openPositions, activeSymbol?.underlying_symbol, isMobile);
   const [tradeMode, setTradeMode] = useState<'manual' | 'automated'>('manual');
-  const [activeTradeType, setActiveTradeType] = useState('rise-fall');
+  const isAuthenticated = authState === 'authenticated';
 
-  const martingale = useMartingaleAutomation({
+  // Martingale automation engine — reuses the same stake/proposal/buyContract/
+  // openPositions primitives TradeControls already drives, just automates
+  // firing the next trade. See use-martingale-automation.ts for the safety
+  // guards around not double-buying and not buying against a stale proposal.
+  const automation = useMartingaleAutomation({
+    isConnected,
+    isAuthenticated,
+    stake,
+    setStake,
     proposal,
     buyContract,
+    isBuying,
+    buyResult,
+    buyError,
+    clearBuyResult,
     openPositions,
-    stake,
-    setStake: onStakeChange,
-    isAuthenticated: authState === 'authenticated',
-    isConnected,
   });
+
+  // Stop any running automation if the user switches back to manual mode,
+  // so a manual buy can never race against an automated one.
+  const handleModeChange = (mode: 'manual' | 'automated') => {
+    if (mode === 'manual' && automation.isRunning) {
+      automation.stop();
+    }
+    setTradeMode(mode);
+  };
 
   if (error) {
     return (
@@ -171,8 +194,12 @@ export function RiseFallView({
 
   return (
     <>
+      {/* Desktop-only left nav rail (Home / Positions / Reports / Help /
+          Language / Theme / Account). Hidden on mobile — see sidebar.tsx. */}
       <Sidebar />
 
+      {/* lg:pl-[72px] reserves space so nothing sits under the fixed sidebar
+          on desktop. No effect on mobile, where the sidebar is hidden. */}
       <main className="flex flex-col bg-background max-lg:h-dvh lg:overflow-visible lg:pl-[72px]">
         <Header
           authState={authState}
@@ -184,12 +211,18 @@ export function RiseFallView({
           onSwitchAccount={onSwitchAccount}
           logoSrc={logoSrc}
           appName={appName}
-          activeTradeType={activeTradeType}
-          onSelectTradeType={setActiveTradeType}
+          actions={<ThemeToggle />}
         />
-
+        {/* Spacer to push content below fixed header — taller when authenticated (account bar visible) */}
         <div className={authState === 'authenticated' ? 'h-[76px] shrink-0' : 'h-[66px] shrink-0'} />
 
+        {/*
+         * Content area.
+         * Mobile (< lg): flex-col, no outer scroll — the chart is pinned at 40 dvh
+         *   (edge-to-edge, no horizontal padding) and the controls panel below it
+         *   scrolls independently only when content exceeds the remaining space.
+         * Desktop (≥ lg): reverts to natural block flow so the page can grow.
+         */}
         <div className="flex w-full max-w-7xl mx-auto flex-col max-lg:px-0 max-lg:py-0 px-3 py-2 sm:px-4 sm:py-4 gap-2 sm:gap-3 max-lg:flex-1 max-lg:min-h-0 max-lg:overflow-hidden lg:flex-none lg:overflow-visible">
           <div className="max-lg:flex max-lg:flex-col max-lg:flex-1 max-lg:min-h-0 lg:grid lg:grid-cols-[1fr_400px] lg:gap-4">
             {/* Column 1: Chart */}
@@ -216,14 +249,14 @@ export function RiseFallView({
               </div>
             </div>
 
-            {/* Column 2: Trade controls */}
+            {/* Column 2: Trade controls in a Card */}
             <div className="max-lg:flex-1 max-lg:min-h-0 max-lg:overflow-y-auto max-lg:overscroll-contain max-lg:px-3 max-lg:border-t max-lg:border-border max-lg:pt-3 max-lg:pb-28 lg:pt-0 flex flex-col gap-3">
               {isLoading ? (
                 <Skeleton className="lg:h-[min(33.6rem,66vh)] lg:min-h-[384px] max-lg:h-48 w-full rounded-xl" />
               ) : (
                 <Card className="lg:h-[min(33.6rem,66vh)] lg:min-h-[384px] lg:overflow-y-auto">
                   <CardContent className="pt-4">
-                    <TradeModeToggle mode={tradeMode} onModeChange={setTradeMode} />
+                    <TradeModeToggle mode={tradeMode} onModeChange={handleModeChange} />
 
                     {tradeMode === 'manual' ? (
                       <TradeControls
@@ -233,7 +266,7 @@ export function RiseFallView({
                         onAllowEqualsChange={setAllowEquals}
                         isConnected={isConnected}
                         stake={stake}
-                        onStakeChange={onStakeChange}
+                        onStakeChange={setStake}
                         duration={duration}
                         onDurationChange={setDuration}
                         durationOptions={durationOptions}
@@ -251,17 +284,17 @@ export function RiseFallView({
                         buyResult={buyResult}
                         buyError={buyError}
                         onClearBuyResult={clearBuyResult}
-                        isAuthenticated={authState === 'authenticated'}
+                        isAuthenticated={isAuthenticated}
                       />
                     ) : (
                       <AutomatedPanel
-                        stake={stake}
-                        onStakeChange={onStakeChange}
-                        proposal={proposal}
-                        isRunning={martingale.isRunning}
-                        onRun={martingale.start}
-                        onStop={martingale.stop}
-                        disabled={!isConnected || authState !== 'authenticated'}
+                        direction={direction}
+                        onDirectionChange={setDirection}
+                        allowEquals={allowEquals}
+                        onAllowEqualsChange={setAllowEquals}
+                        isConnected={isConnected}
+                        isAuthenticated={isAuthenticated}
+                        automation={automation}
                       />
                     )}
                   </CardContent>
@@ -271,6 +304,7 @@ export function RiseFallView({
           </div>
         </div>
 
+        {/* Fixed footer */}
         <div className="fixed bottom-0 left-0 lg:left-[72px] right-0 py-2 text-center bg-background/80 backdrop-blur-sm">
           <Footer />
         </div>
