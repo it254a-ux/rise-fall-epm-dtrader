@@ -1,134 +1,202 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ProposalInfo, BuyResult } from '@deriv/core';
-import type { OpenPosition } from '../lib/types';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import type { ProposalInfo, BuyResult, OpenPosition } from '../lib/types';
 
-interface UseMartingaleAutomationProps {
-  proposal: ProposalInfo | null;
-  buyContract: () => Promise<void>;
-  openPositions: OpenPosition[];
-  stake: string;
-  setStake: (value: string) => void;
-  isAuthenticated: boolean;
-  isConnected: boolean;
+export interface MartingaleSettings {
+  /** Starting stake for the first trade of a run, and what stake resets to after a win. */
+  baseStake: number;
+  /** Multiplier applied to the stake after a loss, e.g. 2 = double on loss. */
+  multiplier: number;
+  /** Hard ceiling — if the next required stake would exceed this, the run stops instead of placing it. Null = no cap. */
+  maxStake: number | null;
+  /** Stop once cumulative profit reaches +this amount. Null = no target. */
+  profitThreshold: number | null;
+  /** Stop once cumulative profit reaches -this amount. Null = no limit. */
+  lossThreshold: number | null;
 }
 
-interface UseMartingaleAutomationReturn {
+export const DEFAULT_MARTINGALE_SETTINGS: MartingaleSettings = {
+  baseStake: 10,
+  multiplier: 2,
+  maxStake: null,
+  profitThreshold: 10,
+  lossThreshold: 10,
+};
+
+interface UseMartingaleAutomationParams {
+  isConnected: boolean;
+  isAuthenticated: boolean;
+  stake: string;
+  setStake: (value: string) => void;
+  proposal: ProposalInfo | null;
+  buyContract: () => Promise<void>;
+  isBuying: boolean;
+  buyResult: BuyResult | null;
+  buyError: string | null;
+  clearBuyResult: () => void;
+  openPositions: OpenPosition[];
+}
+
+export interface UseMartingaleAutomationReturn {
+  settings: MartingaleSettings;
+  setSettings: (settings: MartingaleSettings) => void;
   isRunning: boolean;
   start: () => void;
   stop: () => void;
-  currentStake: number;
+  netProfit: number;
   tradeCount: number;
-  totalProfit: number;
-  lastResult: 'win' | 'loss' | null;
+  currentStake: number;
+  /** Set when a run ends on its own — profit/loss threshold hit, max stake exceeded, or a buy failed. Null while idle or running. */
+  stopReason: string | null;
 }
 
+/**
+ * Runs a Martingale strategy on top of the existing manual trade primitives
+ * (proposal/buyContract/openPositions) — it does not talk to the WebSocket
+ * directly, only drives the same hooks TradeControls already uses.
+ *
+ * Safety properties:
+ * - Never fires a second buy while one is in flight or a contract is still
+ *   open (`roundActive` ref), even across rapid proposal ticks.
+ * - Never buys against a stale proposal: waits for `proposal.askPrice` to
+ *   actually match the intended stake before buying, since proposals stream
+ *   a new id on every price tick regardless of stake changes.
+ * - Checks profit/loss/max-stake limits before computing or setting the next
+ *   stake, so it always stops instead of placing one more trade past a limit.
+ */
 export function useMartingaleAutomation({
-  proposal,
-  buyContract,
-  openPositions,
+  isConnected,
+  isAuthenticated,
   stake,
   setStake,
-  isAuthenticated,
-  isConnected,
-}: UseMartingaleAutomationProps): UseMartingaleAutomationReturn {
+  proposal,
+  buyContract,
+  isBuying,
+  buyResult,
+  buyError,
+  clearBuyResult,
+  openPositions,
+}: UseMartingaleAutomationParams): UseMartingaleAutomationReturn {
+  const [settings, setSettings] = useState<MartingaleSettings>(DEFAULT_MARTINGALE_SETTINGS);
   const [isRunning, setIsRunning] = useState(false);
+  const [netProfit, setNetProfit] = useState(0);
   const [tradeCount, setTradeCount] = useState(0);
-  const [totalProfit, setTotalProfit] = useState(0);
-  const [lastResult, setLastResult] = useState<'win' | 'loss' | null>(null);
+  const [currentStake, setCurrentStake] = useState(DEFAULT_MARTINGALE_SETTINGS.baseStake);
+  const [stopReason, setStopReason] = useState<string | null>(null);
 
-  const intendedStakeRef = useRef(Number(stake) || 1);
-  const roundActiveRef = useRef(false);
-  const lastContractIdRef = useRef<number | null>(null);
-  const prevPositionsRef = useRef<OpenPosition[]>([]);
+  // True from the instant we call buyContract() until settlement is fully
+  // processed and the next stake is set. Blocks duplicate buys.
+  const roundActive = useRef(false);
+  // The contract we're waiting to see settle in openPositions.
+  const pendingContractId = useRef<number | null>(null);
+  // What stake the *next* buy should use — the proposal must match this
+  // before we're willing to buy against it.
+  const intendedStake = useRef<number>(DEFAULT_MARTINGALE_SETTINGS.baseStake);
 
-  // Reset when stopped
-  const stop = useCallback(() => {
+  const stop = useCallback((reason?: string) => {
     setIsRunning(false);
-    roundActiveRef.current = false;
-    lastContractIdRef.current = null;
+    roundActive.current = false;
+    pendingContractId.current = null;
+    if (reason) setStopReason(reason);
   }, []);
 
-  // Start automation
   const start = useCallback(() => {
-    if (!isAuthenticated || !isConnected) return;
-    setIsRunning(true);
+    setStopReason(null);
+    setNetProfit(0);
     setTradeCount(0);
-    setTotalProfit(0);
-    setLastResult(null);
-    intendedStakeRef.current = Number(stake) || 1;
-    roundActiveRef.current = false;
-    lastContractIdRef.current = null;
-    prevPositionsRef.current = [...openPositions];
-  }, [isAuthenticated, isConnected, stake, openPositions]);
+    setCurrentStake(settings.baseStake);
+    intendedStake.current = settings.baseStake;
+    roundActive.current = false;
+    pendingContractId.current = null;
+    setStake(String(settings.baseStake));
+    setIsRunning(true);
+  }, [settings.baseStake, setStake]);
 
-  // Main automation loop
+  // Auto-stop if connection drops or auth is lost mid-run.
+  useEffect(() => {
+    if (isRunning && (!isConnected || !isAuthenticated)) {
+      stop('Connection lost — automation stopped.');
+    }
+  }, [isConnected, isAuthenticated, isRunning, stop]);
+
+  // Fire the next buy once a live proposal actually reflects the intended stake.
   useEffect(() => {
     if (!isRunning) return;
+    if (roundActive.current) return;
+    if (isBuying) return;
+    if (!proposal) return;
+    if (Math.abs(proposal.askPrice - intendedStake.current) > 0.01) return;
 
-    const runLoop = async () => {
-      // Don't fire if a round is already active
-      if (roundActiveRef.current) return;
+    roundActive.current = true;
+    buyContract();
+  }, [isRunning, proposal, isBuying, buyContract]);
 
-      // Check if any open position just closed (settled)
-      const settled = openPositions.find(p => {
-        const wasOpen = prevPositionsRef.current.some(prev => prev.contract_id === p.contract_id);
-        return wasOpen && p.is_settled;
-      });
+  // Once the buy confirms, start watching that contract for settlement.
+  useEffect(() => {
+    if (!isRunning || !buyResult) return;
+    pendingContractId.current = buyResult.contractId;
+    setTradeCount((c) => c + 1);
+    clearBuyResult();
+  }, [buyResult, isRunning, clearBuyResult]);
 
-      if (settled) {
-        roundActiveRef.current = false;
-        const profit = Number(settled.profit) || 0;
-        const isWin = profit >= 0;
+  // A failed buy is treated as a hard stop rather than retried automatically.
+  useEffect(() => {
+    if (!isRunning || !buyError) return;
+    stop(`Trade failed: ${buyError}`);
+    clearBuyResult();
+  }, [buyError, isRunning, stop, clearBuyResult]);
 
-        setTotalProfit(prev => prev + profit);
-        setLastResult(isWin ? 'win' : 'loss');
-        setTradeCount(prev => prev + 1);
+  // Watch openPositions for the contract currently in flight to settle.
+  useEffect(() => {
+    if (!isRunning || pendingContractId.current === null) return;
+    const contractId = pendingContractId.current;
+    const position = openPositions.find((p) => p.contract_id === contractId);
+    if (!position) return;
 
-        if (isWin) {
-          // Reset to initial stake on win
-          intendedStakeRef.current = Number(stake) || 1;
-        } else {
-          // Double stake on loss (Martingale)
-          intendedStakeRef.current = Math.round(intendedStakeRef.current * 2 * 100) / 100;
-        }
+    const isClosed = !!position.is_sold || !!position.is_expired || position.status !== 'open';
+    if (!isClosed) return;
 
-        lastContractIdRef.current = null;
-      }
+    const profit = parseFloat(position.profit);
+    if (Number.isNaN(profit)) return;
 
-      // Fire next trade if no active position and proposal matches intended stake
-      const hasActivePosition = openPositions.some(p => !p.is_settled);
-      if (!hasActivePosition && !roundActiveRef.current) {
-        const currentAsk = proposal?.askPrice ?? 0;
-        const intended = Math.round(intendedStakeRef.current * 100) / 100;
+    pendingContractId.current = null;
 
-        // Only buy when proposal reflects the intended stake
-        if (currentAsk > 0 && Math.abs(currentAsk - intended) < 0.01) {
-          roundActiveRef.current = true;
-          try {
-            await buyContract();
-            setStake(intended.toFixed(2));
-          } catch {
-            roundActiveRef.current = false;
-          }
-        }
-      }
+    const nextNet = netProfit + profit;
+    setNetProfit(nextNet);
 
-      prevPositionsRef.current = [...openPositions];
-    };
+    if (settings.profitThreshold !== null && nextNet >= settings.profitThreshold) {
+      stop(`Profit target reached: +${nextNet.toFixed(2)} USD`);
+      return;
+    }
+    if (settings.lossThreshold !== null && nextNet <= -settings.lossThreshold) {
+      stop(`Loss limit reached: ${nextNet.toFixed(2)} USD`);
+      return;
+    }
 
-    const interval = setInterval(runLoop, 500);
-    return () => clearInterval(interval);
-  }, [isRunning, proposal, buyContract, openPositions, stake, setStake]);
+    const won = profit >= 0;
+    const nextStake = won ? settings.baseStake : parseFloat(stake) * settings.multiplier;
+
+    if (settings.maxStake !== null && nextStake > settings.maxStake) {
+      stop(`Next stake (${nextStake.toFixed(2)} USD) would exceed max stake (${settings.maxStake} USD)`);
+      return;
+    }
+
+    intendedStake.current = nextStake;
+    setCurrentStake(nextStake);
+    setStake(String(nextStake));
+    roundActive.current = false; // unblock the buy effect for the next round
+  }, [openPositions, isRunning, settings, stake, netProfit, setStake, stop]);
 
   return {
+    settings,
+    setSettings,
     isRunning,
     start,
     stop,
-    currentStake: intendedStakeRef.current,
+    netProfit,
     tradeCount,
-    totalProfit,
-    lastResult,
+    currentStake,
+    stopReason,
   };
 }
