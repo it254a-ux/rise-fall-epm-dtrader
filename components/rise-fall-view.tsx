@@ -15,6 +15,8 @@ import { TradeControls } from './trade-controls';
 import { AutomatedPanel } from '@/components/custom/automated-panel';
 import { TradeModeToggle } from '@/components/custom/trade-mode-toggle';
 import { useMartingaleAutomation } from '../hooks/use-martingale-automation';
+import type { MartingaleSettings, StrategyId } from '../hooks/use-martingale-automation';
+import type { StrategyProgram } from '@deriv/core';
 import type {
   AuthState,
   DerivAccount,
@@ -172,6 +174,26 @@ export function RiseFallView({
     }
     setTradeMode(mode);
   };
+  const handleSelectBot = (program: StrategyProgram) => {
+    if (automation.isRunning) {
+      automation.stop();
+    }
+    const strategyId: StrategyId = program.stakeRule.type === 'dalembert' ? 'dalembert' : 'martingale';
+    const nextSettings: MartingaleSettings = {
+      strategyId,
+      baseStake: program.baseStake,
+      multiplier: program.stakeRule.type === 'martingale' ? program.stakeRule.multiplier : 2,
+      stakeIncrement: program.stakeRule.type === 'dalembert' ? program.stakeRule.increment : 2,
+      maxStake: program.stakeRule.type !== 'fixed' ? program.stakeRule.maxStake ?? null : null,
+      profitThreshold: program.profitThreshold,
+      lossThreshold: program.lossThreshold,
+    };
+    automation.setSettings(nextSettings);
+    setDirection(program.direction);
+    setAllowEquals(program.allowEquals ?? allowEquals);
+    setTradeMode('automated');
+    setIsBotLibraryOpen(false);
+  };
 
   if (error) {
     return (
@@ -301,7 +323,11 @@ export function RiseFallView({
           <Footer />
         </div>
      </main>
-      <BotLibraryPanel open={isBotLibraryOpen} onClose={() => setIsBotLibraryOpen(false)} />
+      <BotLibraryPanel
+        open={isBotLibraryOpen}
+        onClose={() => setIsBotLibraryOpen(false)}
+        onSelectBot={handleSelectBot}
+      />
     </>
   );
 }
