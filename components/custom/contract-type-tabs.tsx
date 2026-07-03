@@ -13,7 +13,7 @@ interface ContractTab {
 
 const TABS: ContractTab[] = [
   { label: 'Rise/Fall', value: 'rise-fall' },
-  { label: 'Accumulators', value: 'accumulators', comingSoon: true },
+  { label: 'Accumulators', value: 'accumulators' },
   { label: 'Matches/Differs', value: 'matches-differs' },
   { label: 'Over/Under', value: 'over-under' },
   { label: 'Even/Odd', value: 'even-odd' },
