@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
+import { useIsMobile } from '@/hooks/use-is-mobile';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DigitTradePanel } from '@/components/custom/digit-trade-panel';
@@ -99,6 +100,7 @@ export function DigitsBody({
 }: DigitsBodyProps) {
   const [tradeMode, setTradeMode] = useState<'manual' | 'automated'>('manual');
   const isAuthenticated = authState === 'authenticated';
+  const isMobile = useIsMobile();
 
   const automation = useMartingaleAutomation({
     isConnected,
@@ -140,6 +142,7 @@ export function DigitsBody({
                 symbolKey="digits-chart"
                 symbol={activeSymbol?.underlying_symbol}
                 isConnectionOpened={isConnected}
+                isMobile={isMobile}
                 chartData={chartData}
                 getQuotes={getQuotes}
                 subscribeQuotes={subscribeQuotes}
