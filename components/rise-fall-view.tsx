@@ -7,6 +7,7 @@ import { Footer } from '@/components/custom/footer';
 import { Header } from '@/components/custom/header';
 import { Sidebar } from '@/components/custom/sidebar';
 import { ModeRail } from '@/components/custom/mode-rail';
+import { BotLibraryPanel } from '@/components/custom/bot-library-panel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import { useContractMarkers } from '@/hooks/use-contract-markers';
@@ -148,6 +149,7 @@ export function RiseFallView({
   const isMobile = useIsMobile();
   const contractMarkers = useContractMarkers(openPositions, activeSymbol?.underlying_symbol, isMobile);
   const [tradeMode, setTradeMode] = useState<'manual' | 'automated'>('manual');
+  const [isBotLibraryOpen, setIsBotLibraryOpen] = useState(false);
   const isAuthenticated = authState === 'authenticated';
 
   const automation = useMartingaleAutomation({
@@ -291,14 +293,15 @@ export function RiseFallView({
             </div>
 
             {/* Column 3: floating Manual/Automated rail (desktop only) */}
-            <ModeRail mode={tradeMode} onModeChange={handleModeChange} />
+            <ModeRail mode={tradeMode} onModeChange={handleModeChange} onOpenBotLibrary={() => setIsBotLibraryOpen(true)} />
           </div>
         </div>
 
         <div className="fixed bottom-0 left-0 lg:left-[72px] right-0 py-2 text-center bg-background/80 backdrop-blur-sm">
           <Footer />
         </div>
-      </main>
+     </main>
+      <BotLibraryPanel open={isBotLibraryOpen} onClose={() => setIsBotLibraryOpen(false)} />
     </>
   );
 }
