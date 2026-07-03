@@ -120,3 +120,21 @@ export interface ProposalParams {
   barrier?: number;
   dateExpiry?: number;
 }
+
+export type StakeRule =
+  | { type: 'martingale'; multiplier: number; maxStake?: number }
+  | { type: 'dalembert'; increment: number; maxStake?: number }
+  | { type: 'fixed' };
+
+export interface StrategyProgram {
+  id: string;
+  label: string;
+  baseStake: number;
+  stakeRule: StakeRule;
+  direction: 'CALL' | 'PUT';
+  allowEquals?: boolean;
+  duration: number;
+  durationUnit: string;
+  profitThreshold: number | null;
+  lossThreshold: number | null;
+}
