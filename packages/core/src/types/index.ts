@@ -9,7 +9,6 @@ export type {
   StoredCSRFToken,
   StoredCodeVerifier,
 } from './auth';
-
 export type {
   ActiveSymbol,
   Tick,
@@ -22,4 +21,6 @@ export type {
   BuyResponse,
   BuyResult,
   ProposalParams,
+  StakeRule,
+  StrategyProgram,
 } from './trading';
