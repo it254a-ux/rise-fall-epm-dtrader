@@ -5,10 +5,12 @@ import { useSmartChartsApi } from '@/hooks/use-smartcharts-api';
 import { useSmartChartChartData } from '@/hooks/use-smartchart-chart-data';
 import { useRiseFallTrading } from '../hooks/use-rise-fall-trading';
 import { useDigitsTrading } from '../hooks/use-digits-trading';
+import { useAccumulatorTrading } from '../hooks/use-accumulator-trading';
 import { useDerivWSContext } from '@/components/custom/deriv-ws-provider';
 import { useLogoSrc } from '@/components/custom/logo-src-provider';
 import { RiseFallView } from '../components/rise-fall-view';
 import { DigitsBody } from '../components/digits-body';
+import { AccumulatorsBody } from '../components/accumulators-body';
 import { Header } from '@/components/custom/header';
 import { Sidebar } from '@/components/custom/sidebar';
 import { Footer } from '@/components/custom/footer';
@@ -38,6 +40,17 @@ export default function RiseFallPage() {
     unsubscribeQuotes: digitsUnsubscribeQuotes,
   } = useSmartChartsApi(digits.ws);
 
+  // Accumulators connection — always instantiated alongside Rise/Fall and
+  // Digits under the same ws/auth context, so switching tabs never
+  // reconnects or reloads.
+  const accumulators = useAccumulatorTrading({ ws, isConnected, isExhausted, isAuthenticated, onAuthWSFailed: logout });
+  const { chartData: accumulatorsChartData } = useSmartChartChartData(accumulators.ws, accumulators.isConnected, accumulators.symbols);
+  const {
+    getQuotes: accumulatorsGetQuotes,
+    subscribeQuotes: accumulatorsSubscribeQuotes,
+    unsubscribeQuotes: accumulatorsUnsubscribeQuotes,
+  } = useSmartChartsApi(accumulators.ws);
+
   const isDigitsTab =
     activeTradeType === 'matches-differs' ||
     activeTradeType === 'over-under' ||
@@ -52,7 +65,7 @@ export default function RiseFallPage() {
     return (
       <>
         <Sidebar />
-        <main className="flex flex-col bg-background max-lg:h-dvh lg:overflow-visible lg:pl-[72px]">
+        <main className="flex flex-col bg-background max-lg:h-dvh max-lg:overflow-y-auto lg:overflow-visible lg:pl-[72px]">
           <Header
             authState={authState}
             accounts={accounts}
@@ -66,9 +79,34 @@ export default function RiseFallPage() {
             onSelectTradeType={setActiveTradeType}
           />
           <div className={authState === 'authenticated' ? 'h-[76px] shrink-0' : 'h-[66px] shrink-0'} />
-          <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-            Accumulators — coming soon
-          </div>
+          <AccumulatorsBody
+            ws={accumulators.ws}
+            isConnected={accumulators.isConnected}
+            isLoading={accumulators.isLoading}
+            activeSymbol={accumulators.activeSymbol}
+            selectSymbol={accumulators.selectSymbol}
+            growthRate={accumulators.growthRate}
+            setGrowthRate={accumulators.setGrowthRate}
+            growthRateOptions={accumulators.growthRateOptions}
+            stake={accumulators.stake}
+            setStake={accumulators.setStake}
+            takeProfit={accumulators.takeProfit}
+            setTakeProfit={accumulators.setTakeProfit}
+            proposal={accumulators.proposal}
+            buyContract={accumulators.buyContract}
+            isBuying={accumulators.isBuying}
+            buyResult={accumulators.buyResult}
+            buyError={accumulators.buyError}
+            clearBuyResult={accumulators.clearBuyResult}
+            openPositions={accumulators.openPositions}
+            sellContract={accumulators.sellContract}
+            sellingId={accumulators.sellingId}
+            isAuthenticated={authState === 'authenticated'}
+            chartData={accumulatorsChartData}
+            getQuotes={accumulatorsGetQuotes}
+            subscribeQuotes={accumulatorsSubscribeQuotes}
+            unsubscribeQuotes={accumulatorsUnsubscribeQuotes}
+          />
           <div className="fixed bottom-0 left-0 lg:left-[72px] right-0 py-2 text-center bg-background/80 backdrop-blur-sm">
             <Footer />
           </div>
