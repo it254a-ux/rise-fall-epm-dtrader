@@ -96,6 +96,7 @@ export default function RiseFallPage() {
           />
           <div className={authState === 'authenticated' ? 'h-[76px] shrink-0' : 'h-[66px] shrink-0'} />
           <DigitsBody
+            authState={authState}
             isConnected={digits.isConnected}
             isLoading={digits.isLoading}
             ws={digits.ws}
@@ -120,10 +121,12 @@ export default function RiseFallPage() {
             buyResult={digits.buyResult}
             buyError={digits.buyError}
             clearBuyResult={digits.clearBuyResult}
+            openPositions={digits.openPositions}
             chartData={digitsChartData}
             getQuotes={digitsGetQuotes}
             subscribeQuotes={digitsSubscribeQuotes}
             unsubscribeQuotes={digitsUnsubscribeQuotes}
+            onSelectTradeType={setActiveTradeType}
           />
           <div className="fixed bottom-0 left-0 lg:left-[72px] right-0 py-2 text-center bg-background/80 backdrop-blur-sm">
             <Footer />
