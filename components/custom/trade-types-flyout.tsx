@@ -19,9 +19,9 @@ const CATEGORIES = [
   {
     heading: 'Digit based',
     items: [
-      { label: 'Matches/Differs', value: 'matches-differs', fire: false, comingSoon: true },
-      { label: 'Over/Under', value: 'over-under', fire: false, comingSoon: true },
-      { label: 'Even/Odd', value: 'even-odd', fire: false, comingSoon: true },
+      { label: 'Matches/Differs', value: 'matches-differs', fire: false, comingSoon: false },
+      { label: 'Over/Under', value: 'over-under', fire: false, comingSoon: false },
+      { label: 'Even/Odd', value: 'even-odd', fire: false, comingSoon: false },
     ],
   },
 ];
