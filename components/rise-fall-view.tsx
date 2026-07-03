@@ -101,6 +101,10 @@ export interface RiseFallViewProps {
   // Branding (used by preview route; no-op in the real app)
   logoSrc?: string;
   appName?: string;
+
+  // Trade type tabs (shared header, controls which top-level screen renders)
+  activeTradeType?: string;
+  onSelectTradeType?: (type: string) => void;
 }
 
 export function RiseFallView({
@@ -147,6 +151,8 @@ export function RiseFallView({
   endEpoch,
   logoSrc,
   appName,
+  activeTradeType,
+  onSelectTradeType,
 }: RiseFallViewProps) {
   const isMobile = useIsMobile();
   const contractMarkers = useContractMarkers(openPositions, activeSymbol?.underlying_symbol, isMobile);
@@ -225,6 +231,8 @@ export function RiseFallView({
           onSwitchAccount={onSwitchAccount}
           logoSrc={logoSrc}
           appName={appName}
+          activeTradeType={activeTradeType}
+          onSelectTradeType={onSelectTradeType}
         />
         <div className={authState === 'authenticated' ? 'h-[76px] shrink-0' : 'h-[66px] shrink-0'} />
 
