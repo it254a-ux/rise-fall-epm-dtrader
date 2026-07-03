@@ -28,8 +28,15 @@ export default function RiseFallPage() {
 
   // Digits connection (Matches/Differs, Over/Under, Even/Odd) — always instantiated
   // alongside Rise/Fall under the same ws/auth context, so switching tabs never
-  // reconnects or reloads.
+  // reconnects or reloads. Its own chart data pipeline mirrors Rise/Fall's so
+  // DigitsBody can render the same RiseFallChart component.
   const digits = useDigitsTrading({ ws, isConnected, isExhausted, isAuthenticated, onAuthWSFailed: logout });
+  const { chartData: digitsChartData } = useSmartChartChartData(digits.ws, digits.isConnected, digits.symbols);
+  const {
+    getQuotes: digitsGetQuotes,
+    subscribeQuotes: digitsSubscribeQuotes,
+    unsubscribeQuotes: digitsUnsubscribeQuotes,
+  } = useSmartChartsApi(digits.ws);
 
   const isDigitsTab =
     activeTradeType === 'matches-differs' ||
@@ -91,13 +98,10 @@ export default function RiseFallPage() {
           <DigitsBody
             isConnected={digits.isConnected}
             isLoading={digits.isLoading}
-            symbols={digits.symbols}
+            ws={digits.ws}
             activeSymbol={digits.activeSymbol}
             selectSymbol={digits.selectSymbol}
-            currentTick={digits.currentTick}
-            lastDigit={digits.lastDigit}
             digitStats={digits.digitStats}
-            pipSize={digits.pipSize}
             tradeType={digits.tradeType}
             setTradeType={digits.setTradeType}
             contractMode={digits.contractMode}
@@ -116,7 +120,10 @@ export default function RiseFallPage() {
             buyResult={digits.buyResult}
             buyError={digits.buyError}
             clearBuyResult={digits.clearBuyResult}
-            isAuthenticated={authState === 'authenticated'}
+            chartData={digitsChartData}
+            getQuotes={digitsGetQuotes}
+            subscribeQuotes={digitsSubscribeQuotes}
+            unsubscribeQuotes={digitsUnsubscribeQuotes}
           />
           <div className="fixed bottom-0 left-0 lg:left-[72px] right-0 py-2 text-center bg-background/80 backdrop-blur-sm">
             <Footer />
