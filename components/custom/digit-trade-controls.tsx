@@ -170,3 +170,48 @@ export function DigitTradeControls({
         <p className="text-xs sm:text-sm font-medium">
           Last digit of the price will{' '}
           <span className="text-primary font-bold">{getPredictionText(contractMode)}</span>
+          {showDigitInPrediction(contractMode) && (
+            <>
+              {' '}
+              <span className="inline-flex w-5 h-5 rounded-full bg-primary text-primary-foreground items-center justify-center text-xs font-bold">
+                {selectedDigit}
+              </span>
+            </>
+          )}
+        </p>
+        {(proposal || isProposalLoading) && (
+          <div className="flex items-center justify-between pt-1 border-t border-border">
+            <span className="text-xs text-muted-foreground">Payout</span>
+            {isProposalLoading ? (
+              <Skeleton className="h-4 w-24" />
+            ) : (
+              <span className="text-sm font-bold text-foreground">
+                {proposal!.payout.toFixed(2)} USD
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="max-lg:fixed max-lg:bottom-[calc(env(safe-area-inset-bottom)+2.5rem)] max-lg:left-3 max-lg:right-3 lg:static">
+        <Button
+          className="w-full h-10 rounded-full px-6 sm:h-11 sm:px-8"
+          disabled={!isConnected || !proposal || isBuying}
+          onClick={onBuy}
+        >
+          {isBuying
+            ? 'Purchasing...'
+            : proposal
+              ? `Buy @ ${proposal.askPrice.toFixed(2)} USD`
+              : 'Buy Contract'}
+        </Button>
+      </div>
+
+      {isAuthenticated && (
+        <Button asChild variant="ghost" className="w-full text-sm text-muted-foreground hover:text-foreground">
+          <Link href="/positions">View your positions →</Link>
+        </Button>
+      )}
+    </div>
+  );
+}
