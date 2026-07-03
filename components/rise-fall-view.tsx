@@ -60,7 +60,7 @@ export interface RiseFallViewProps {
   allowEquals: boolean;
   setAllowEquals: (value: boolean) => void;
   stake: string;
-  setStake: (value: string) => void;
+  onStakeChange: (value: string) => void;
   duration: number;
   setDuration: (value: number) => void;
   durationOptions: DurationOption[];
@@ -119,7 +119,7 @@ export function RiseFallView({
   allowEquals,
   setAllowEquals,
   stake,
-  setStake,
+  onStakeChange,
   duration,
   setDuration,
   durationOptions,
@@ -158,7 +158,7 @@ export function RiseFallView({
     isConnected,
     isAuthenticated,
     stake,
-    setStake,
+    setStake: onStakeChange,
     proposal,
     buyContract,
     isBuying,
@@ -266,7 +266,7 @@ export function RiseFallView({
                         onAllowEqualsChange={setAllowEquals}
                         isConnected={isConnected}
                         stake={stake}
-                        onStakeChange={setStake}
+                        onStakeChange={onStakeChange}
                         duration={duration}
                         onDurationChange={setDuration}
                         durationOptions={durationOptions}
