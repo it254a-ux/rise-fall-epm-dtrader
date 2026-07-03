@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useIsMobile } from '@/hooks/use-is-mobile';
 import { DigitTradePanel } from '@/components/custom/digit-trade-panel';
 import type { ActiveSymbol, ProposalInfo, DurationLimits, BuyResult, DerivWS } from '@deriv/core';
 import type { ContractMode, TradeType, DigitStats } from '@/lib/digit-types';
@@ -77,6 +78,8 @@ export function DigitsBody({
   subscribeQuotes,
   unsubscribeQuotes,
 }: DigitsBodyProps) {
+  const isMobile = useIsMobile();
+
   return (
     <div className="flex w-full max-w-7xl mx-auto flex-col max-lg:px-0 max-lg:py-0 px-3 py-2 sm:px-4 sm:py-4 gap-2 sm:gap-3 max-lg:flex-1 max-lg:min-h-0 max-lg:overflow-hidden lg:flex-none lg:overflow-visible">
       <div className="max-lg:flex max-lg:flex-col max-lg:flex-1 max-lg:min-h-0 lg:grid lg:grid-cols-[1fr_400px] lg:gap-4">
@@ -88,6 +91,7 @@ export function DigitsBody({
                 symbolKey="digits-chart"
                 symbol={activeSymbol?.underlying_symbol}
                 isConnectionOpened={isConnected}
+                isMobile={isMobile}
                 chartData={chartData}
                 getQuotes={getQuotes}
                 subscribeQuotes={subscribeQuotes}
