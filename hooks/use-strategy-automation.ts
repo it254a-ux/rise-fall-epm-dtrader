@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { ProposalInfo, BuyResult, OpenPosition, StrategyProgram } from '@deriv/core';
+import type { ProposalInfo, BuyResult, StrategyProgram } from '@deriv/core';
+import type { OpenPosition } from '../lib/types';
 
 /** Computes the next stake after a settled trade, per the program's stake rule. */
 function computeNextStake(program: StrategyProgram, currentStake: number, won: boolean): number {
