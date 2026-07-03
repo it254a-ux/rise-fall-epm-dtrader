@@ -170,6 +170,8 @@ export default function RiseFallPage() {
       getQuotes={getQuotes}
       subscribeQuotes={subscribeQuotes}
       unsubscribeQuotes={unsubscribeQuotes}
+      activeTradeType={activeTradeType}
+      onSelectTradeType={setActiveTradeType}
     />
   );
 }
