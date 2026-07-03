@@ -16,9 +16,10 @@ function computeNextStake(program: StrategyProgram, currentStake: number, won: b
         : currentStake + stakeRule.increment;
     case 'fixed':
       return baseStake;
+    default:
+      return baseStake;
   }
 }
-
 function maxStakeFor(program: StrategyProgram): number | null {
   return program.stakeRule.type === 'fixed' ? null : program.stakeRule.maxStake ?? null;
 }
