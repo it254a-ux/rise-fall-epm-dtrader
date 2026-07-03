@@ -3,11 +3,27 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { ProposalInfo, BuyResult, OpenPosition } from '../lib/types';
 
+export type StrategyId = 'martingale' | 'dalembert';
+
+export interface StrategyDefinition {
+  id: StrategyId;
+  label: string;
+  description: string;
+}
+
+export const STRATEGIES: StrategyDefinition[] = [
+  { id: 'martingale', label: 'Martingale', description: 'Double stake after loss' },
+  { id: 'dalembert', label: "D'Alembert", description: 'Increase stake by a fixed unit after loss, decrease by the same unit after a win' },
+];
+
 export interface MartingaleSettings {
-  /** Starting stake for the first trade of a run, and what stake resets to after a win. */
+  strategyId: StrategyId;
+  /** Starting stake for the first trade of a run, and the floor stake never goes below. */
   baseStake: number;
-  /** Multiplier applied to the stake after a loss, e.g. 2 = double on loss. */
+  /** Martingale only — multiplier applied to the stake after a loss, e.g. 2 = double on loss. */
   multiplier: number;
+  /** D'Alembert only — fixed amount added after a loss / subtracted after a win. */
+  stakeIncrement: number;
   /** Hard ceiling — if the next required stake would exceed this, the run stops instead of placing it. Null = no cap. */
   maxStake: number | null;
   /** Stop once cumulative profit reaches +this amount. Null = no target. */
@@ -17,12 +33,26 @@ export interface MartingaleSettings {
 }
 
 export const DEFAULT_MARTINGALE_SETTINGS: MartingaleSettings = {
+  strategyId: 'martingale',
   baseStake: 10,
   multiplier: 2,
+  stakeIncrement: 2,
   maxStake: null,
   profitThreshold: 10,
   lossThreshold: 10,
 };
+
+/** Computes the next stake after a settled trade, per the selected strategy. */
+function computeNextStake(settings: MartingaleSettings, currentStake: number, won: boolean): number {
+  if (settings.strategyId === 'martingale') {
+    return won ? settings.baseStake : currentStake * settings.multiplier;
+  }
+  // D'Alembert: step down by the fixed increment on a win (never below baseStake),
+  // step up by the same increment on a loss.
+  return won
+    ? Math.max(settings.baseStake, currentStake - settings.stakeIncrement)
+    : currentStake + settings.stakeIncrement;
+}
 
 interface UseMartingaleAutomationParams {
   isConnected: boolean;
@@ -52,9 +82,10 @@ export interface UseMartingaleAutomationReturn {
 }
 
 /**
- * Runs a Martingale strategy on top of the existing manual trade primitives
- * (proposal/buyContract/openPositions) — it does not talk to the WebSocket
- * directly, only drives the same hooks TradeControls already uses.
+ * Runs an automated strategy (Martingale or D'Alembert) on top of the
+ * existing manual trade primitives (proposal/buyContract/openPositions) —
+ * it does not talk to the WebSocket directly, only drives the same hooks
+ * TradeControls already uses.
  *
  * Safety properties:
  * - Never fires a second buy while one is in flight or a contract is still
@@ -85,13 +116,8 @@ export function useMartingaleAutomation({
   const [currentStake, setCurrentStake] = useState(DEFAULT_MARTINGALE_SETTINGS.baseStake);
   const [stopReason, setStopReason] = useState<string | null>(null);
 
-  // True from the instant we call buyContract() until settlement is fully
-  // processed and the next stake is set. Blocks duplicate buys.
   const roundActive = useRef(false);
-  // The contract we're waiting to see settle in openPositions.
   const pendingContractId = useRef<number | null>(null);
-  // What stake the *next* buy should use — the proposal must match this
-  // before we're willing to buy against it.
   const intendedStake = useRef<number>(DEFAULT_MARTINGALE_SETTINGS.baseStake);
 
   const stop = useCallback((reason?: string) => {
@@ -113,7 +139,6 @@ export function useMartingaleAutomation({
     setIsRunning(true);
   }, [settings.baseStake, setStake]);
 
-  // Auto-stop if connection drops or auth is lost mid-run.
   useEffect(() => {
     if (isRunning && (!isConnected || !isAuthenticated)) {
       stop('Connection lost — automation stopped.');
@@ -132,7 +157,6 @@ export function useMartingaleAutomation({
     buyContract();
   }, [isRunning, proposal, isBuying, buyContract]);
 
-  // Once the buy confirms, start watching that contract for settlement.
   useEffect(() => {
     if (!isRunning || !buyResult) return;
     pendingContractId.current = buyResult.contractId;
@@ -140,7 +164,6 @@ export function useMartingaleAutomation({
     clearBuyResult();
   }, [buyResult, isRunning, clearBuyResult]);
 
-  // A failed buy is treated as a hard stop rather than retried automatically.
   useEffect(() => {
     if (!isRunning || !buyError) return;
     stop(`Trade failed: ${buyError}`);
@@ -175,7 +198,7 @@ export function useMartingaleAutomation({
     }
 
     const won = profit >= 0;
-    const nextStake = won ? settings.baseStake : parseFloat(stake) * settings.multiplier;
+    const nextStake = computeNextStake(settings, parseFloat(stake), won);
 
     if (settings.maxStake !== null && nextStake > settings.maxStake) {
       stop(`Next stake (${nextStake.toFixed(2)} USD) would exceed max stake (${settings.maxStake} USD)`);
@@ -185,7 +208,7 @@ export function useMartingaleAutomation({
     intendedStake.current = nextStake;
     setCurrentStake(nextStake);
     setStake(String(nextStake));
-    roundActive.current = false; // unblock the buy effect for the next round
+    roundActive.current = false;
   }, [openPositions, isRunning, settings, stake, netProfit, setStake, stop]);
 
   return {
