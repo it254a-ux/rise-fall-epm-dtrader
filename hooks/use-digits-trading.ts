@@ -22,6 +22,7 @@ import type { OpenPosition, ClosedPosition } from '../lib/types';
 const CONTRACT_TYPES = ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'];
 
 interface UseDigitsTradingReturn {
+  ws: ReturnType<typeof useBaseTrading>['ws'];
   isConnected: boolean;
   isLoading: boolean;
   error: string | null;
@@ -163,6 +164,7 @@ export function useDigitsTrading({ ws, isConnected, isExhausted, isAuthenticated
   }, [proposal, buyWithProposal]);
 
   return {
+    ws: tradingWs,
     isConnected,
     isLoading,
     error,
