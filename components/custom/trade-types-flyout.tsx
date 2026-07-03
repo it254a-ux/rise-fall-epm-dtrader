@@ -10,7 +10,7 @@ export interface TradeTypesFlyoutProps {
 const CATEGORIES = [
   {
     heading: 'Growth based',
-    items: [{ label: 'Accumulators', value: 'accumulators', fire: true, comingSoon: true }],
+    items: [{ label: 'Accumulators', value: 'accumulators', fire: true, comingSoon: false }],
   },
   {
     heading: 'Directional',
