@@ -38,7 +38,6 @@ export {
   parseLandingParams,
   resolveReferralViaProxy,
 } from './auth';
-
 // Types
 export type {
   AuthConfig,
@@ -61,17 +60,15 @@ export type {
   BuyResponse,
   BuyResult,
   ProposalParams,
+  StakeRule,
+  StrategyProgram,
 } from './types';
-
 // Config
 export { getAuthBaseUrl, getApiBaseUrl, getPublicWsUrl } from './config';
-
 // Utils
 export { pickDefaultSymbol } from './utils/pick-default-symbol';
-
 // WebSocket
 export { DerivWS } from './ws';
-
 // React Hooks
 export {
   useDerivWS,
