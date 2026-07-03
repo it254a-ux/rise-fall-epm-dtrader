@@ -1,195 +1,225 @@
-// components/custom/automated-panel.tsx
 'use client';
 
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { cn } from '@/lib/utils';
-import { Info } from 'lucide-react';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import type { Direction } from '@/lib/types';
+import type { MartingaleSettings, UseMartingaleAutomationReturn } from '@/hooks/use-martingale-automation';
 
 interface AutomatedPanelProps {
-  stake: string;
-  onStakeChange: (value: string) => void;
-  proposal: { askPrice: number } | null;
-  isRunning: boolean;
-  onRun: () => void;
-  onStop: () => void;
-  disabled?: boolean;
+  direction: Direction;
+  onDirectionChange: (direction: Direction) => void;
+  allowEquals: boolean;
+  onAllowEqualsChange: (value: boolean) => void;
+  isConnected: boolean;
+  isAuthenticated: boolean;
+  automation: UseMartingaleAutomationReturn;
 }
 
-export function AutomatedPanel({
-  stake,
-  onStakeChange,
-  proposal,
-  isRunning,
-  onRun,
-  onStop,
+function NumberField({
+  label,
+  value,
+  onChange,
+  suffix,
   disabled,
-}: AutomatedPanelProps) {
-  const [strategy, setStrategy] = useState<'martingale'>('martingale');
-  const [multiplier, setMultiplier] = useState(2);
-  const [maxStake, setMaxStake] = useState('500');
-  const [profitThreshold, setProfitThreshold] = useState('100');
-  const [lossThreshold, setLossThreshold] = useState('50');
-  const [allowEquals, setAllowEquals] = useState(false);
+  step = 1,
+}: {
+  label: string;
+  value: number | null;
+  onChange: (value: number | null) => void;
+  suffix?: string;
+  disabled?: boolean;
+  step?: number;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Input
+        type="number"
+        value={value ?? ''}
+        placeholder={value === null ? 'No limit' : undefined}
+        disabled={disabled}
+        step={step}
+        min={0}
+        onChange={(e) => {
+          const raw = e.target.value;
+          onChange(raw === '' ? null : parseFloat(raw));
+        }}
+        labelRight={suffix}
+      />
+    </div>
+  );
+}
 
-  const currentStake = (proposal?.askPrice ?? Number(stake)) || 0;
+/**
+ * Automated Rise/Fall panel — Martingale strategy builder. Renders in place
+ * of the old "Coming soon" placeholder when TradeModeToggle is set to
+ * 'automated'. Reuses direction/allowEquals from the parent (same as manual
+ * mode) and owns its own strategy settings + run state via the
+ * useMartingaleAutomation hook passed in as `automation`.
+ */
+export function AutomatedPanel({
+  direction,
+  onDirectionChange,
+  allowEquals,
+  onAllowEqualsChange,
+  isConnected,
+  isAuthenticated,
+  automation,
+}: AutomatedPanelProps) {
+  const { settings, setSettings, isRunning, start, stop, netProfit, tradeCount, currentStake, stopReason } = automation;
+
+  const updateSetting = <K extends keyof MartingaleSettings>(key: K, value: MartingaleSettings[K]) => {
+    setSettings({ ...settings, [key]: value });
+  };
+
+  const canStart = isConnected && isAuthenticated && settings.baseStake > 0 && !isRunning;
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Strategy selector */}
-      <div className="flex flex-col gap-2">
-        <Label className="text-xs font-medium text-muted-foreground">Strategy</Label>
-        <button
-          className="flex items-center justify-between w-full rounded-lg border border-border bg-background px-4 py-3 text-left hover:bg-accent/50 transition-colors"
-        >
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold text-foreground capitalize">{strategy}</span>
-            <span className="text-xs text-muted-foreground">Double stake after loss</span>
-          </div>
-          <span className="text-muted-foreground">›</span>
-        </button>
-      </div>
-
-      {/* Stake multiplier */}
-      <div className="flex flex-col gap-2">
-        <Label className="text-xs font-medium text-muted-foreground">Stake multiplier</Label>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 p-0"
-            onClick={() => setMultiplier(m => Math.max(1.5, m - 0.5))}
-            disabled={isRunning}
-          >−</Button>
-          <span className="flex-1 text-center text-sm font-semibold">x{multiplier}</span>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 p-0"
-            onClick={() => setMultiplier(m => Math.min(10, m + 0.5))}
-            disabled={isRunning}
-          >+</Button>
-        </div>
-      </div>
-
-      {/* Max stake */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-1">
-          <Label className="text-xs font-medium text-muted-foreground">Max. stake</Label>
-          <div className="group relative">
-            <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-48 rounded-lg bg-neutral-800 text-white text-xs px-3 py-2 shadow-lg z-10">
-              Maximum amount the bot will stake on any single trade
-            </div>
-          </div>
-        </div>
-        <Input
-          type="number"
-          value={maxStake}
-          onChange={e => setMaxStake(e.target.value)}
-          disabled={isRunning}
-          className="h-10"
-        />
-      </div>
-
-      {/* Duration & Initial stake (reused from manual) */}
-      <div className="flex flex-col gap-2">
-        <Label className="text-xs font-medium text-muted-foreground">Initial stake</Label>
-        <Input
-          type="number"
-          value={stake}
-          onChange={e => onStakeChange(e.target.value)}
-          disabled={isRunning}
-          className="h-10"
-        />
-        <p className="text-xs text-muted-foreground">
-          Current: {currentStake.toFixed(2)} USD
-        </p>
-      </div>
-
-      {/* Allow equals */}
-      <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium text-foreground">Allow equals</Label>
-        <Switch
-          checked={allowEquals}
-          onCheckedChange={setAllowEquals}
-          disabled={isRunning}
-        />
-      </div>
-
-      {/* Risk management section */}
-      <div className="flex flex-col gap-3 pt-2 border-t border-border">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Risk management</p>
-        
-        <div className="flex flex-col gap-2">
-          <Label className="text-xs font-medium text-muted-foreground">Profit threshold</Label>
-          <Input
-            type="number"
-            value={profitThreshold}
-            onChange={e => setProfitThreshold(e.target.value)}
-            disabled={isRunning}
-            className="h-10"
-            placeholder="Stop when profit reaches"
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label className="text-xs font-medium text-muted-foreground">Loss threshold</Label>
-          <Input
-            type="number"
-            value={lossThreshold}
-            onChange={e => setLossThreshold(e.target.value)}
-            disabled={isRunning}
-            className="h-10"
-            placeholder="Stop when loss reaches"
-          />
-        </div>
-      </div>
-
-      {/* Run/Stop button */}
-      <Button
-        onClick={isRunning ? onStop : onRun}
-        disabled={disabled || !stake || Number(stake) <= 0}
-        className={cn(
-          "w-full h-12 text-base font-semibold gap-2",
-          isRunning
-            ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-            : "bg-emerald-500 hover:bg-emerald-600 text-white"
-        )}
+    <div className="w-full space-y-3 lg:max-w-[400px] lg:space-y-4">
+      {/* Rise / Fall direction — shared with manual mode */}
+      <ToggleGroup
+        type="single"
+        value={direction}
+        disabled={isRunning}
+        onValueChange={(value) => {
+          if (value === 'CALL' || value === 'PUT') onDirectionChange(value);
+        }}
+        className="w-full gap-0 rounded-full bg-muted p-1"
       >
-        {isRunning ? (
-          <>
-            <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-            Stop
-          </>
-        ) : (
-          <>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <polygon points="4,2 14,8 4,14" />
-            </svg>
-            Run
-          </>
-        )}
-      </Button>
+        <ToggleGroupItem
+          value="CALL"
+          className="flex-1 rounded-full text-sm font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-green-600 data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
+        >
+          Rise
+        </ToggleGroupItem>
+        <ToggleGroupItem
+          value="PUT"
+          className="flex-1 rounded-full text-sm font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-destructive data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
+        >
+          Fall
+        </ToggleGroupItem>
+      </ToggleGroup>
 
-      {/* Status strip */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground pt-2">
-        <div className="flex items-center gap-2">
-          <span className={cn(
-            "h-2 w-2 rounded-full",
-            isRunning ? "bg-emerald-500 animate-pulse" : "bg-neutral-400"
-          )} />
-          <span>{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-          <span>{new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }).replace('GMT', 'GMT')}</span>
+      <NumberField
+        label="Initial stake"
+        value={settings.baseStake}
+        onChange={(v) => updateSetting('baseStake', v ?? 0)}
+        suffix="USD"
+        disabled={isRunning}
+        step={0.01}
+      />
+
+      <div className="flex items-center justify-between">
+        <Label htmlFor="allow-equals-auto" className="text-sm cursor-pointer">Allow equals</Label>
+        <Switch
+          id="allow-equals-auto"
+          checked={allowEquals}
+          disabled={isRunning}
+          onCheckedChange={onAllowEqualsChange}
+        />
+      </div>
+
+      <div className="pt-1 border-t border-border" />
+
+      <p className="text-sm font-semibold text-foreground">Strategy parameters</p>
+
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">Strategy</Label>
+        <div className="rounded-md border border-input bg-muted/30 px-3 py-2 text-sm font-medium">
+          Martingale
         </div>
-        <button className="hover:text-foreground transition-colors">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M4 6l4 4 4-4" />
-          </svg>
-        </button>
+      </div>
+
+      <NumberField
+        label="Stake multiplier"
+        value={settings.multiplier}
+        onChange={(v) => updateSetting('multiplier', v ?? 1)}
+        suffix="×"
+        disabled={isRunning}
+        step={0.1}
+      />
+
+      <NumberField
+        label="Max. stake"
+        value={settings.maxStake}
+        onChange={(v) => updateSetting('maxStake', v)}
+        suffix="USD"
+        disabled={isRunning}
+        step={0.01}
+      />
+
+      <p className="text-sm font-semibold text-foreground pt-1">Risk management</p>
+
+      <NumberField
+        label="Profit threshold"
+        value={settings.profitThreshold}
+        onChange={(v) => updateSetting('profitThreshold', v)}
+        suffix="USD"
+        disabled={isRunning}
+        step={0.01}
+      />
+
+      <NumberField
+        label="Loss threshold"
+        value={settings.lossThreshold}
+        onChange={(v) => updateSetting('lossThreshold', v)}
+        suffix="USD"
+        disabled={isRunning}
+        step={0.01}
+      />
+
+      {/* Live run status */}
+      {(isRunning || tradeCount > 0) && (
+        <div className="rounded-md border border-border bg-muted/30 px-3 py-2 space-y-1 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Trades this run</span>
+            <span className="font-medium">{tradeCount}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Net profit</span>
+            <span className={`font-medium ${netProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+              {netProfit >= 0 ? '+' : ''}
+              {netProfit.toFixed(2)} USD
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Current stake</span>
+            <span className="font-medium">{currentStake.toFixed(2)} USD</span>
+          </div>
+        </div>
+      )}
+
+      {stopReason && !isRunning && (
+        <p className="text-xs text-muted-foreground">{stopReason}</p>
+      )}
+
+      {!isAuthenticated && (
+        <p className="text-xs text-muted-foreground">Log in to run automated trading.</p>
+      )}
+
+      <div className="max-lg:fixed max-lg:bottom-[calc(env(safe-area-inset-bottom)+2.5rem)] max-lg:left-3 max-lg:right-3 lg:static">
+        {isRunning ? (
+          <Button
+            className="w-full rounded-full"
+            size="lg"
+            variant="destructive"
+            onClick={() => stop()}
+          >
+            Stop
+          </Button>
+        ) : (
+          <Button
+            className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground"
+            size="lg"
+            disabled={!canStart}
+            onClick={start}
+          >
+            Run
+          </Button>
+        )}
       </div>
     </div>
   );
