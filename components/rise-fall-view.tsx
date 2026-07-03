@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Footer } from '@/components/custom/footer';
 import { Header } from '@/components/custom/header';
 import { Sidebar } from '@/components/custom/sidebar';
-import { ThemeToggle } from '@/components/custom/theme-toggle';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import { useContractMarkers } from '@/hooks/use-contract-markers';
@@ -211,7 +210,6 @@ export function RiseFallView({
           onSwitchAccount={onSwitchAccount}
           logoSrc={logoSrc}
           appName={appName}
-          actions={<ThemeToggle />}
         />
         {/* Spacer to push content below fixed header — taller when authenticated (account bar visible) */}
         <div className={authState === 'authenticated' ? 'h-[76px] shrink-0' : 'h-[66px] shrink-0'} />
