@@ -1,10 +1,12 @@
 'use client';
 
 import { BOT_LIBRARY } from '@/lib/bots-library';
+import type { StrategyProgram } from '@deriv/core';
 
 interface BotLibraryPanelProps {
   open: boolean;
   onClose: () => void;
+  onSelectBot: (program: StrategyProgram) => void;
 }
 
 const RISK_COLORS: Record<string, string> = {
@@ -14,7 +16,7 @@ const RISK_COLORS: Record<string, string> = {
   Aggressive: 'text-red-500 bg-red-500/10',
 };
 
-export function BotLibraryPanel({ open, onClose }: BotLibraryPanelProps) {
+export function BotLibraryPanel({ open, onClose, onSelectBot }: BotLibraryPanelProps) {
   if (!open) return null;
 
   return (
@@ -41,9 +43,8 @@ export function BotLibraryPanel({ open, onClose }: BotLibraryPanelProps) {
               </div>
               <p className="text-sm text-muted-foreground">{bot.description}</p>
               <button
-                disabled
-                title="Coming in the next step"
-                className="mt-1 self-start rounded-md bg-foreground/10 text-muted-foreground px-3 py-1.5 text-sm cursor-not-allowed"
+                onClick={() => onSelectBot(bot.program)}
+                className="mt-1 self-start rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-sm hover:bg-primary/90"
               >
                 Use this bot
               </button>
