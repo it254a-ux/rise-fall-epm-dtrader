@@ -55,18 +55,6 @@ export function Header({
   return (
     <header className="fixed top-0 left-0 lg:left-[72px] right-0 z-50 flex items-center justify-between px-4 py-3 border-b bg-background/80 backdrop-blur-sm">
       <div className="flex items-center gap-3">
-        {!logoSrc || logoError ? (
-          <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
-            {logoLetter}
-          </div>
-        ) : (
-          <img
-            src={logoSrc}
-            alt="App Logo"
-            className="h-8 w-auto object-contain"
-            onError={() => setLogoError(true)}
-          />
-        )}
         <TradeTypesFlyout
           activeTradeType={activeTradeType}
           onSelectTradeType={onSelectTradeType ?? (() => {})}
