@@ -267,7 +267,7 @@ export function AccumulatorTradePanel({
           variant="ghost"
           className="w-full text-sm text-muted-foreground hover:text-foreground"
         >
-          <Link href="/positions">View your positions →</Link>
+          <Link href="/reports">View your positions →</Link>
         </Button>
       )}
     </div>
