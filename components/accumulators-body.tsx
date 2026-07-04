@@ -1,9 +1,14 @@
 'use client';
 
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AccumulatorTradePanel } from '@/components/custom/accumulator-trade-panel';
+import { AccumulatorAutomatedPanel } from '@/components/custom/accumulator-automated-panel';
+import { TradeModeToggle } from '@/components/custom/trade-mode-toggle';
+import { ModeRail } from '@/components/custom/mode-rail';
+import { useMartingaleAutomation } from '@/hooks/use-martingale-automation';
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import { useContractMarkers } from '@/hooks/use-contract-markers';
 import type { ChartBarrier } from '@/components/custom/smart-chart';
@@ -86,13 +91,43 @@ export function AccumulatorsBody({
 }: AccumulatorsBodyProps) {
   const isMobile = useIsMobile();
   const contractMarkers = useContractMarkers(openPositions, activeSymbol?.underlying_symbol, isMobile);
+  const [tradeMode, setTradeMode] = useState<'manual' | 'automated'>('manual');
+
+  const automation = useMartingaleAutomation({
+    isConnected,
+    isAuthenticated,
+    stake,
+    setStake,
+    proposal,
+    buyContract,
+    isBuying,
+    buyResult,
+    buyError,
+    clearBuyResult,
+    openPositions,
+  });
+
+  const handleModeChange = (mode: 'manual' | 'automated') => {
+    if (mode === 'manual' && automation.isRunning) {
+      automation.stop();
+    }
+    setTradeMode(mode);
+  };
+
+  // TODO(D6): BOT_LIBRARY currently only contains Rise/Fall-shaped programs
+  // (direction/duration/durationUnit, no growthRate/takeProfit fields), so
+  // there's nothing safe to apply to Accumulators yet. Wire this once
+  // accumulator bots exist in lib/bots-library.ts.
+  const handleOpenBotLibrary = () => {
+    // no-op for now — see TODO above
+  };
 
   // Accumulators only allow 1 trade at a time — find the active ACCU position for the current symbol
   const activeAccuPosition = openPositions.find(
     (p) => p.contract_type === 'ACCU' && p.underlying_symbol === activeSymbol?.underlying_symbol
   ) ?? null;
 
-  // Barrier color: blue (#008832) when tick is inside, red (#cc2e3d) when crossed.
+  // Barrier color: green when tick is inside, red when crossed.
   const barrierColor = proposal?.hasCrossedBarrier ? '#cc2e3d' : '#008832';
 
   // Use absolute barrier values (highBarrier/lowBarrier) which are already delayed
@@ -119,7 +154,7 @@ export function AccumulatorsBody({
 
   return (
     <div className="flex w-full max-w-7xl mx-auto flex-col max-lg:px-0 max-lg:py-0 px-3 py-2 sm:px-4 sm:py-4 gap-2 sm:gap-3 max-lg:flex-1 max-lg:min-h-0 max-lg:overflow-hidden lg:flex-none lg:overflow-visible">
-      <div className="max-lg:flex max-lg:flex-col max-lg:flex-1 max-lg:min-h-0 lg:grid lg:grid-cols-[1fr_400px] lg:gap-4">
+      <div className="max-lg:flex max-lg:flex-col max-lg:flex-1 max-lg:min-h-0 lg:grid lg:grid-cols-[1fr_400px_auto] lg:gap-4">
         {/* Column 1: Chart */}
         <div className="max-lg:shrink-0 flex flex-col gap-2 max-lg:px-3 max-lg:pb-2 pt-2 lg:py-0">
           <div className="max-lg:h-[45dvh] lg:h-[min(33.6rem,66vh)] lg:min-h-[384px]">
@@ -150,30 +185,48 @@ export function AccumulatorsBody({
           ) : (
             <Card className="lg:h-[min(33.6rem,66vh)] lg:min-h-[384px] lg:overflow-y-auto">
               <CardContent className="pt-4">
-                <AccumulatorTradePanel
-                  growthRate={growthRate}
-                  onGrowthRateChange={setGrowthRate}
-                  growthRateOptions={growthRateOptions}
-                  isConnected={isConnected}
-                  stake={stake}
-                  onStakeChange={setStake}
-                  takeProfit={takeProfit}
-                  onTakeProfitChange={setTakeProfit}
-                  proposal={proposal}
-                  onBuy={buyContract}
-                  isBuying={isBuying}
-                  buyResult={buyResult}
-                  buyError={buyError}
-                  onClearBuyResult={clearBuyResult}
-                  activePosition={activeAccuPosition}
-                  onClose={sellContract}
-                  isClosing={sellingId === activeAccuPosition?.contract_id}
-                  isAuthenticated={isAuthenticated}
-                />
+                <TradeModeToggle mode={tradeMode} onModeChange={handleModeChange} label="Accumulators" />
+
+                {tradeMode === 'manual' ? (
+                  <AccumulatorTradePanel
+                    growthRate={growthRate}
+                    onGrowthRateChange={setGrowthRate}
+                    growthRateOptions={growthRateOptions}
+                    isConnected={isConnected}
+                    stake={stake}
+                    onStakeChange={setStake}
+                    takeProfit={takeProfit}
+                    onTakeProfitChange={setTakeProfit}
+                    proposal={proposal}
+                    onBuy={buyContract}
+                    isBuying={isBuying}
+                    buyResult={buyResult}
+                    buyError={buyError}
+                    onClearBuyResult={clearBuyResult}
+                    activePosition={activeAccuPosition}
+                    onClose={sellContract}
+                    isClosing={sellingId === activeAccuPosition?.contract_id}
+                    isAuthenticated={isAuthenticated}
+                  />
+                ) : (
+                  <AccumulatorAutomatedPanel
+                    growthRate={growthRate}
+                    onGrowthRateChange={setGrowthRate}
+                    growthRateOptions={growthRateOptions}
+                    takeProfit={takeProfit}
+                    onTakeProfitChange={setTakeProfit}
+                    isConnected={isConnected}
+                    isAuthenticated={isAuthenticated}
+                    automation={automation}
+                  />
+                )}
               </CardContent>
             </Card>
           )}
         </div>
+
+        {/* Column 3: floating Manual/Automated rail (desktop only) */}
+        <ModeRail mode={tradeMode} onModeChange={handleModeChange} onOpenBotLibrary={handleOpenBotLibrary} />
       </div>
     </div>
   );
