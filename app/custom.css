@@ -12,7 +12,9 @@
    `em` units back to 10px in a single rule — no need to override dozens of
    individual properties.  `rem` units still resolve against the HTML root
    so those need a few targeted px overrides below.                         */
-#rise-fall-chart {
+#rise-fall-chart,
+#digits-chart,
+#accumulator-chart {
   font-size: 62.5%; /* 62.5% × 16px = 10px → matches Deriv's platform baseline */
 }
 
