@@ -38,7 +38,6 @@ const RiseFallChart = dynamic(() => import('./rise-fall-chart').then(m => m.Rise
 });
 
 export interface RiseFallViewProps {
-  // Auth
   authState: AuthState;
   accounts: DerivAccount[];
   activeAccount: DerivAccount | null;
@@ -46,18 +45,12 @@ export interface RiseFallViewProps {
   onSignUp: () => Promise<void>;
   onLogout: () => void;
   onSwitchAccount: (accountId: string) => Promise<void>;
-
-  // Connection / loading
   ws: DerivWS | null;
   isConnected: boolean;
   isLoading: boolean;
   error: string | null;
-
-  // Market data
   activeSymbol: ActiveSymbol | null;
   selectSymbol: (symbol: string) => void;
-
-  // Trade controls
   direction: Direction;
   setDirection: (direction: Direction) => void;
   allowEquals: boolean;
@@ -79,30 +72,17 @@ export interface RiseFallViewProps {
   buyResult: BuyResult | null;
   buyError: string | null;
   clearBuyResult: () => void;
-
-  // Positions
   openPositions: OpenPosition[];
   sellContract: (contractId: number, bidPrice: string) => Promise<void>;
   sellingId: number | null;
-
-  // Chart data (elevated to page so preview can inject frozen mocks)
   chartData: SmartChartChartData | undefined;
   getQuotes: UseSmartChartsApiReturn['getQuotes'];
   subscribeQuotes: UseSmartChartsApiReturn['subscribeQuotes'];
   unsubscribeQuotes: UseSmartChartsApiReturn['unsubscribeQuotes'];
-  /** Passed to SmartChart. Set to false for a frozen preview. Defaults to true. */
   isLive?: boolean;
-  /**
-   * Unix epoch (seconds) to freeze the chart at. When set, SmartCharts renders
-   * a static historical snapshot and never sets up a live subscription.
-   */
   endEpoch?: number;
-
-  // Branding (used by preview route; no-op in the real app)
   logoSrc?: string;
   appName?: string;
-
-  // Trade type tabs (shared header, controls which top-level screen renders)
   activeTradeType?: string;
   onSelectTradeType?: (type: string) => void;
 }
@@ -175,15 +155,12 @@ export function RiseFallView({
   });
 
   const handleModeChange = (mode: 'manual' | 'automated') => {
-    if (mode === 'manual' && automation.isRunning) {
-      automation.stop();
-    }
+    if (mode === 'manual' && automation.isRunning) automation.stop();
     setTradeMode(mode);
   };
+
   const handleSelectBot = (program: StrategyProgram) => {
-    if (automation.isRunning) {
-      automation.stop();
-    }
+    if (automation.isRunning) automation.stop();
     const strategyId: StrategyId = program.stakeRule.type === 'dalembert' ? 'dalembert' : 'martingale';
     const nextSettings: MartingaleSettings = {
       strategyId,
@@ -220,7 +197,10 @@ export function RiseFallView({
     <>
       <Sidebar />
 
-      <main className="flex flex-col bg-background max-lg:h-dvh lg:overflow-visible lg:pl-[72px]">
+      <main
+        className="flex flex-col bg-background min-h-dvh lg:pl-[72px]"
+        style={{ overflowX: 'hidden' }}
+      >
         <Header
           authState={authState}
           accounts={accounts}
@@ -236,15 +216,19 @@ export function RiseFallView({
         />
         <div className={authState === 'authenticated' ? 'h-[76px] shrink-0' : 'h-[66px] shrink-0'} />
 
-        <div className="flex w-full max-w-7xl mx-auto flex-col max-lg:px-0 max-lg:py-0 px-3 py-2 sm:px-4 sm:py-4 gap-2 sm:gap-3 max-lg:flex-1 max-lg:min-h-0 max-lg:overflow-hidden lg:flex-none lg:overflow-visible">
-          {/* Third column (lg:auto) holds the floating Manual/Automated rail,
-              positioned outside the trade panel card itself — matches the
-              reference site, where these icons sit at the page's far right
-              edge rather than inside the panel header. */}
-          <div className="max-lg:flex max-lg:flex-col max-lg:flex-1 max-lg:min-h-0 lg:grid lg:grid-cols-[1fr_400px_auto] lg:gap-4">
-            {/* Column 1: Chart */}
-            <div className="max-lg:shrink-0 flex flex-col gap-2 max-lg:px-3 max-lg:pb-2 pt-2 lg:py-0">
-              <div className="max-lg:h-[45dvh] lg:h-[min(33.6rem,66vh)] lg:min-h-[384px]">
+        {/* Page content — scrolls naturally on mobile */}
+        <div className="flex w-full max-w-7xl mx-auto flex-col px-3 py-2 sm:px-4 sm:py-4 gap-2 sm:gap-3 pb-6">
+          <div className="flex flex-col lg:grid lg:grid-cols-[1fr_400px_auto] lg:gap-4">
+
+            {/* Column 1: Chart — touch-action:pan-y lets vertical swipes scroll the page */}
+            <div className="flex flex-col gap-2 px-0 pt-2 lg:py-0">
+              <div
+                className="lg:h-[min(33.6rem,66vh)] lg:min-h-[384px]"
+                style={{
+                  height: isMobile ? '260px' : undefined,
+                  touchAction: 'pan-y',
+                }}
+              >
                 {chartData ? (
                   <RiseFallChart
                     symbolKey="rise-fall-chart"
@@ -266,18 +250,14 @@ export function RiseFallView({
               </div>
             </div>
 
-            {/* Column 2: Trade controls in a Card */}
-            <div className="max-lg:flex-1 max-lg:min-h-0 max-lg:overflow-y-auto max-lg:overscroll-contain max-lg:px-3 max-lg:border-t max-lg:border-border max-lg:pt-3 max-lg:pb-28 lg:pt-0 flex flex-col gap-3">
+            {/* Column 2: Trade controls */}
+            <div className="flex flex-col gap-3 pt-3 lg:pt-0 border-t border-border lg:border-0">
               {isLoading ? (
-                <Skeleton className="lg:h-[min(33.6rem,66vh)] lg:min-h-[384px] max-lg:h-48 w-full rounded-xl" />
+                <Skeleton className="lg:h-[min(33.6rem,66vh)] lg:min-h-[384px] h-48 w-full rounded-xl" />
               ) : (
                 <Card className="lg:h-[min(33.6rem,66vh)] lg:min-h-[384px] lg:overflow-y-auto">
-                  <CardContent className="pt-4">
-                    {/* Breadcrumb header — shown in both manual and automated
-                        mode, matching the reference site. The actual mode
-                        switch lives in ModeRail, not here. */}
+                  <CardContent className="pt-4 pb-6">
                     <TradeModeToggle mode={tradeMode} onModeChange={handleModeChange} />
-
                     {tradeMode === 'manual' ? (
                       <TradeControls
                         direction={direction}
@@ -322,15 +302,21 @@ export function RiseFallView({
               )}
             </div>
 
-            {/* Column 3: floating Manual/Automated rail (desktop only) */}
-            <ModeRail mode={tradeMode} onModeChange={handleModeChange} onOpenBotLibrary={() => setIsBotLibraryOpen(true)} />
+            {/* Column 3: mode rail (desktop only) */}
+            <ModeRail
+              mode={tradeMode}
+              onModeChange={handleModeChange}
+              onOpenBotLibrary={() => setIsBotLibraryOpen(true)}
+            />
           </div>
         </div>
 
-        <div className="fixed bottom-0 left-0 lg:left-[72px] right-0 py-2 text-center bg-background/80 backdrop-blur-sm">
+        {/* Footer — inline, not fixed */}
+        <div className="py-3 text-center">
           <Footer />
         </div>
-     </main>
+      </main>
+
       <BotLibraryPanel
         open={isBotLibraryOpen}
         onClose={() => setIsBotLibraryOpen(false)}
