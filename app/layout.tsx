@@ -10,12 +10,14 @@ import '@/app/globals.css';
 import './globals.css';
 import '@deriv-com/smartcharts-champion/dist/smartcharts.css';
 import './custom.css';
+
 const ibmPlexSans = IBM_Plex_Sans({
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700'],
   variable: '--font-ibm-plex-sans',
   display: 'swap',
 });
+
 export function generateMetadata(): Metadata {
   const faviconUri = buildFaviconUri();
   return {
@@ -24,15 +26,17 @@ export function generateMetadata(): Metadata {
     ...(faviconUri ? { icons: { icon: faviconUri } } : {}),
   };
 }
+
 const fontClass =
   FONT_CLASS_MAP[process.env.NEXT_PUBLIC_FONT_FAMILY ?? 'Inter'] ??
   inter.className;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const logoSrc = getLogoSrc();
   return (
-    <html lang="en" className="h-full lg:h-auto" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <body
-        className={`${fontClass} ${ibmPlexSans.variable} bg-background flex min-h-dvh flex-col overflow-hidden max-lg:h-dvh max-lg:overflow-hidden lg:block lg:h-auto lg:min-h-screen lg:overflow-x-hidden lg:overflow-y-auto`}
+        className={`${fontClass} ${ibmPlexSans.variable} bg-background flex min-h-dvh flex-col overflow-x-hidden lg:block lg:h-auto lg:min-h-screen lg:overflow-y-auto`}
       >
         <KeepAlive />
         <TemplateLayout>
