@@ -136,7 +136,13 @@ export function DigitsBody({
       <div className="max-lg:flex max-lg:flex-col max-lg:flex-1 max-lg:min-h-0 lg:grid lg:grid-cols-[1fr_400px_auto] lg:gap-4">
         {/* Column 1: Chart — same component as Rise/Fall, fed by the digits connection */}
         <div className="max-lg:shrink-0 flex flex-col gap-2 max-lg:px-3 max-lg:pb-2 pt-2 lg:py-0">
-          <div className="max-lg:h-[45dvh] lg:h-[min(33.6rem,66vh)] lg:min-h-[384px]">
+          <div
+            className="lg:h-[min(33.6rem,66vh)] lg:min-h-[384px]"
+            style={{
+              height: isMobile ? '260px' : undefined,
+              touchAction: 'pan-y',
+            }}
+          >
             {chartData ? (
               <RiseFallChart
                 symbolKey="digits-chart"
