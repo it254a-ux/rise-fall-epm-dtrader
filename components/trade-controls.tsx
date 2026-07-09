@@ -201,8 +201,10 @@ export function TradeControls({
         )}
       </div>
 
-      {/* Buy button — inline on desktop, fixed above footer on mobile */}
-      <div className="max-lg:fixed max-lg:bottom-[calc(env(safe-area-inset-bottom)+2.5rem)] max-lg:left-3 max-lg:right-3 lg:static">
+      {/* Buy button — sits inline in normal page flow on all screen sizes,
+          so it never floats over other content (e.g. the "View your
+          positions" link below) on mobile. */}
+      <div className="w-full">
         <Button
           className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground"
           size="lg"
