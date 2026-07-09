@@ -267,7 +267,7 @@ export function AutomationControls({
         <p className="text-xs text-muted-foreground">Log in to run automated trading.</p>
       )}
 
-      <div className="max-lg:fixed max-lg:bottom-[calc(env(safe-area-inset-bottom)+2.5rem)] max-lg:left-3 max-lg:right-3 lg:static">
+      <div className="w-full">
         {isRunning ? (
           <Button className="w-full rounded-full" size="lg" variant="destructive" onClick={() => stop()}>
             Stop
