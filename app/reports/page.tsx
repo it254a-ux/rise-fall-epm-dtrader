@@ -56,7 +56,7 @@ export default function ReportsPage() {
       {/* Spacer to push content below fixed header — authenticated users have a taller header */}
       <div className="h-[76px] shrink-0" />
 
-      <div className="flex-1 w-full max-w-7xl mx-auto px-3 py-4 sm:px-4 sm:py-6 pb-14">
+      <div className="flex-1 w-full max-w-7xl mx-auto px-3 py-4 sm:px-4 sm:py-6 max-lg:pb-20 lg:pb-14 overflow-x-hidden">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4">
           <span className="text-base leading-none">←</span>
           <span>Back</span>
@@ -73,7 +73,8 @@ export default function ReportsPage() {
         />
       </div>
 
-      {/* Fixed footer */}
+      {/* Fixed footer — the pb-20 above reserves enough space so it never
+          overlaps the last row of the positions table on mobile. */}
       <div className="fixed bottom-0 left-0 right-0 py-2 text-center bg-background/80 backdrop-blur-sm">
         <Footer />
       </div>
