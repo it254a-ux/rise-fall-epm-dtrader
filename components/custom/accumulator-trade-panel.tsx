@@ -28,13 +28,9 @@ interface AccumulatorTradePanelProps {
   buyResult: BuyResult | null;
   buyError: string | null;
   onClearBuyResult: () => void;
-  /** The currently active accumulator position (only 1 allowed at a time). */
   activePosition?: OpenPosition | null;
-  /** Callback to sell/close the active position. */
   onClose?: (contractId: number, bidPrice: string) => void;
-  /** Whether the close/sell action is in progress. */
   isClosing?: boolean;
-  /** Whether the user is authenticated — shows the View your positions link when true. */
   isAuthenticated?: boolean;
 }
 
@@ -76,6 +72,7 @@ export function AccumulatorTradePanel({
 
   return (
     <div className="w-full space-y-3 lg:max-w-[400px] lg:space-y-4">
+
       {/* Growth Rate selector */}
       <div className="space-y-1.5">
         <div className="flex items-center gap-1.5">
@@ -131,25 +128,9 @@ export function AccumulatorTradePanel({
         />
       </div>
 
-      {/* Take Profit (optional) */}
+      {/* Take Profit */}
       <div className="space-y-1.5">
-        <div className="flex items-center gap-1.5">
-          <Label htmlFor="accu-take-profit" className="text-xs text-muted-foreground">Take profit</Label>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-muted-foreground/40 text-[10px] text-muted-foreground">
-                  i
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-[200px]">
-                <p className="text-xs">
-                  The contract closes automatically when your profit reaches this amount. Leave empty for no limit.
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
+        <Label htmlFor="accu-take-profit" className="text-xs text-muted-foreground">Take profit</Label>
         <Input
           id="accu-take-profit"
           type="number"
@@ -165,61 +146,33 @@ export function AccumulatorTradePanel({
         />
       </div>
 
-      {/* Contract info summary — skeleton while waiting for proposal */}
-      {!proposal && !activePosition && (
-        <div className="space-y-2.5 rounded-md border border-border bg-muted/30 p-3 animate-pulse">
-          <div className="flex items-center justify-between">
-            <div className="h-3 w-20 rounded bg-muted-foreground/20" />
-            <div className="h-3 w-16 rounded bg-muted-foreground/20" />
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="h-3 w-14 rounded bg-muted-foreground/20" />
-            <div className="h-3 w-12 rounded bg-muted-foreground/20" />
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="h-3 w-24 rounded bg-muted-foreground/20" />
-            <div className="h-3 w-14 rounded bg-muted-foreground/20" />
-          </div>
-        </div>
-      )}
-
-      {/* Contract info summary */}
+      {/* Proposal info */}
       {proposal && !activePosition && (
-        <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-3 text-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Max. payout</span>
-            <span className="font-medium">{proposal.maxPayout.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span>
+        <div className="rounded-lg bg-muted/50 px-3 py-2 space-y-1 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Max payout</span>
+            <span className="font-medium">{proposal.maxPayout.toFixed(2)} USD</span>
           </div>
-          {proposal.barrierPercentage && (
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Barrier</span>
-              <span className="font-medium">{proposal.barrierPercentage}</span>
-            </div>
-          )}
-          {proposal.maxTicks > 0 && (
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Max. duration</span>
-              <span className="font-medium">{proposal.maxTicks} ticks</span>
-            </div>
-          )}
         </div>
       )}
 
-      {/* Active position summary — shown when a trade is running */}
+      {/* Active position info */}
       {activePosition && (
-        <div className="space-y-1.5 rounded-md border border-border bg-muted/30 p-3 text-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Stake</span>
-            <span className="font-medium">{parseFloat(activePosition.buy_price).toFixed(2)} {activePosition.currency}</span>
+        <div className="rounded-lg bg-muted/50 px-3 py-2 space-y-1 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Current value</span>
+            <span className="font-medium">
+              {(parseFloat(activePosition.buy_price) + parseFloat(activePosition.profit)).toFixed(2)} {activePosition.currency}
+            </span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Current P&L</span>
-            <span className={`font-medium ${parseFloat(activePosition.profit) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Profit / Loss</span>
+            <span className={parseFloat(activePosition.profit) >= 0 ? 'font-medium text-green-600' : 'font-medium text-destructive'}>
               {parseFloat(activePosition.profit) >= 0 ? '+' : ''}{parseFloat(activePosition.profit).toFixed(2)} {activePosition.currency}
             </span>
           </div>
-          <div className="flex items-center justify-between border-t border-border pt-1.5">
-            <span className="text-muted-foreground font-medium">Total return</span>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Total return</span>
             <span className="font-semibold">
               {(parseFloat(activePosition.buy_price) + parseFloat(activePosition.profit)).toFixed(2)} {activePosition.currency}
             </span>
@@ -227,8 +180,10 @@ export function AccumulatorTradePanel({
         </div>
       )}
 
-      {/* Buy / Close button — inline on desktop, fixed above footer on mobile */}
-      <div className="max-lg:fixed max-lg:bottom-[calc(env(safe-area-inset-bottom)+2.5rem)] max-lg:left-3 max-lg:right-3 lg:static">
+      {/* Buy / Close button — always inline in the normal page flow on all
+          screen sizes so it never floats over the "View your positions" link
+          or any other content below it on mobile. */}
+      <div className="w-full">
         {!activePosition && (
           <Button
             className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground"
@@ -250,7 +205,7 @@ export function AccumulatorTradePanel({
           >
             {isClosing ? 'Closing...' : (
               <span className="flex flex-col items-center leading-tight gap-0.5">
-                <span>Close </span>
+                <span>Close</span>
                 <span className="text-xs font-normal opacity-90">
                   {(parseFloat(activePosition.buy_price) + parseFloat(activePosition.profit)).toFixed(2)} {activePosition.currency}
                 </span>
@@ -270,6 +225,7 @@ export function AccumulatorTradePanel({
           <Link href="/reports">View your positions →</Link>
         </Button>
       )}
+
     </div>
   );
 }
