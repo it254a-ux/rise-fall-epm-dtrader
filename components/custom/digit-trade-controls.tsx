@@ -193,7 +193,7 @@ export function DigitTradeControls({
         )}
       </div>
 
-      <div className="max-lg:fixed max-lg:bottom-[calc(env(safe-area-inset-bottom)+2.5rem)] max-lg:left-3 max-lg:right-3 lg:static">
+      <div className="w-full">
         <Button
           className="w-full h-10 rounded-full px-6 sm:h-11 sm:px-8"
           disabled={!isConnected || !proposal || isBuying}
