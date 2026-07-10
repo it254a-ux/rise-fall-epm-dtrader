@@ -114,25 +114,16 @@ export function AccumulatorsBody({
     setTradeMode(mode);
   };
 
-  // TODO(D6): BOT_LIBRARY currently only contains Rise/Fall-shaped programs
-  // (direction/duration/durationUnit, no growthRate/takeProfit fields), so
-  // there's nothing safe to apply to Accumulators yet. Wire this once
-  // accumulator bots exist in lib/bots-library.ts.
   const handleOpenBotLibrary = () => {
-    // no-op for now — see TODO above
+    // no-op for now
   };
 
-  // Accumulators only allow 1 trade at a time — find the active ACCU position for the current symbol
   const activeAccuPosition = openPositions.find(
     (p) => p.contract_type === 'ACCU' && p.underlying_symbol === activeSymbol?.underlying_symbol
   ) ?? null;
 
-  // Barrier color: green when tick is inside, red when crossed.
   const barrierColor = proposal?.hasCrossedBarrier ? '#cc2e3d' : '#008832';
 
-  // Use absolute barrier values (highBarrier/lowBarrier) which are already delayed
-  // by one tick in the proposal hook via prevBarriersRef. This positions barriers
-  // at the PREVIOUS tick's level rather than tracking the current spot.
   const chartBarriers: ChartBarrier[] =
     proposal?.highBarrier && proposal?.lowBarrier
       ? [
@@ -155,11 +146,15 @@ export function AccumulatorsBody({
   return (
     <div className="flex w-full max-w-7xl mx-auto flex-col px-3 py-2 sm:px-4 sm:py-4 gap-2 sm:gap-3 max-lg:pb-32 lg:pb-6">
       <div className="flex flex-col lg:grid lg:grid-cols-[1fr_400px_auto] lg:gap-4">
+
         {/* Column 1: Chart */}
         <div className="flex flex-col gap-2 px-0 pt-2 lg:py-0">
           <div
-            className="h-[70vh] min-h-[420px] max-h-[640px] lg:h-[min(33.6rem,66vh)] lg:min-h-[384px] lg:max-h-none"
-            style={{ touchAction: 'pan-y' }}
+            className="lg:h-[min(33.6rem,66vh)] lg:min-h-[384px]"
+            style={{
+              height: isMobile ? '360px' : undefined,
+              touchAction: 'pan-y',
+            }}
           >
             {chartData ? (
               <AccumulatorChart
@@ -181,7 +176,7 @@ export function AccumulatorsBody({
           </div>
         </div>
 
-        {/* Column 2: Trade panel in a Card */}
+        {/* Column 2: Trade panel */}
         <div className="flex flex-col gap-3 pt-3 lg:pt-0 border-t border-border lg:border-0">
           {isLoading ? (
             <Skeleton className="lg:h-[min(33.6rem,66vh)] lg:min-h-[384px] h-48 w-full rounded-xl" />
@@ -228,7 +223,7 @@ export function AccumulatorsBody({
           )}
         </div>
 
-        {/* Column 3: floating Manual/Automated rail (desktop only) */}
+        {/* Column 3: Mode rail (desktop only) */}
         <ModeRail mode={tradeMode} onModeChange={handleModeChange} onOpenBotLibrary={handleOpenBotLibrary} />
       </div>
     </div>
