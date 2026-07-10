@@ -87,14 +87,12 @@ export function useDigitsTrading({ ws, isConnected, isExhausted, isAuthenticated
     clearSellError,
   } = useBaseTrading({ ws, isConnected, isExhausted, isAuthenticated, onAuthWSFailed, contractTypes: CONTRACT_TYPES });
 
-  // Digits-specific trade state
   const [tradeType, setTradeTypeRaw] = useState<TradeType>('matches-differs');
   const [contractMode, setContractMode] = useState<ContractMode>('DIGITMATCH');
   const [selectedDigit, setSelectedDigit] = useState<number>(5);
   const [stake, setStake] = useState<string>('10');
   const [duration, setDuration] = useState<number>(5);
 
-  // Reset contract mode to the first option of the selected trade type
   const setTradeType = useCallback((type: TradeType) => {
     setTradeTypeRaw(type);
     switch (type) {
@@ -110,20 +108,24 @@ export function useDigitsTrading({ ws, isConnected, isExhausted, isAuthenticated
     }
   }, []);
 
+  // Extract the raw quote number from the tick object.
+  // This is a primitive (number), so React detects it changed on every new tick
+  // even if @deriv/core reuses the same object/array reference internally.
+  const tickQuote = currentTick?.quote ?? null;
+
+  // tickQuote as an extra dep ensures digitStats recomputes on every new tick,
+  // not just when the prices array reference changes.
   const digitStats: DigitStats = useMemo(
     () => computeDigitStats(prices, pipSize),
-    [prices, pipSize]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [prices, pipSize, tickQuote]
   );
 
   const lastDigit = useMemo(() => {
-    if (currentTick) {
-      return getLastDigit(currentTick.quote, pipSize);
-    }
-    if (prices.length > 0) {
-      return getLastDigit(prices[prices.length - 1], pipSize);
-    }
+    if (tickQuote != null) return getLastDigit(tickQuote, pipSize);
+    if (prices.length > 0) return getLastDigit(prices[prices.length - 1], pipSize);
     return null;
-  }, [currentTick, prices, pipSize]);
+  }, [tickQuote, prices, pipSize]);
 
   const {
     buyContract: buyWithProposal,
@@ -133,9 +135,6 @@ export function useDigitsTrading({ ws, isConnected, isExhausted, isAuthenticated
     clearBuyResult,
   } = useBuy(tradingWs, tradingIsConnected);
 
-  // Null out params while a buy is in-flight — forces useProposal to unsubscribe
-  // the consumed proposal ID. When isBuying flips back to false, the memo returns
-  // real params and useProposal re-subscribes to get a fresh proposal.
   const proposalParams: ProposalParams | null = useMemo(() => {
     if (isBuying || !activeSymbol) return null;
     const stakeNum = parseFloat(stake);
@@ -165,7 +164,7 @@ export function useDigitsTrading({ ws, isConnected, isExhausted, isAuthenticated
 
   return {
     ws: tradingWs,
-    isConnected,
+    isConnected: tradingIsConnected,
     isLoading,
     error,
     symbols,
@@ -190,7 +189,7 @@ export function useDigitsTrading({ ws, isConnected, isExhausted, isAuthenticated
     durationLimits,
     defaultStake,
     proposal,
-    isProposalLoading: isConnected && proposalParams !== null && proposal === null,
+    isProposalLoading: tradingIsConnected && proposalParams !== null && proposal === null,
     buyContract,
     isBuying,
     buyResult,
