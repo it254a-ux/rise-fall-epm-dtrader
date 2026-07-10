@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   useProposal,
   useBuy,
@@ -20,6 +20,7 @@ import type { ContractMode, TradeType, DigitStats } from '@/lib/digit-types';
 import type { OpenPosition, ClosedPosition } from '../lib/types';
 
 const CONTRACT_TYPES = ['DIGITMATCH', 'DIGITDIFF', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD'];
+const MAX_PRICES = 1000;
 
 interface UseDigitsTradingReturn {
   ws: ReturnType<typeof useBaseTrading>['ws'];
@@ -73,8 +74,7 @@ export function useDigitsTrading({ ws, isConnected, isExhausted, isAuthenticated
     symbols,
     activeSymbol,
     selectSymbol,
-    currentTick,
-    prices,
+    prices: basePrices,
     pipSize,
     contractsAvailable,
     durationLimits,
@@ -108,24 +108,58 @@ export function useDigitsTrading({ ws, isConnected, isExhausted, isAuthenticated
     }
   }, []);
 
-  // Extract the raw quote number from the tick object.
-  // This is a primitive (number), so React detects it changed on every new tick
-  // even if @deriv/core reuses the same object/array reference internally.
-  const tickQuote = currentTick?.quote ?? null;
+  const [ownPrices, setOwnPrices] = useState<number[]>([]);
+  const [ownCurrentTick, setOwnCurrentTick] = useState<Tick | null>(null);
+  const historySeededRef = useRef(false);
 
-  // tickQuote as an extra dep ensures digitStats recomputes on every new tick,
-  // not just when the prices array reference changes.
+  useEffect(() => {
+    if (!historySeededRef.current && basePrices.length > 0) {
+      historySeededRef.current = true;
+      setOwnPrices(basePrices.slice(-MAX_PRICES));
+    }
+  }, [basePrices]);
+
+  const activeSymbolKey = activeSymbol?.underlying_symbol ?? null;
+  useEffect(() => {
+    historySeededRef.current = false;
+    setOwnPrices([]);
+    setOwnCurrentTick(null);
+  }, [activeSymbolKey]);
+
+  useEffect(() => {
+    if (!tradingWs || !tradingIsConnected || !activeSymbol) return;
+    const symbol = activeSymbol.underlying_symbol;
+    return tradingWs.onMessage((data: Record<string, unknown>) => {
+      if (data.msg_type !== 'tick') return;
+      const raw = data.tick as Record<string, unknown> | undefined;
+      if (
+        !raw ||
+        typeof raw.symbol !== 'string' ||
+        typeof raw.quote !== 'number' ||
+        !isFinite(raw.quote) ||
+        raw.symbol !== symbol
+      ) return;
+      const newTick = { quote: raw.quote, epoch: raw.epoch as number } as unknown as Tick;
+      setOwnCurrentTick(newTick);
+      setOwnPrices(prev => {
+        const updated = [...prev, raw.quote];
+        return updated.length > MAX_PRICES
+          ? updated.slice(updated.length - MAX_PRICES)
+          : updated;
+      });
+    });
+  }, [tradingWs, tradingIsConnected, activeSymbol]);
+
   const digitStats: DigitStats = useMemo(
-    () => computeDigitStats(prices, pipSize),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [prices, pipSize, tickQuote]
+    () => computeDigitStats(ownPrices, pipSize),
+    [ownPrices, pipSize]
   );
 
   const lastDigit = useMemo(() => {
-    if (tickQuote != null) return getLastDigit(tickQuote, pipSize);
-    if (prices.length > 0) return getLastDigit(prices[prices.length - 1], pipSize);
+    if (ownCurrentTick != null) return getLastDigit(ownCurrentTick.quote, pipSize);
+    if (ownPrices.length > 0) return getLastDigit(ownPrices[ownPrices.length - 1], pipSize);
     return null;
-  }, [tickQuote, prices, pipSize]);
+  }, [ownCurrentTick, ownPrices, pipSize]);
 
   const {
     buyContract: buyWithProposal,
@@ -139,9 +173,7 @@ export function useDigitsTrading({ ws, isConnected, isExhausted, isAuthenticated
     if (isBuying || !activeSymbol) return null;
     const stakeNum = parseFloat(stake);
     if (!stakeNum || stakeNum <= 0) return null;
-
     const needsBarrier = contractMode !== 'DIGITEVEN' && contractMode !== 'DIGITODD';
-
     return {
       contractType: contractMode,
       symbol: activeSymbol.underlying_symbol,
@@ -170,10 +202,10 @@ export function useDigitsTrading({ ws, isConnected, isExhausted, isAuthenticated
     symbols,
     activeSymbol,
     selectSymbol,
-    currentTick,
+    currentTick: ownCurrentTick,
     lastDigit,
     digitStats,
-    prices,
+    prices: ownPrices,
     pipSize,
     tradeType,
     setTradeType,
