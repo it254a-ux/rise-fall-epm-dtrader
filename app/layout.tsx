@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { IBM_Plex_Sans } from 'next/font/google';
 import { buildFaviconUri } from '@/lib/build-favicon-uri';
 import { getLogoSrc } from '@/lib/get-logo-src';
@@ -26,6 +26,12 @@ export function generateMetadata(): Metadata {
     ...(faviconUri ? { icons: { icon: faviconUri } } : {}),
   };
 }
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+};
 
 const fontClass =
   FONT_CLASS_MAP[process.env.NEXT_PUBLIC_FONT_FAMILY ?? 'Inter'] ??
