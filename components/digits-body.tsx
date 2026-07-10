@@ -132,10 +132,10 @@ export function DigitsBody({
   };
 
   return (
-    <div className="flex w-full max-w-7xl mx-auto flex-col max-lg:px-0 max-lg:py-0 px-3 py-2 sm:px-4 sm:py-4 gap-2 sm:gap-3 max-lg:flex-1 max-lg:min-h-0 max-lg:overflow-hidden lg:flex-none lg:overflow-visible">
-      <div className="max-lg:flex max-lg:flex-col max-lg:flex-1 max-lg:min-h-0 lg:grid lg:grid-cols-[1fr_400px_auto] lg:gap-4">
+    <div className="flex w-full max-w-7xl mx-auto flex-col px-3 py-2 sm:px-4 sm:py-4 gap-2 sm:gap-3 max-lg:pb-32 lg:pb-6">
+      <div className="flex flex-col lg:grid lg:grid-cols-[1fr_400px_auto] lg:gap-4">
         {/* Column 1: Chart — same component as Rise/Fall, fed by the digits connection */}
-        <div className="max-lg:shrink-0 flex flex-col gap-2 max-lg:px-3 max-lg:pb-2 pt-2 lg:py-0">
+        <div className="flex flex-col gap-2 px-0 pt-2 lg:py-0">
           <div
             className="h-[70vh] min-h-[420px] max-h-[640px] lg:h-[min(33.6rem,66vh)] lg:min-h-[384px] lg:max-h-none"
             style={{ touchAction: 'pan-y' }}
@@ -160,9 +160,9 @@ export function DigitsBody({
         </div>
 
         {/* Column 2: Trade panel in a Card, matching Rise/Fall's panel shape */}
-        <div className="max-lg:flex-1 max-lg:min-h-0 max-lg:overflow-y-auto max-lg:overscroll-contain max-lg:px-3 max-lg:border-t max-lg:border-border max-lg:pt-3 max-lg:pb-28 lg:pt-0 flex flex-col gap-3">
+        <div className="flex flex-col gap-3 pt-3 lg:pt-0 border-t border-border lg:border-0">
           {isLoading ? (
-            <Skeleton className="lg:h-[min(33.6rem,66vh)] lg:min-h-[384px] max-lg:h-48 w-full rounded-xl" />
+            <Skeleton className="lg:h-[min(33.6rem,66vh)] lg:min-h-[384px] h-48 w-full rounded-xl" />
           ) : (
             <Card className="lg:h-[min(33.6rem,66vh)] lg:min-h-[384px] lg:overflow-y-auto">
               <CardContent className="pt-4">
