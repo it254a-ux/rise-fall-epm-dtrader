@@ -2,12 +2,12 @@
 
 import { useEffect } from 'react';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { DigitStatsBar } from '@/components/custom/digit-stats-bar';
 import type { DurationLimits, ProposalInfo, BuyResult } from '@deriv/core';
 import type { ContractMode, TradeType, DigitStats } from '@/lib/digit-types';
 
@@ -111,8 +111,6 @@ export function DigitTradePanel({
   }, [buyResult, onClearBuyResult]);
 
   const modeOptions = CONTRACT_MODE_OPTIONS[tradeType];
-  const maxPct = Math.max(...digitStats.percentages);
-  const minPct = Math.min(...digitStats.percentages);
 
   return (
     <div className="w-full space-y-3 lg:max-w-[400px] lg:space-y-4">
@@ -136,39 +134,12 @@ export function DigitTradePanel({
       </ToggleGroup>
 
       {showDigitGrid(tradeType) && (
-        <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground">Last digit prediction</Label>
-          <div className="grid grid-cols-5 gap-1.5">
-            {digitStats.percentages.map((pct, digit) => {
-              const isSelected = digit === selectedDigit;
-              const isHighest = digitStats.totalTicks > 0 && pct === maxPct;
-              const isLowest = digitStats.totalTicks > 0 && pct === minPct;
-              return (
-                <div key={digit} className="flex flex-col items-center gap-1">
-                  <Button
-                    variant={isSelected ? 'default' : 'outline'}
-                    onClick={() => onSelectedDigitChange(digit)}
-                    className={cn(
-                      'w-10 h-10 text-sm font-semibold rounded-lg p-0',
-                      !isSelected && 'bg-muted/50 border-muted-foreground/20'
-                    )}
-                  >
-                    {digit}
-                  </Button>
-                  <span
-                    className={cn(
-                      'text-[10px] font-mono',
-                      isHighest && 'text-green-500 font-semibold',
-                      isLowest && 'text-red-500 font-semibold',
-                      !isHighest && !isLowest && 'text-muted-foreground'
-                    )}
-                  >
-                    {pct.toFixed(1)}%
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+        <div className="h-40 sm:h-48">
+          <DigitStatsBar
+            digitStats={digitStats}
+            selectedDigit={selectedDigit}
+            onDigitSelect={onSelectedDigitChange}
+          />
         </div>
       )}
 
