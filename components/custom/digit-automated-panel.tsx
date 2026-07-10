@@ -1,9 +1,9 @@
 'use client';
 
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { AutomationControls, NumberField } from '@/components/custom/automation-controls';
+import { DigitStatsBar } from '@/components/custom/digit-stats-bar';
 import type { UseMartingaleAutomationReturn } from '@/hooks/use-martingale-automation';
 import type { ContractMode, TradeType, DigitStats } from '@/lib/digit-types';
 
@@ -40,7 +40,7 @@ function showDigitGrid(tradeType: TradeType): boolean {
 
 /**
  * Automated panel for digit contracts (Matches/Differs, Over/Under, Even/Odd).
- * The contract-mode toggle, digit-prediction grid, and Initial stake field are
+ * The contract-mode toggle, digit-prediction rings, and Initial stake field are
  * digit-specific; everything from the divider down is the same
  * AutomationControls block used by Rise/Fall's AutomatedPanel.
  */
@@ -62,8 +62,6 @@ export function DigitAutomatedPanel({
   };
 
   const modeOptions = CONTRACT_MODE_OPTIONS[tradeType];
-  const maxPct = Math.max(...digitStats.percentages);
-  const minPct = Math.min(...digitStats.percentages);
 
   return (
     <div className="w-full space-y-3 lg:max-w-[400px] lg:space-y-4">
@@ -88,40 +86,12 @@ export function DigitAutomatedPanel({
       </ToggleGroup>
 
       {showDigitGrid(tradeType) && (
-        <div className="space-y-2">
-          <span className="text-xs text-muted-foreground">Last digit prediction</span>
-          <div className="grid grid-cols-5 gap-1.5">
-            {digitStats.percentages.map((pct, digit) => {
-              const isSelected = digit === selectedDigit;
-              const isHighest = digitStats.totalTicks > 0 && pct === maxPct;
-              const isLowest = digitStats.totalTicks > 0 && pct === minPct;
-              return (
-                <div key={digit} className="flex flex-col items-center gap-1">
-                  <Button
-                    variant={isSelected ? 'default' : 'outline'}
-                    disabled={isRunning}
-                    onClick={() => onSelectedDigitChange(digit)}
-                    className={cn(
-                      'w-10 h-10 text-sm font-semibold rounded-lg p-0',
-                      !isSelected && 'bg-muted/50 border-muted-foreground/20'
-                    )}
-                  >
-                    {digit}
-                  </Button>
-                  <span
-                    className={cn(
-                      'text-[10px] font-mono',
-                      isHighest && 'text-green-500 font-semibold',
-                      isLowest && 'text-red-500 font-semibold',
-                      !isHighest && !isLowest && 'text-muted-foreground'
-                    )}
-                  >
-                    {pct.toFixed(1)}%
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+        <div className="h-40 sm:h-48">
+          <DigitStatsBar
+            digitStats={digitStats}
+            selectedDigit={selectedDigit}
+            onDigitSelect={onSelectedDigitChange}
+          />
         </div>
       )}
 
