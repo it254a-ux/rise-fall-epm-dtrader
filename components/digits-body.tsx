@@ -37,6 +37,7 @@ export interface DigitsBodyProps {
   activeSymbol: ActiveSymbol | null;
   selectSymbol: (symbol: string) => void;
   digitStats: DigitStats;
+  lastDigit: number | null;
   tradeType: TradeType;
   setTradeType: (type: TradeType) => void;
   contractMode: ContractMode;
@@ -75,6 +76,7 @@ export function DigitsBody({
   activeSymbol,
   selectSymbol,
   digitStats,
+  lastDigit,
   tradeType,
   contractMode,
   setContractMode,
@@ -178,6 +180,7 @@ export function DigitsBody({
                     contractMode={contractMode}
                     onContractModeChange={setContractMode}
                     digitStats={digitStats}
+                    lastDigit={lastDigit}
                     selectedDigit={selectedDigit}
                     onSelectedDigitChange={setSelectedDigit}
                     isConnected={isConnected}
@@ -200,6 +203,7 @@ export function DigitsBody({
                     contractMode={contractMode}
                     onContractModeChange={setContractMode}
                     digitStats={digitStats}
+                    lastDigit={lastDigit}
                     selectedDigit={selectedDigit}
                     onSelectedDigitChange={setSelectedDigit}
                     isConnected={isConnected}
