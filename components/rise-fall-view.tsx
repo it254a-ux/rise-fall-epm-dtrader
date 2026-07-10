@@ -224,7 +224,7 @@ export function RiseFallView({
               <div
                 className="lg:h-[min(33.6rem,66vh)] lg:min-h-[384px]"
                 style={{
-                  height: isMobile ? '260px' : undefined,
+                  height: isMobile ? '420px' : undefined,
                   touchAction: 'pan-y',
                 }}
               >
