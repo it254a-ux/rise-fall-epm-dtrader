@@ -35,7 +35,6 @@ export interface AccumulatorsBodyProps {
   isLoading: boolean;
   activeSymbol: ActiveSymbol | null;
   selectSymbol: (symbol: string) => void;
-
   growthRate: GrowthRate;
   setGrowthRate: (rate: GrowthRate) => void;
   growthRateOptions: { value: number; label: string }[];
@@ -49,13 +48,10 @@ export interface AccumulatorsBodyProps {
   buyResult: BuyResult | null;
   buyError: string | null;
   clearBuyResult: () => void;
-
   openPositions: OpenPosition[];
   sellContract: (contractId: number, bidPrice: string) => Promise<void>;
   sellingId: number | null;
-
   isAuthenticated: boolean;
-
   chartData: SmartChartChartData | undefined;
   getQuotes: UseSmartChartsApiReturn['getQuotes'];
   subscribeQuotes: UseSmartChartsApiReturn['subscribeQuotes'];
@@ -114,9 +110,7 @@ export function AccumulatorsBody({
     setTradeMode(mode);
   };
 
-  const handleOpenBotLibrary = () => {
-    // no-op for now
-  };
+  const handleOpenBotLibrary = () => {};
 
   const activeAccuPosition = openPositions.find(
     (p) => p.contract_type === 'ACCU' && p.underlying_symbol === activeSymbol?.underlying_symbol
@@ -152,7 +146,7 @@ export function AccumulatorsBody({
           <div
             className="lg:h-[min(33.6rem,66vh)] lg:min-h-[384px]"
             style={{
-              height: isMobile ? '360px' : undefined,
+              height: isMobile ? 'calc(100dvh - 150px)' : undefined,
               touchAction: 'pan-y',
             }}
           >
@@ -184,7 +178,6 @@ export function AccumulatorsBody({
             <Card className="lg:h-[min(33.6rem,66vh)] lg:min-h-[384px] lg:overflow-y-auto">
               <CardContent className="pt-4">
                 <TradeModeToggle mode={tradeMode} onModeChange={handleModeChange} label="Accumulators" />
-
                 {tradeMode === 'manual' ? (
                   <AccumulatorTradePanel
                     growthRate={growthRate}
