@@ -1,6 +1,5 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { AutomationControls, NumberField } from '@/components/custom/automation-controls';
 import { DigitStatsBar } from '@/components/custom/digit-stats-bar';
@@ -12,6 +11,7 @@ interface DigitAutomatedPanelProps {
   contractMode: ContractMode;
   onContractModeChange: (mode: ContractMode) => void;
   digitStats: DigitStats;
+  lastDigit: number | null;
   selectedDigit: number;
   onSelectedDigitChange: (digit: number) => void;
   isConnected: boolean;
@@ -49,6 +49,7 @@ export function DigitAutomatedPanel({
   contractMode,
   onContractModeChange,
   digitStats,
+  lastDigit,
   selectedDigit,
   onSelectedDigitChange,
   isConnected,
@@ -91,6 +92,7 @@ export function DigitAutomatedPanel({
             digitStats={digitStats}
             selectedDigit={selectedDigit}
             onDigitSelect={onSelectedDigitChange}
+            lastDigit={lastDigit}
           />
         </div>
       )}
