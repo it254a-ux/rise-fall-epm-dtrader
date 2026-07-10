@@ -16,6 +16,7 @@ interface DigitTradePanelProps {
   contractMode: ContractMode;
   onContractModeChange: (mode: ContractMode) => void;
   digitStats: DigitStats;
+  lastDigit: number | null;
   selectedDigit: number;
   onSelectedDigitChange: (digit: number) => void;
   isConnected: boolean;
@@ -78,6 +79,7 @@ export function DigitTradePanel({
   contractMode,
   onContractModeChange,
   digitStats,
+  lastDigit,
   selectedDigit,
   onSelectedDigitChange,
   isConnected,
@@ -139,6 +141,7 @@ export function DigitTradePanel({
             digitStats={digitStats}
             selectedDigit={selectedDigit}
             onDigitSelect={onSelectedDigitChange}
+            lastDigit={lastDigit}
           />
         </div>
       )}
