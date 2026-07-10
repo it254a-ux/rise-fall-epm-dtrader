@@ -216,13 +216,13 @@ export function RiseFallView({
         {/* Page content — scrolls naturally on mobile. Bottom padding on mobile
             reserves space so the fixed Buy button and footer never cover the
             last elements (e.g. "View your positions" link). */}
-        <div className="flex w-full max-w-7xl mx-auto flex-col px-3 py-2 sm:px-4 sm:py-4 gap-2 sm:gap-3 max-lg:pb-32 lg:pb-6">
+        <div className="flex w-full max-w-7xl mx-auto flex-col px-3 py-2 sm:px-4 sm:py-4 gap-4 sm:gap-3 max-lg:pb-32 lg:pb-6">
           <div className="flex flex-col lg:grid lg:grid-cols-[1fr_400px_auto] lg:gap-4">
 
             {/* Column 1: Chart — touch-action:pan-y lets vertical swipes scroll the page */}
             <div className="flex flex-col gap-2 px-0 pt-2 lg:py-0">
               <div
-                className="h-[45vh] min-h-[280px] max-h-[420px] lg:h-[min(33.6rem,66vh)] lg:min-h-[384px] lg:max-h-none"
+                className="h-[70vh] min-h-[420px] max-h-[640px] lg:h-[min(33.6rem,66vh)] lg:min-h-[384px] lg:max-h-none"
                 style={{ touchAction: 'pan-y' }}
               >
                 {chartData ? (
