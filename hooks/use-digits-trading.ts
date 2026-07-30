@@ -139,10 +139,16 @@ export function useDigitsTrading({ ws, isConnected, isExhausted, isAuthenticated
         !isFinite(raw.quote) ||
         raw.symbol !== symbol
       ) return;
-      const newTick = { quote: raw.quote, epoch: raw.epoch as number } as unknown as Tick;
+      // Capture the already-verified number in its own const. TypeScript's
+      // narrowing from the `typeof raw.quote !== 'number'` check above does
+      // not carry into the setOwnPrices closure below (a separate nested
+      // function), so re-reading raw.quote there loses the `number` type.
+      // Using this local `quote` const keeps the type intact everywhere.
+      const quote: number = raw.quote;
+      const newTick: Tick = { quote, epoch: raw.epoch as number } as unknown as Tick;
       setOwnCurrentTick(newTick);
       setOwnPrices(prev => {
-        const updated = [...prev, raw.quote];
+        const updated = [...prev, quote];
         return updated.length > MAX_PRICES
           ? updated.slice(updated.length - MAX_PRICES)
           : updated;
