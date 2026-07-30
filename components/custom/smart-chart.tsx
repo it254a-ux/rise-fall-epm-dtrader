@@ -147,6 +147,40 @@ export function SmartChartWrapper({
     };
   }, []);
 
+  // Belt-and-suspenders JS companion to the CSS rule in custom.css.
+  //
+  // Flutter web injects an <flt-glass-pane> element that captures ALL pointer
+  // input at the browser engine level — including vertical scroll — regardless
+  // of any CSS pointer-events rules set on parent React elements. The CSS fix
+  // (flt-glass-pane { touch-action: pan-y }) handles this at parse time, but
+  // some Android WebViews apply inline element styles lazily, creating a brief
+  // gap where the glass pane still blocks scroll. This MutationObserver fires
+  // the instant Flutter injects the element and immediately applies touchAction
+  // via JS, closing that gap and guaranteeing smooth scroll from the first touch.
+  useEffect(() => {
+    const applyScrollFix = (el: HTMLElement) => {
+      el.style.touchAction = 'pan-y';
+    };
+
+    // Glass pane may already exist if Flutter initialized very quickly
+    const existing = document.querySelector('flt-glass-pane') as HTMLElement | null;
+    if (existing) {
+      applyScrollFix(existing);
+      return;
+    }
+
+    // Watch for Flutter to inject the glass pane into the DOM
+    const observer = new MutationObserver(() => {
+      const pane = document.querySelector('flt-glass-pane') as HTMLElement | null;
+      if (pane) {
+        applyScrollFix(pane);
+        observer.disconnect();
+      }
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
   const { resolvedTheme } = useTheme();
   const chartTheme =
     (resolvedTheme ?? (document.documentElement.classList.contains('dark') ? 'dark' : 'light')) === 'dark'
