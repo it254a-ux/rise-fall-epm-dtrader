@@ -63,7 +63,13 @@ export default function RiseFallPage() {
   if (activeTradeType === 'accumulators') {
     return (
       <>
-        <main className="flex flex-col bg-background max-lg:h-dvh max-lg:overflow-y-auto lg:overflow-visible">
+        <main
+          className="flex flex-col bg-background max-lg:h-dvh max-lg:overflow-y-auto lg:overflow-visible"
+          style={{
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehavior: 'contain',
+          }}
+        >
           <Header
             authState={authState}
             accounts={accounts}
@@ -116,7 +122,13 @@ export default function RiseFallPage() {
   if (isDigitsTab) {
     return (
       <>
-        <main className="flex flex-col bg-background max-lg:h-dvh max-lg:overflow-y-auto lg:overflow-visible">
+        <main
+          className="flex flex-col bg-background max-lg:h-dvh max-lg:overflow-y-auto lg:overflow-visible"
+          style={{
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehavior: 'contain',
+          }}
+        >
           <Header
             authState={authState}
             accounts={accounts}
