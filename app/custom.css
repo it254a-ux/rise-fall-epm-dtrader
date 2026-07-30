@@ -96,3 +96,20 @@
     padding: 0;
   }
 }
+
+/* ── Flutter glass-pane scroll fix ─────────────────────────────────────────
+   SmartCharts runs on Flutter web, which injects an <flt-glass-pane> element
+   inside the chart container. This glass pane captures ALL pointer input —
+   including vertical scroll swipes — at the browser engine level, before any
+   CSS pointer-events rules on parent elements can act. As a result, page
+   scroll feels locked for however long Flutter takes to initialize, even
+   though buttons and other UI outside the chart respond normally the whole time.
+
+   Setting touch-action: pan-y directly on the glass pane tells the browser
+   compositor to handle vertical panning natively and immediately, completely
+   bypassing Flutter's event capture. This restores smooth page scroll from
+   the very first touch, with no delay. Horizontal chart interactions remain
+   available through the chart's toolbar buttons on mobile. */
+flt-glass-pane {
+  touch-action: pan-y !important;
+}
