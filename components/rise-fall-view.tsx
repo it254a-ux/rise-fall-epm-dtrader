@@ -196,7 +196,11 @@ export function RiseFallView({
     <>
       <main
         className="flex flex-col bg-background max-lg:h-dvh max-lg:overflow-y-auto lg:min-h-dvh lg:overflow-visible"
-        style={{ overflowX: 'hidden' }}
+        style={{
+          overflowX: 'hidden',
+          WebkitOverflowScrolling: 'touch',
+          overscrollBehavior: 'contain',
+        }}
       >
         <Header
           authState={authState}
