@@ -99,7 +99,7 @@ export function useAccumulatorAutomation({
     }
   }, [isConnected, isAuthenticated, isRunning, stop]);
 
-  // Trigger a new buy when no round is active
+  // Trigger a new buy only when no round is active
   useEffect(() => {
     if (!isRunning) return;
     if (roundActive.current) return;
@@ -138,10 +138,15 @@ export function useAccumulatorAutomation({
     if (!isRunning || pendingContractId.current === null) return;
     const contractId = pendingContractId.current;
     const position = openPositions.find((p) => p.contract_id === contractId);
+
+    // Contract not yet visible in positions — still waiting
     if (!position) return;
 
-    const isClosed =
-      !!position.is_sold || !!position.is_expired || position.status !== 'open';
+    // FIX: Only use is_sold / is_expired to detect closure.
+    // Do NOT use position.status — it may be undefined or a non-'open' string
+    // on active accumulators, which would falsely trigger a re-buy while the
+    // contract is still running (causes "too many open positions" error).
+    const isClosed = !!position.is_sold || !!position.is_expired;
 
     if (isClosed) {
       const profit = parseFloat(position.profit);
@@ -181,17 +186,16 @@ export function useAccumulatorAutomation({
         return undefined;
       })();
 
-      // Log every update so you can confirm data is flowing and see actual field names.
       console.log('[accumulator-bot] tick check', {
         contractId,
         tickCount,
         target: settings.ticksToHold,
-        pos,
+        is_sold: position.is_sold,
+        is_expired: position.is_expired,
       });
 
-      // NOTE: is_valid_to_sell is intentionally NOT checked here.
-      // For accumulators it stays 0 during the growth window, which would
-      // permanently block selling. Accumulators are always sellable while open.
+      // NOTE: is_valid_to_sell intentionally not checked — stays 0 during the
+      // accumulation window and would permanently block selling.
       if (typeof tickCount === 'number' && tickCount >= settings.ticksToHold) {
         console.log('[accumulator-bot] SELLING at tick', tickCount, contractId);
         sellInitiated.current = true;
