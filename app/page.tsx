@@ -22,15 +22,10 @@ export default function RiseFallPage() {
 
   const [activeTradeType, setActiveTradeType] = useState<string>('rise-fall');
 
-  // Rise/Fall connection — always instantiated so switching back to this tab is instant.
   const trading = useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticated, onAuthWSFailed: logout });
   const { chartData } = useSmartChartChartData(trading.ws, trading.isConnected, trading.symbols);
   const { getQuotes, subscribeQuotes, unsubscribeQuotes } = useSmartChartsApi(trading.ws);
 
-  // Digits connection (Matches/Differs, Over/Under, Even/Odd) — always instantiated
-  // alongside Rise/Fall under the same ws/auth context, so switching tabs never
-  // reconnects or reloads. Its own chart data pipeline mirrors Rise/Fall's so
-  // DigitsBody can render the same RiseFallChart component.
   const digits = useDigitsTrading({ ws, isConnected, isExhausted, isAuthenticated, onAuthWSFailed: logout });
   const { chartData: digitsChartData } = useSmartChartChartData(digits.ws, digits.isConnected, digits.symbols);
   const {
@@ -39,9 +34,6 @@ export default function RiseFallPage() {
     unsubscribeQuotes: digitsUnsubscribeQuotes,
   } = useSmartChartsApi(digits.ws);
 
-  // Accumulators connection — always instantiated alongside Rise/Fall and
-  // Digits under the same ws/auth context, so switching tabs never
-  // reconnects or reloads.
   const accumulators = useAccumulatorTrading({ ws, isConnected, isExhausted, isAuthenticated, onAuthWSFailed: logout });
   const { chartData: accumulatorsChartData } = useSmartChartChartData(accumulators.ws, accumulators.isConnected, accumulators.symbols);
   const {
@@ -55,7 +47,6 @@ export default function RiseFallPage() {
     activeTradeType === 'over-under' ||
     activeTradeType === 'even-odd';
 
-  // Keep the digits hook's internal tradeType in sync with the top-level tab selection.
   if (isDigitsTab && digits.tradeType !== activeTradeType) {
     digits.setTradeType(activeTradeType as typeof digits.tradeType);
   }
@@ -65,10 +56,7 @@ export default function RiseFallPage() {
       <>
         <main
           className="flex flex-col bg-background max-lg:h-dvh max-lg:overflow-y-auto lg:overflow-visible"
-          style={{
-            WebkitOverflowScrolling: 'touch',
-            overscrollBehavior: 'contain',
-          }}
+          style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
         >
           <Header
             authState={authState}
@@ -105,6 +93,8 @@ export default function RiseFallPage() {
             openPositions={accumulators.openPositions}
             sellContract={accumulators.sellContract}
             sellingId={accumulators.sellingId}
+            sellError={accumulators.sellError}
+            clearSellError={accumulators.clearSellError}
             isAuthenticated={authState === 'authenticated'}
             chartData={accumulatorsChartData}
             getQuotes={accumulatorsGetQuotes}
@@ -124,10 +114,7 @@ export default function RiseFallPage() {
       <>
         <main
           className="flex flex-col bg-background max-lg:h-dvh max-lg:overflow-y-auto lg:overflow-visible"
-          style={{
-            WebkitOverflowScrolling: 'touch',
-            overscrollBehavior: 'contain',
-          }}
+          style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
         >
           <Header
             authState={authState}
