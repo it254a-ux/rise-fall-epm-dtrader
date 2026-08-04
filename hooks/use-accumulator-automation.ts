@@ -92,12 +92,14 @@ export function useAccumulatorAutomation({
     setIsRunning(true);
   }, [settings.baseStake, setStake]);
 
+  // Stop if connection drops mid-run
   useEffect(() => {
     if (isRunning && (!isConnected || !isAuthenticated)) {
       stop('Connection lost — automation stopped.');
     }
   }, [isConnected, isAuthenticated, isRunning, stop]);
 
+  // Trigger a new buy when no round is active
   useEffect(() => {
     if (!isRunning) return;
     if (roundActive.current) return;
@@ -109,6 +111,7 @@ export function useAccumulatorAutomation({
     buyContract();
   }, [isRunning, proposal, isBuying, buyContract]);
 
+  // Record the contract ID after a successful buy
   useEffect(() => {
     if (!isRunning || !buyResult) return;
     pendingContractId.current = buyResult.contractId;
@@ -130,6 +133,7 @@ export function useAccumulatorAutomation({
     clearSellError();
   }, [sellError, isRunning, stop, clearSellError]);
 
+  // Watch the live position and auto-sell when tick threshold is reached
   useEffect(() => {
     if (!isRunning || pendingContractId.current === null) return;
     const contractId = pendingContractId.current;
@@ -164,18 +168,32 @@ export function useAccumulatorAutomation({
     }
 
     if (!sellInitiated.current && sellingId !== contractId) {
-      // Cast to any to safely read Deriv API fields that may not be in the
-      // shared OpenPosition type. is_valid_to_sell is 0 | 1 in the API.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const pos = position as any;
-      const tickCount = pos.tick_count as number | undefined;
-      const isValidToSell = pos.is_valid_to_sell;
 
-      if (
-        typeof tickCount === 'number' &&
-        tickCount >= settings.ticksToHold &&
-        !!isValidToSell
-      ) {
+      // Try every field name Deriv uses for "ticks elapsed" across
+      // proposal_open_contract vs portfolio vs v3 WebSocket streams.
+      const tickCount: number | undefined = (() => {
+        for (const key of ['tick_count', 'ticks_stayed_in', 'current_tick', 'ticks']) {
+          const v = Number(pos[key]);
+          if (!Number.isNaN(v) && pos[key] !== undefined && pos[key] !== null) return v;
+        }
+        return undefined;
+      })();
+
+      // Log every update so you can confirm data is flowing and see actual field names.
+      console.log('[accumulator-bot] tick check', {
+        contractId,
+        tickCount,
+        target: settings.ticksToHold,
+        pos,
+      });
+
+      // NOTE: is_valid_to_sell is intentionally NOT checked here.
+      // For accumulators it stays 0 during the growth window, which would
+      // permanently block selling. Accumulators are always sellable while open.
+      if (typeof tickCount === 'number' && tickCount >= settings.ticksToHold) {
+        console.log('[accumulator-bot] SELLING at tick', tickCount, contractId);
         sellInitiated.current = true;
         sellContract(contractId, position.bid_price);
       }
