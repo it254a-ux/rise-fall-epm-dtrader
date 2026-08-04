@@ -35,7 +35,6 @@ export interface UseAccumulatorAutomationReturn {
   stop: (reason?: string) => void;
   netProfit: number;
   tradeCount: number;
-  /** Set when a run ends on its own. Null while idle or running. */
   stopReason: string | null;
 }
 
@@ -165,13 +164,17 @@ export function useAccumulatorAutomation({
     }
 
     if (!sellInitiated.current && sellingId !== contractId) {
-      const tickCount = (position as OpenPosition & { tick_count?: number }).tick_count;
-      const isValidToSell = (position as OpenPosition & { is_valid_to_sell?: boolean }).is_valid_to_sell;
+      // Cast to any to safely read Deriv API fields that may not be in the
+      // shared OpenPosition type. is_valid_to_sell is 0 | 1 in the API.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pos = position as any;
+      const tickCount = pos.tick_count as number | undefined;
+      const isValidToSell = pos.is_valid_to_sell;
 
       if (
         typeof tickCount === 'number' &&
         tickCount >= settings.ticksToHold &&
-        isValidToSell === true
+        !!isValidToSell
       ) {
         sellInitiated.current = true;
         sellContract(contractId, position.bid_price);
