@@ -1,9 +1,10 @@
 'use client';
 
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AutomationControls, NumberField } from '@/components/custom/automation-controls';
-import type { UseMartingaleAutomationReturn } from '@/hooks/use-martingale-automation';
+import { NumberField } from '@/components/custom/automation-controls';
+import type { UseAccumulatorAutomationReturn } from '@/hooks/use-accumulator-automation';
 import type { GrowthRate } from '@/lib/accumulator-types';
 
 interface AccumulatorAutomatedPanelProps {
@@ -14,15 +15,9 @@ interface AccumulatorAutomatedPanelProps {
   onTakeProfitChange: (value: string) => void;
   isConnected: boolean;
   isAuthenticated: boolean;
-  automation: UseMartingaleAutomationReturn;
+  automation: UseAccumulatorAutomationReturn;
 }
 
-/**
- * Automated panel for Accumulators. Growth rate + take profit are round
- * setup fields (same role as the contract-mode toggle in digit automation);
- * everything from Initial stake down is the same AutomationControls block
- * used by Rise/Fall and Digits.
- */
 export function AccumulatorAutomatedPanel({
   growthRate,
   onGrowthRateChange,
@@ -33,10 +28,16 @@ export function AccumulatorAutomatedPanel({
   isAuthenticated,
   automation,
 }: AccumulatorAutomatedPanelProps) {
-  const { settings, setSettings, isRunning, start, stop, netProfit, tradeCount, currentStake, stopReason } = automation;
+  const { settings, setSettings, isRunning, start, stop, netProfit, tradeCount, stopReason } =
+    automation;
 
-  const updateBaseStake = (value: number | null) => {
-    setSettings({ ...settings, baseStake: value ?? 0 });
+  const canStart = isConnected && isAuthenticated && !isRunning;
+
+  const updateSetting = <K extends keyof typeof settings>(
+    key: K,
+    value: (typeof settings)[K]
+  ) => {
+    setSettings({ ...settings, [key]: value });
   };
 
   return (
@@ -84,25 +85,69 @@ export function AccumulatorAutomatedPanel({
       <NumberField
         label="Initial stake"
         value={settings.baseStake}
-        onChange={updateBaseStake}
+        onChange={(value) => updateSetting('baseStake', value ?? 1.5)}
         suffix="USD"
         disabled={isRunning}
         step={0.01}
       />
 
-      <AutomationControls
-        settings={settings}
-        setSettings={setSettings}
-        isRunning={isRunning}
-        start={start}
-        stop={stop}
-        netProfit={netProfit}
-        tradeCount={tradeCount}
-        currentStake={currentStake}
-        stopReason={stopReason}
-        isConnected={isConnected}
-        isAuthenticated={isAuthenticated}
+      <NumberField
+        label="Ticks to hold"
+        value={settings.ticksToHold}
+        onChange={(value) => updateSetting('ticksToHold', Math.max(1, Math.round(value ?? 2)))}
+        disabled={isRunning}
+        step={1}
       />
+
+      <NumberField
+        label="Max trades"
+        value={settings.maxTrades}
+        onChange={(value) => updateSetting('maxTrades', Math.max(1, Math.round(value ?? 3)))}
+        disabled={isRunning}
+        step={1}
+      />
+
+      <NumberField
+        label="Profit target"
+        value={settings.targetProfit}
+        onChange={(value) => updateSetting('targetProfit', value ?? 5)}
+        suffix="USD"
+        disabled={isRunning}
+        step={0.01}
+      />
+
+      <div className="pt-1">
+        {isRunning ? (
+          <Button variant="destructive" className="w-full" onClick={() => stop('Stopped manually')}>
+            Stop
+          </Button>
+        ) : (
+          <Button className="w-full" disabled={!canStart} onClick={start}>
+            {!isAuthenticated ? 'Log in to trade' : !isConnected ? 'Connecting…' : 'Start'}
+          </Button>
+        )}
+      </div>
+
+      {(isRunning || tradeCount > 0) && (
+        <div className="rounded-md border border-border bg-muted/30 px-3 py-2 space-y-1 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Trades</span>
+            <span className="tabular-nums font-medium">{tradeCount}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Net profit</span>
+            <span className={`tabular-nums font-medium ${netProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+              {netProfit >= 0 ? '+' : ''}{netProfit.toFixed(2)} USD
+            </span>
+          </div>
+        </div>
+      )}
+
+      {stopReason && !isRunning && (
+        <p className="text-xs text-muted-foreground rounded-md border border-border bg-muted/20 px-3 py-2">
+          {stopReason}
+        </p>
+      )}
     </div>
   );
 }
