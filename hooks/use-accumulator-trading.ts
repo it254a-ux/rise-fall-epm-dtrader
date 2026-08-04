@@ -17,7 +17,6 @@ import type { OpenPosition, ClosedPosition } from '@/lib/types';
 
 const CONTRACT_TYPES = ['ACCU'];
 
-/** Available growth rate options — displayed as percentage labels. */
 const GROWTH_RATE_LABELS: Record<number, string> = {
   0.01: '1%',
   0.02: '2%',
@@ -82,10 +81,9 @@ export function useAccumulatorTrading({ ws, isConnected, isExhausted, isAuthenti
   } = useBaseTrading({ ws, isConnected, isExhausted, isAuthenticated, onAuthWSFailed, contractTypes: CONTRACT_TYPES });
 
   const [growthRate, setGrowthRate] = useState<GrowthRate>(0.01);
-  const [stake, setStake] = useState<string>('10');
+  const [stake, setStake] = useState<string>('1.5');
   const [takeProfit, setTakeProfit] = useState<string>('');
 
-  // Extract growth_rate_range from the ACCU contract in contracts_for response
   const growthRateOptions = useMemo(() => {
     const accuContract = (contracts as unknown as AccumulatorContractInfo[]).find(
       (c) => c.contract_type === 'ACCU'
@@ -96,7 +94,6 @@ export function useAccumulatorTrading({ ws, isConnected, isExhausted, isAuthenti
         label: GROWTH_RATE_LABELS[rate] ?? `${(rate * 100).toFixed(0)}%`,
       }));
     }
-    // Fallback defaults when contracts haven't loaded yet
     return [0.01, 0.02, 0.03, 0.04, 0.05].map((rate) => ({
       value: rate,
       label: GROWTH_RATE_LABELS[rate] ?? `${(rate * 100).toFixed(0)}%`,
