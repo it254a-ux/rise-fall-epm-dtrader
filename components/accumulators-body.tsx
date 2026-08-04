@@ -8,11 +8,11 @@ import { AccumulatorTradePanel } from '@/components/custom/accumulator-trade-pan
 import { AccumulatorAutomatedPanel } from '@/components/custom/accumulator-automated-panel';
 import { TradeModeToggle } from '@/components/custom/trade-mode-toggle';
 import { ModeRail } from '@/components/custom/mode-rail';
-import { useMartingaleAutomation } from '@/hooks/use-martingale-automation';
+import { useAccumulatorAutomation } from '@/hooks/use-accumulator-automation';
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import { useContractMarkers } from '@/hooks/use-contract-markers';
 import type { ChartBarrier } from '@/components/custom/smart-chart';
-import type { ActiveSymbol, ProposalInfo, BuyResult, DerivWS } from '@deriv/core';
+import type { ActiveSymbol, BuyResult, DerivWS } from '@deriv/core';
 import type { GrowthRate } from '@/lib/accumulator-types';
 import type { AccumulatorProposalInfo } from '@/hooks/use-accumulator-proposal';
 import type { UseSmartChartsApiReturn } from '@/hooks/use-smartcharts-api';
@@ -51,6 +51,8 @@ export interface AccumulatorsBodyProps {
   openPositions: OpenPosition[];
   sellContract: (contractId: number, bidPrice: string) => Promise<void>;
   sellingId: number | null;
+  sellError: string | null;
+  clearSellError: () => void;
   isAuthenticated: boolean;
   chartData: SmartChartChartData | undefined;
   getQuotes: UseSmartChartsApiReturn['getQuotes'];
@@ -79,6 +81,8 @@ export function AccumulatorsBody({
   openPositions,
   sellContract,
   sellingId,
+  sellError,
+  clearSellError,
   isAuthenticated,
   chartData,
   getQuotes,
@@ -89,7 +93,7 @@ export function AccumulatorsBody({
   const contractMarkers = useContractMarkers(openPositions, activeSymbol?.underlying_symbol, isMobile);
   const [tradeMode, setTradeMode] = useState<'manual' | 'automated'>('manual');
 
-  const automation = useMartingaleAutomation({
+  const automation = useAccumulatorAutomation({
     isConnected,
     isAuthenticated,
     stake,
@@ -101,11 +105,15 @@ export function AccumulatorsBody({
     buyError,
     clearBuyResult,
     openPositions,
+    sellContract,
+    sellingId,
+    sellError,
+    clearSellError,
   });
 
   const handleModeChange = (mode: 'manual' | 'automated') => {
     if (mode === 'manual' && automation.isRunning) {
-      automation.stop();
+      automation.stop('Stopped manually');
     }
     setTradeMode(mode);
   };
@@ -140,8 +148,6 @@ export function AccumulatorsBody({
   return (
     <div className="flex w-full max-w-7xl mx-auto flex-col px-3 py-2 sm:px-4 sm:py-4 gap-2 sm:gap-3 max-lg:pb-32 lg:pb-6">
       <div className="flex flex-col lg:grid lg:grid-cols-[1fr_400px_auto] lg:gap-4">
-
-        {/* Column 1: Chart */}
         <div className="flex flex-col gap-2 px-0 pt-2 lg:py-0">
           <div
             className="lg:h-[min(33.6rem,66vh)] lg:min-h-[384px]"
@@ -170,7 +176,6 @@ export function AccumulatorsBody({
           </div>
         </div>
 
-        {/* Column 2: Trade panel */}
         <div className="flex flex-col gap-3 pt-3 lg:pt-0 border-t border-border lg:border-0">
           {isLoading ? (
             <Skeleton className="lg:h-[min(33.6rem,66vh)] lg:min-h-[384px] h-48 w-full rounded-xl" />
@@ -216,7 +221,6 @@ export function AccumulatorsBody({
           )}
         </div>
 
-        {/* Column 3: Mode rail (desktop only) */}
         <ModeRail mode={tradeMode} onModeChange={handleModeChange} onOpenBotLibrary={handleOpenBotLibrary} />
       </div>
     </div>
