@@ -32,6 +32,7 @@ export function AccumulatorAutomatedPanel({
     settings,
     setSettings,
     isRunning,
+    isClosing,
     start,
     stop,
     netProfit,
@@ -40,7 +41,9 @@ export function AccumulatorAutomatedPanel({
     activePosition,
   } = automation;
 
-  const canStart = isConnected && isAuthenticated && !isRunning;
+  // Disabled while a previous contract is still being sold off — starting a
+  // new round here would orphan that pending contract instead of tracking it.
+  const canStart = isConnected && isAuthenticated && !isRunning && !isClosing;
 
   const updateSetting = <K extends keyof typeof settings>(
     key: K,
@@ -51,6 +54,14 @@ export function AccumulatorAutomatedPanel({
 
   const liveValue = activePosition ? parseFloat(activePosition.bid_price) : null;
   const liveProfit = liveValue !== null ? liveValue - settings.baseStake : null;
+
+  const startLabel = isClosing
+    ? 'Closing position…'
+    : !isAuthenticated
+    ? 'Log in to trade'
+    : !isConnected
+    ? 'Connecting…'
+    : 'Start';
 
   return (
     <div className="w-full space-y-3 lg:max-w-[400px] lg:space-y-4">
@@ -102,7 +113,6 @@ export function AccumulatorAutomatedPanel({
         disabled={isRunning}
         step={0.01}
       />
-
       <NumberField
         label="Ticks to hold"
         value={settings.ticksToHold}
@@ -110,7 +120,6 @@ export function AccumulatorAutomatedPanel({
         disabled={isRunning}
         step={1}
       />
-
       <NumberField
         label="Max trades"
         value={settings.maxTrades}
@@ -118,7 +127,6 @@ export function AccumulatorAutomatedPanel({
         disabled={isRunning}
         step={1}
       />
-
       <NumberField
         label="Profit target"
         value={settings.targetProfit}
@@ -139,16 +147,17 @@ export function AccumulatorAutomatedPanel({
           </Button>
         ) : (
           <Button className="w-full" disabled={!canStart} onClick={start}>
-            {!isAuthenticated ? 'Log in to trade' : !isConnected ? 'Connecting…' : 'Start'}
+            {startLabel}
           </Button>
         )}
       </div>
 
-      {/* Live contract card — visible while a contract is growing */}
-      {isRunning && activePosition && liveProfit !== null && (
+      {/* Live contract card — visible while a contract is growing, and while
+          it's being closed out after Stop, until settlement is confirmed. */}
+      {(isRunning || isClosing) && activePosition && liveProfit !== null && (
         <div className="rounded-md border border-blue-500/30 bg-blue-500/5 px-3 py-2 space-y-1 text-sm">
           <p className="text-xs font-medium text-blue-500 dark:text-blue-400 mb-1">
-            Contract running…
+            {isClosing ? 'Closing contract…' : 'Contract running…'}
           </p>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Current value</span>
@@ -179,7 +188,7 @@ export function AccumulatorAutomatedPanel({
         </div>
       )}
 
-      {stopReason && !isRunning && (
+      {stopReason && !isRunning && !isClosing && (
         <p className="text-xs text-muted-foreground rounded-md border border-border bg-muted/20 px-3 py-2">
           {stopReason}
         </p>
