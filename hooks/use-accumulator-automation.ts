@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { BuyResult, OpenPosition } from '../lib/types';
+import type { Tick } from '@deriv/core';
 import type { AccumulatorProposalInfo } from './use-accumulator-proposal';
 import type { AccumulatorAutomationSettings } from '@/lib/accumulator-types';
 import { DEFAULT_ACCUMULATOR_AUTOMATION_SETTINGS } from '@/lib/accumulator-types';
@@ -20,6 +21,8 @@ interface UseAccumulatorAutomationParams {
   buyResult: BuyResult | null;
   buyError: string | null;
   clearBuyResult: () => void;
+  /** Live market tick stream — used to count ticks after each buy. */
+  currentTick: Tick | null;
   openPositions: OpenPosition[];
   sellContract: (contractId: number, bidPrice: string) => Promise<void>;
   sellingId: number | null;
@@ -49,6 +52,7 @@ export function useAccumulatorAutomation({
   buyResult,
   buyError,
   clearBuyResult,
+  currentTick,
   openPositions,
   sellContract,
   sellingId,
@@ -70,11 +74,20 @@ export function useAccumulatorAutomation({
   const netProfitRef = useRef(0);
   const tradeCountRef = useRef(0);
 
+  // Tick counting — incremented on each new currentTick epoch after a buy.
+  const ticksSinceBuy = useRef(0);
+  const lastTickEpoch = useRef<number | null>(null);
+
+  // Profit captured at the moment we trigger a sell (bid_price − stake).
+  const capturedProfit = useRef(0);
+
   const stop = useCallback((reason?: string) => {
     setIsRunning(false);
     roundActive.current = false;
     pendingContractId.current = null;
     sellInitiated.current = false;
+    ticksSinceBuy.current = 0;
+    lastTickEpoch.current = null;
     if (reason) setStopReason(reason);
   }, []);
 
@@ -87,19 +100,21 @@ export function useAccumulatorAutomation({
     roundActive.current = false;
     pendingContractId.current = null;
     sellInitiated.current = false;
+    ticksSinceBuy.current = 0;
+    lastTickEpoch.current = null;
     intendedStake.current = settings.baseStake;
     setStake(String(settings.baseStake));
     setIsRunning(true);
   }, [settings.baseStake, setStake]);
 
-  // Stop if connection drops mid-run
+  // Stop if connection drops mid-run.
   useEffect(() => {
     if (isRunning && (!isConnected || !isAuthenticated)) {
       stop('Connection lost — automation stopped.');
     }
   }, [isConnected, isAuthenticated, isRunning, stop]);
 
-  // Trigger a new buy only when no round is active
+  // Trigger a new buy only when no round is active.
   useEffect(() => {
     if (!isRunning) return;
     if (roundActive.current) return;
@@ -111,11 +126,13 @@ export function useAccumulatorAutomation({
     buyContract();
   }, [isRunning, proposal, isBuying, buyContract]);
 
-  // Record the contract ID after a successful buy
+  // Record contract ID and reset tick counter after a successful buy.
   useEffect(() => {
     if (!isRunning || !buyResult) return;
     pendingContractId.current = buyResult.contractId;
     sellInitiated.current = false;
+    ticksSinceBuy.current = 0;
+    lastTickEpoch.current = null;
     tradeCountRef.current += 1;
     setTradeCount(tradeCountRef.current);
     clearBuyResult();
@@ -133,76 +150,79 @@ export function useAccumulatorAutomation({
     clearSellError();
   }, [sellError, isRunning, stop, clearSellError]);
 
-  // Watch the live position and auto-sell when tick threshold is reached
+  // PHASE 1 — Count live market ticks and sell when threshold is reached.
+  // We use currentTick (the real-time price stream) instead of openPositions
+  // because the portfolio subscription does not stream per-tick updates for
+  // accumulator contracts, so tick_count on openPositions is always stale.
   useEffect(() => {
     if (!isRunning || pendingContractId.current === null) return;
+    if (sellInitiated.current) return;
+    if (!currentTick) return;
+
+    // Ignore duplicate ticks (same epoch = same server event).
+    const epoch = (currentTick as { epoch?: number }).epoch ?? null;
+    if (epoch !== null && epoch === lastTickEpoch.current) return;
+    lastTickEpoch.current = epoch;
+
+    ticksSinceBuy.current += 1;
+
+    console.log('[accumulator-bot] tick', ticksSinceBuy.current, '/ target', settings.ticksToHold);
+
+    if (ticksSinceBuy.current < settings.ticksToHold) return;
+
+    // Threshold reached — find the open position and sell.
     const contractId = pendingContractId.current;
     const position = openPositions.find((p) => p.contract_id === contractId);
 
-    // Contract not yet visible in positions — still waiting
-    if (!position) return;
-
-    // FIX: Only use is_sold / is_expired to detect closure.
-    // Do NOT use position.status — it may be undefined or a non-'open' string
-    // on active accumulators, which would falsely trigger a re-buy while the
-    // contract is still running (causes "too many open positions" error).
-    const isClosed = !!position.is_sold || !!position.is_expired;
-
-    if (isClosed) {
-      const profit = parseFloat(position.profit);
-      if (Number.isNaN(profit)) return;
-
-      pendingContractId.current = null;
-      sellInitiated.current = false;
-
-      const nextNet = netProfitRef.current + profit;
-      netProfitRef.current = nextNet;
-      setNetProfit(nextNet);
-
-      if (nextNet >= settings.targetProfit) {
-        stop(`Profit target reached: +${nextNet.toFixed(2)} USD`);
-        return;
-      }
-      if (tradeCountRef.current >= settings.maxTrades) {
-        stop(`Max trades (${settings.maxTrades}) reached`);
-        return;
-      }
-
-      roundActive.current = false;
+    if (!position || !!position.is_sold || !!position.is_expired) {
+      // Position already closed (knocked out) — record 0 profit and continue.
+      capturedProfit.current = 0;
+      sellInitiated.current = true; // skip sell, go straight to settlement
       return;
     }
 
-    if (!sellInitiated.current && sellingId !== contractId) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const pos = position as any;
+    // Capture profit at sell time: sell price (bid_price) minus what we staked.
+    capturedProfit.current =
+      parseFloat(position.bid_price) - intendedStake.current;
 
-      // Try every field name Deriv uses for "ticks elapsed" across
-      // proposal_open_contract vs portfolio vs v3 WebSocket streams.
-      const tickCount: number | undefined = (() => {
-        for (const key of ['tick_count', 'ticks_stayed_in', 'current_tick', 'ticks']) {
-          const v = Number(pos[key]);
-          if (!Number.isNaN(v) && pos[key] !== undefined && pos[key] !== null) return v;
-        }
-        return undefined;
-      })();
+    console.log('[accumulator-bot] selling — estimated profit', capturedProfit.current.toFixed(2));
+    sellInitiated.current = true;
+    sellContract(contractId, position.bid_price);
+  }, [currentTick, isRunning, openPositions, settings.ticksToHold, sellContract]);
 
-      console.log('[accumulator-bot] tick check', {
-        contractId,
-        tickCount,
-        target: settings.ticksToHold,
-        is_sold: position.is_sold,
-        is_expired: position.is_expired,
-      });
+  // PHASE 2 — Wait for the sold position to leave openPositions, then
+  // record profit, check stop conditions, and start the next round.
+  useEffect(() => {
+    if (!isRunning || !sellInitiated.current || pendingContractId.current === null) return;
 
-      // NOTE: is_valid_to_sell intentionally not checked — stays 0 during the
-      // accumulation window and would permanently block selling.
-      if (typeof tickCount === 'number' && tickCount >= settings.ticksToHold) {
-        console.log('[accumulator-bot] SELLING at tick', tickCount, contractId);
-        sellInitiated.current = true;
-        sellContract(contractId, position.bid_price);
-      }
+    const contractId = pendingContractId.current;
+    const position = openPositions.find((p) => p.contract_id === contractId);
+
+    // Still in openPositions and not yet marked sold — keep waiting.
+    if (position && !position.is_sold && !position.is_expired) return;
+
+    const profit = capturedProfit.current;
+    pendingContractId.current = null;
+    sellInitiated.current = false;
+    ticksSinceBuy.current = 0;
+    lastTickEpoch.current = null;
+
+    const nextNet = netProfitRef.current + profit;
+    netProfitRef.current = nextNet;
+    setNetProfit(nextNet);
+
+    if (nextNet >= settings.targetProfit) {
+      stop(`Profit target reached: +${nextNet.toFixed(2)} USD`);
+      return;
     }
-  }, [openPositions, isRunning, settings, sellContract, sellingId, stop]);
+    if (tradeCountRef.current >= settings.maxTrades) {
+      stop(`Max trades (${settings.maxTrades}) reached`);
+      return;
+    }
+
+    // Ready for next round.
+    roundActive.current = false;
+  }, [openPositions, isRunning, settings, stop]);
 
   return {
     settings,
