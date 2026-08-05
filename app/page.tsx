@@ -90,6 +90,7 @@ export default function RiseFallPage() {
             buyResult={accumulators.buyResult}
             buyError={accumulators.buyError}
             clearBuyResult={accumulators.clearBuyResult}
+            currentTick={accumulators.currentTick}
             openPositions={accumulators.openPositions}
             sellContract={accumulators.sellContract}
             sellingId={accumulators.sellingId}
