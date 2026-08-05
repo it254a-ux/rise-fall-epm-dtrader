@@ -28,8 +28,17 @@ export function AccumulatorAutomatedPanel({
   isAuthenticated,
   automation,
 }: AccumulatorAutomatedPanelProps) {
-  const { settings, setSettings, isRunning, start, stop, netProfit, tradeCount, stopReason } =
-    automation;
+  const {
+    settings,
+    setSettings,
+    isRunning,
+    start,
+    stop,
+    netProfit,
+    tradeCount,
+    stopReason,
+    activePosition,
+  } = automation;
 
   const canStart = isConnected && isAuthenticated && !isRunning;
 
@@ -39,6 +48,9 @@ export function AccumulatorAutomatedPanel({
   ) => {
     setSettings({ ...settings, [key]: value });
   };
+
+  const liveValue = activePosition ? parseFloat(activePosition.bid_price) : null;
+  const liveProfit = liveValue !== null ? liveValue - settings.baseStake : null;
 
   return (
     <div className="w-full space-y-3 lg:max-w-[400px] lg:space-y-4">
@@ -118,7 +130,11 @@ export function AccumulatorAutomatedPanel({
 
       <div className="pt-1">
         {isRunning ? (
-          <Button variant="destructive" className="w-full" onClick={() => stop('Stopped manually')}>
+          <Button
+            variant="destructive"
+            className="w-full"
+            onClick={() => stop('Stopped manually')}
+          >
             Stop
           </Button>
         ) : (
@@ -128,10 +144,30 @@ export function AccumulatorAutomatedPanel({
         )}
       </div>
 
-      {(isRunning || tradeCount > 0) && (
+      {/* Live contract card — visible while a contract is growing */}
+      {isRunning && activePosition && liveProfit !== null && (
+        <div className="rounded-md border border-blue-500/30 bg-blue-500/5 px-3 py-2 space-y-1 text-sm">
+          <p className="text-xs font-medium text-blue-500 dark:text-blue-400 mb-1">
+            Contract running…
+          </p>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Current value</span>
+            <span className="tabular-nums font-medium">{liveValue!.toFixed(2)} USD</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Unrealized profit</span>
+            <span className={`tabular-nums font-medium ${liveProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+              {liveProfit >= 0 ? '+' : ''}{liveProfit.toFixed(2)} USD
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Session stats — shown once at least one trade has completed */}
+      {tradeCount > 0 && (
         <div className="rounded-md border border-border bg-muted/30 px-3 py-2 space-y-1 text-sm">
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Trades</span>
+            <span className="text-muted-foreground">Trades completed</span>
             <span className="tabular-nums font-medium">{tradeCount}</span>
           </div>
           <div className="flex justify-between">
