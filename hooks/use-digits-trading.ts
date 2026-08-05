@@ -90,7 +90,8 @@ export function useDigitsTrading({ ws, isConnected, isExhausted, isAuthenticated
   const [tradeType, setTradeTypeRaw] = useState<TradeType>('matches-differs');
   const [contractMode, setContractMode] = useState<ContractMode>('DIGITMATCH');
   const [selectedDigit, setSelectedDigit] = useState<number>(5);
-  const [stake, setStake] = useState<string>('10');
+  // Default stake — still fully editable by the user before or during setup.
+  const [stake, setStake] = useState<string>('1.5');
   const [duration, setDuration] = useState<number>(5);
 
   const setTradeType = useCallback((type: TradeType) => {
