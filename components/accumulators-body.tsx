@@ -12,7 +12,7 @@ import { useAccumulatorAutomation } from '@/hooks/use-accumulator-automation';
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import { useContractMarkers } from '@/hooks/use-contract-markers';
 import type { ChartBarrier } from '@/components/custom/smart-chart';
-import type { ActiveSymbol, BuyResult, DerivWS } from '@deriv/core';
+import type { ActiveSymbol, BuyResult, DerivWS, Tick } from '@deriv/core';
 import type { GrowthRate } from '@/lib/accumulator-types';
 import type { AccumulatorProposalInfo } from '@/hooks/use-accumulator-proposal';
 import type { UseSmartChartsApiReturn } from '@/hooks/use-smartcharts-api';
@@ -48,6 +48,8 @@ export interface AccumulatorsBodyProps {
   buyResult: BuyResult | null;
   buyError: string | null;
   clearBuyResult: () => void;
+  /** Live market tick stream — passed to the automation hook for tick counting. */
+  currentTick: Tick | null;
   openPositions: OpenPosition[];
   sellContract: (contractId: number, bidPrice: string) => Promise<void>;
   sellingId: number | null;
@@ -78,6 +80,7 @@ export function AccumulatorsBody({
   buyResult,
   buyError,
   clearBuyResult,
+  currentTick,
   openPositions,
   sellContract,
   sellingId,
@@ -104,6 +107,7 @@ export function AccumulatorsBody({
     buyResult,
     buyError,
     clearBuyResult,
+    currentTick,
     openPositions,
     sellContract,
     sellingId,
