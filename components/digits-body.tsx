@@ -7,9 +7,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DigitTradePanel } from '@/components/custom/digit-trade-panel';
 import { DigitAutomatedPanel } from '@/components/custom/digit-automated-panel';
+import { DigitEntryAutomatedPanel } from '@/components/custom/digit-entry-automated-panel';
 import { TradeModeToggle } from '@/components/custom/trade-mode-toggle';
 import { ModeRail } from '@/components/custom/mode-rail';
 import { useMartingaleAutomation } from '@/hooks/use-martingale-automation';
+import { useDigitsEntryAutomation } from '@/hooks/use-digits-entry-automation';
 import type { AuthState, ActiveSymbol, ProposalInfo, DurationLimits, BuyResult, DerivWS } from '@deriv/core';
 import type { ContractMode, TradeType, DigitStats } from '@/lib/digit-types';
 import type { UseSmartChartsApiReturn } from '@/hooks/use-smartcharts-api';
@@ -104,7 +106,8 @@ export function DigitsBody({
   const isAuthenticated = authState === 'authenticated';
   const isMobile = useIsMobile();
 
-  const automation = useMartingaleAutomation({
+  // Martingale automation — used for Matches/Differs and Even/Odd, unchanged.
+  const martingaleAutomation = useMartingaleAutomation({
     isConnected,
     isAuthenticated,
     stake,
@@ -118,9 +121,34 @@ export function DigitsBody({
     openPositions,
   });
 
+  // Entry-watcher automation — used only for Over/Under. Places no trade on
+  // Start; arms and watches the digit stream, fires once the trigger digit
+  // lands, then lets the contract settle on its own.
+  const overUnderAutomation = useDigitsEntryAutomation({
+    isConnected,
+    isAuthenticated,
+    contractMode,
+    selectedDigit,
+    lastDigit,
+    proposal,
+    buyContract,
+    isBuying,
+    buyResult,
+    buyError,
+    clearBuyResult,
+    openPositions,
+  });
+
+  const isOverUnder = tradeType === 'over-under';
+  const activeIsRunning = isOverUnder ? overUnderAutomation.isRunning : martingaleAutomation.isRunning;
+
   const handleModeChange = (mode: 'manual' | 'automated') => {
-    if (mode === 'manual' && automation.isRunning) {
-      automation.stop();
+    if (mode === 'manual' && activeIsRunning) {
+      if (isOverUnder) {
+        overUnderAutomation.stop('Stopped manually');
+      } else {
+        martingaleAutomation.stop();
+      }
     }
     setTradeMode(mode);
   };
@@ -197,6 +225,23 @@ export function DigitsBody({
                     buyError={buyError}
                     onClearBuyResult={clearBuyResult}
                   />
+                ) : isOverUnder ? (
+                  <DigitEntryAutomatedPanel
+                    contractMode={contractMode}
+                    onContractModeChange={setContractMode}
+                    digitStats={digitStats}
+                    lastDigit={lastDigit}
+                    selectedDigit={selectedDigit}
+                    onSelectedDigitChange={setSelectedDigit}
+                    stake={stake}
+                    onStakeChange={setStake}
+                    duration={duration}
+                    onDurationChange={setDuration}
+                    durationLimits={durationLimits}
+                    isConnected={isConnected}
+                    isAuthenticated={isAuthenticated}
+                    automation={overUnderAutomation}
+                  />
                 ) : (
                   <DigitAutomatedPanel
                     tradeType={tradeType}
@@ -208,7 +253,7 @@ export function DigitsBody({
                     onSelectedDigitChange={setSelectedDigit}
                     isConnected={isConnected}
                     isAuthenticated={isAuthenticated}
-                    automation={automation}
+                    automation={martingaleAutomation}
                   />
                 )}
               </CardContent>
