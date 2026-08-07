@@ -111,12 +111,16 @@ function DigitCircle({
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
+            overflow: 'hidden',
           }}
         >
+          {/* Fixed px sizes, not vw — vw sizes off the full viewport width,
+              not this circle, which is what caused the numbers to overflow
+              and overlap when the panel column is narrow. */}
           <span
             style={{
               color: '#ffffff',
-              fontSize: 'clamp(13px, 4.5vw, 18px)',
+              fontSize: '12px',
               fontWeight: 700,
               lineHeight: 1,
               fontFamily: 'system-ui, sans-serif',
@@ -127,11 +131,12 @@ function DigitCircle({
           <span
             style={{
               color: pctColor,
-              fontSize: 'clamp(7.5px, 2.4vw, 9.5px)',
+              fontSize: '7.5px',
               fontWeight: 600,
-              lineHeight: 1.2,
+              lineHeight: 1.3,
               fontFamily: 'monospace',
               transition: 'color 0.3s ease',
+              whiteSpace: 'nowrap',
             }}
           >
             {hasData ? `${pct.toFixed(1)}%` : '—'}
@@ -171,15 +176,15 @@ export function DigitStatsBar({
 
   return (
     <div className="h-full flex flex-col min-h-0">
-      <span className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3">
+      <span className="text-xs text-muted-foreground mb-2">
         Last digit prediction
       </span>
       <div className="flex-1 flex items-center min-h-0">
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(5, 1fr)',
-            gap: '12px 6px',
+            gridTemplateColumns: 'repeat(5, minmax(32px, 1fr))',
+            gap: '10px 6px',
             placeItems: 'center',
             width: '100%',
           }}
