@@ -64,7 +64,7 @@ export function AccumulatorAutomatedPanel({
     : 'Start';
 
   return (
-    <div className="w-full space-y-3 lg:max-w-[400px] lg:space-y-4">
+    <div className="w-full max-w-[400px] mx-auto space-y-3 lg:space-y-4">
       <div className="space-y-1.5">
         <Label className="text-xs text-muted-foreground">Growth rate</Label>
         <Select
