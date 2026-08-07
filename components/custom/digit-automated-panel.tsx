@@ -65,7 +65,7 @@ export function DigitAutomatedPanel({
   const modeOptions = CONTRACT_MODE_OPTIONS[tradeType];
 
   return (
-    <div className="w-full space-y-3 lg:max-w-[400px] lg:space-y-4">
+    <div className="w-full space-y-3 lg:max-w-[200px] lg:space-y-4">
       <ToggleGroup
         type="single"
         value={contractMode}
@@ -79,7 +79,7 @@ export function DigitAutomatedPanel({
           <ToggleGroupItem
             key={opt.value}
             value={opt.value}
-            className="flex-1 rounded-full text-sm font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-primary data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
+            className="flex-1 rounded-full text-[10px] font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-primary data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
           >
             {opt.label}
           </ToggleGroupItem>
