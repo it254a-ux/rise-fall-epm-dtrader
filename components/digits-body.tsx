@@ -162,12 +162,12 @@ export function DigitsBody({
   };
 
   return (
-    <div className="flex w-full max-w-7xl mx-auto flex-col px-3 py-2 sm:px-4 sm:py-4 gap-2 sm:gap-3 max-lg:pb-32 lg:pb-6">
-      <div className="flex flex-col lg:grid lg:grid-cols-[1fr_400px_auto] lg:gap-4">
+    <div className="flex w-full flex-col px-3 py-2 sm:px-4 sm:py-4 gap-2 sm:gap-3 max-lg:pb-32 lg:pb-2 lg:px-3 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
+      <div className="flex flex-col lg:grid lg:grid-cols-[1fr_300px_auto] lg:gap-3 lg:h-full lg:min-h-0">
         {/* Column 1: Chart — same component as Rise/Fall, fed by the digits connection */}
-        <div className="flex flex-col gap-2 px-0 pt-2 lg:py-0">
+        <div className="flex flex-col gap-2 px-0 pt-2 lg:py-0 lg:h-full lg:min-h-0">
           <div
-            className="h-[70vh] min-h-[420px] max-h-[640px] lg:h-[min(33.6rem,66vh)] lg:min-h-[384px] lg:max-h-none"
+            className="h-[70vh] min-h-[420px] max-h-[640px] lg:h-full lg:min-h-0 lg:max-h-none"
             style={{ touchAction: 'pan-y' }}
           >
             {chartData ? (
@@ -189,12 +189,12 @@ export function DigitsBody({
           </div>
         </div>
 
-        {/* Column 2: Trade panel in a Card, matching Rise/Fall's panel shape */}
-        <div className="flex flex-col gap-3 pt-3 lg:pt-0 border-t border-border lg:border-0">
+        {/* Column 2: Trade panel in a Card, matching Rise/Fall's panel shape — narrowed to 300px */}
+        <div className="flex flex-col gap-3 pt-3 lg:pt-0 border-t border-border lg:border-0 lg:h-full lg:min-h-0">
           {isLoading ? (
-            <Skeleton className="lg:h-[min(33.6rem,66vh)] lg:min-h-[384px] h-48 w-full rounded-xl" />
+            <Skeleton className="lg:h-full h-48 w-full rounded-xl" />
           ) : (
-            <Card className="lg:h-[min(33.6rem,66vh)] lg:min-h-[384px] lg:overflow-y-auto">
+            <Card className="lg:h-full lg:min-h-0 lg:overflow-y-auto">
               <CardContent className="pt-4">
                 <TradeModeToggle
                   mode={tradeMode}
