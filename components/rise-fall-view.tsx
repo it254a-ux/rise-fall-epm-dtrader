@@ -215,7 +215,7 @@ export function RiseFallView({
           activeTradeType={activeTradeType}
           onSelectTradeType={onSelectTradeType}
         />
-        <div className={authState === 'authenticated' ? 'h-[76px] shrink-0' : 'h-[66px] shrink-0'} />
+        <div className={authState === 'authenticated' ? 'h-[64px] shrink-0' : 'h-[54px] shrink-0'} />
 
         {/* Page content — fills all remaining viewport height and scrolls
             internally only if content overflows. Bottom padding on mobile
@@ -314,7 +314,7 @@ export function RiseFallView({
 
         {/* Footer — fixed on mobile so it never gets pushed off-screen by the
             fixed Buy button; the pb-32 above keeps content clear of both. */}
-        <div className="max-lg:fixed max-lg:bottom-0 max-lg:left-0 max-lg:right-0 py-3 text-center bg-background/80 backdrop-blur-sm lg:bg-transparent lg:static">
+        <div className="max-lg:fixed max-lg:bottom-0 max-lg:left-0 max-lg:right-0 py-1 text-center bg-background/80 backdrop-blur-sm lg:bg-transparent lg:static lg:py-0.5">
           <Footer />
         </div>
       </main>
