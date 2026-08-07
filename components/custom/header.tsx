@@ -1,11 +1,8 @@
 'use client';
-
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { ContractTypeTabs } from './contract-type-tabs';
 import { TradeTypesFlyout } from './trade-types-flyout';
 import type { AuthState, DerivAccount } from '@deriv/core';
-
 interface HeaderProps {
   authState: AuthState;
   accounts: DerivAccount[];
@@ -19,7 +16,6 @@ interface HeaderProps {
   activeTradeType?: string;
   onSelectTradeType?: (type: string) => void;
 }
-
 function AccountLabel({ type }: { type: 'demo' | 'real' }) {
   return (
     <span
@@ -32,7 +28,6 @@ function AccountLabel({ type }: { type: 'demo' | 'real' }) {
     </span>
   );
 }
-
 export function Header({
   authState,
   accounts,
@@ -51,19 +46,12 @@ export function Header({
     .trim()
     .charAt(0)
     .toUpperCase() || 'D';
-
   return (
     <header className="fixed top-0 left-0 lg:left-[72px] right-0 z-50 flex items-center justify-between px-4 py-3 border-b bg-background/80 backdrop-blur-sm">
       <div className="flex items-center gap-3">
         <TradeTypesFlyout
           activeTradeType={activeTradeType}
           onSelectTradeType={onSelectTradeType ?? (() => {})}
-        />
-      </div>
-      <div className="hidden md:flex items-center flex-1 justify-center px-4">
-        <ContractTypeTabs
-          activeTab={activeTradeType}
-          onTabChange={onSelectTradeType ?? (() => {})}
         />
       </div>
       <div className="flex items-center gap-3" />
