@@ -71,7 +71,7 @@ export function DigitEntryAutomatedPanel({
     isConnected && isAuthenticated && !isRunning && isValidSetup && !!stakeNum && stakeNum > 0;
 
   return (
-    <div className="w-full space-y-3 lg:max-w-[400px] lg:space-y-4">
+    <div className="w-full space-y-3 lg:max-w-[240px] lg:space-y-4">
       <ToggleGroup
         type="single"
         value={contractMode}
@@ -85,7 +85,7 @@ export function DigitEntryAutomatedPanel({
           <ToggleGroupItem
             key={opt.value}
             value={opt.value}
-            className="flex-1 rounded-full text-sm font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-primary data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
+            className="flex-1 rounded-full text-xs font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-primary data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
           >
             {opt.label}
           </ToggleGroupItem>
@@ -119,7 +119,7 @@ export function DigitEntryAutomatedPanel({
       />
 
       {/* Trigger-digit readout — updates live as the barrier changes */}
-      <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
+      <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs">
         {isValidSetup ? (
           <span className="text-muted-foreground">
             Will enter the instant a{' '}
@@ -150,7 +150,7 @@ export function DigitEntryAutomatedPanel({
 
       {/* Live status while watching or holding a placed trade */}
       {(isRunning || phase === 'entered') && (
-        <div className="rounded-md border border-blue-500/30 bg-blue-500/5 px-3 py-2 space-y-1 text-sm">
+        <div className="rounded-md border border-blue-500/30 bg-blue-500/5 px-3 py-2 space-y-1 text-xs">
           <p className="text-xs font-medium text-blue-500 dark:text-blue-400">
             {phase === 'entered' ? 'Trade placed — waiting to settle…' : `Watching for ${triggerDigit}…`}
           </p>
@@ -167,7 +167,7 @@ export function DigitEntryAutomatedPanel({
 
       {/* Result of the last completed trade */}
       {lastResult && (
-        <div className="rounded-md border border-border bg-muted/30 px-3 py-2 space-y-1 text-sm">
+        <div className="rounded-md border border-border bg-muted/30 px-3 py-2 space-y-1 text-xs">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Last trade</span>
             <span className={`tabular-nums font-medium ${lastResult.won ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
