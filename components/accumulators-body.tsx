@@ -7,7 +7,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AccumulatorTradePanel } from '@/components/custom/accumulator-trade-panel';
 import { AccumulatorAutomatedPanel } from '@/components/custom/accumulator-automated-panel';
 import { TradeModeToggle } from '@/components/custom/trade-mode-toggle';
-import { ModeRail } from '@/components/custom/mode-rail';
 import { useAccumulatorAutomation } from '@/hooks/use-accumulator-automation';
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import { useContractMarkers } from '@/hooks/use-contract-markers';
@@ -151,7 +150,7 @@ export function AccumulatorsBody({
 
   return (
     <div className="flex w-full flex-col px-3 py-2 sm:px-4 sm:py-4 gap-2 sm:gap-3 max-lg:pb-32 lg:pb-2 lg:px-3 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
-      <div className="flex flex-col lg:grid lg:grid-cols-[1fr_150px_auto] lg:gap-3 lg:h-full lg:min-h-0">
+      <div className="flex flex-col lg:grid lg:grid-cols-[1fr_240px] lg:gap-3 lg:h-full lg:min-h-0">
         <div className="flex flex-col gap-2 px-0 pt-2 lg:py-0 lg:h-full lg:min-h-0">
           <div
             className="lg:h-full lg:min-h-0"
@@ -180,13 +179,21 @@ export function AccumulatorsBody({
           </div>
         </div>
 
+        {/* Trade panel — the Manual/Automated/Bot-library icons now render
+            inline at the top of the card via TradeModeToggle, so this
+            column no longer shares width with a separate rail column. */}
         <div className="flex flex-col gap-3 pt-3 lg:pt-0 border-t border-border lg:border-0 lg:h-full lg:min-h-0">
           {isLoading ? (
             <Skeleton className="lg:h-full h-48 w-full rounded-xl" />
           ) : (
             <Card className="lg:h-full lg:min-h-0 lg:overflow-y-auto">
               <CardContent className="pt-4">
-                <TradeModeToggle mode={tradeMode} onModeChange={handleModeChange} label="Accumulators" />
+                <TradeModeToggle
+                  mode={tradeMode}
+                  onModeChange={handleModeChange}
+                  onOpenBotLibrary={handleOpenBotLibrary}
+                  label="Accumulators"
+                />
                 {tradeMode === 'manual' ? (
                   <AccumulatorTradePanel
                     growthRate={growthRate}
@@ -224,8 +231,6 @@ export function AccumulatorsBody({
             </Card>
           )}
         </div>
-
-        <ModeRail mode={tradeMode} onModeChange={handleModeChange} onOpenBotLibrary={handleOpenBotLibrary} />
       </div>
     </div>
   );
