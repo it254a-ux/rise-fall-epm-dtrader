@@ -147,3 +147,30 @@
     word-break: break-word;
   }
 }
+
+/* ── Thin scrollbar utility ──────────────────────────────────────────────
+   Apply `.thin-scrollbar` to any scrollable container to shrink the native
+   scrollbar to roughly a quarter of the browser default width, across
+   Chrome/Safari/Edge (WebKit) and Firefox. */
+.thin-scrollbar {
+  scrollbar-width: thin; /* Firefox: ~thin track, closest native option */
+  scrollbar-color: rgb(var(--muted-foreground) / 0.4) transparent;
+}
+
+.thin-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgb(var(--muted-foreground) / 0.4);
+  border-radius: 9999px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(var(--muted-foreground) / 0.6);
+}
