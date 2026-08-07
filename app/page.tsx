@@ -92,7 +92,7 @@ export default function RiseFallPage() {
             activeTradeType={activeTradeType}
             onSelectTradeType={setActiveTradeType}
           />
-          <div className={authState === 'authenticated' ? 'h-[76px] shrink-0' : 'h-[66px] shrink-0'} />
+          <div className={authState === 'authenticated' ? 'h-[64px] shrink-0' : 'h-[54px] shrink-0'} />
           <AccumulatorsBody
             ws={accumulators.ws}
             isConnected={accumulators.isConnected}
@@ -124,7 +124,7 @@ export default function RiseFallPage() {
             subscribeQuotes={accumulatorsSubscribeQuotes}
             unsubscribeQuotes={accumulatorsUnsubscribeQuotes}
           />
-          <div className="max-lg:fixed max-lg:bottom-0 max-lg:left-0 max-lg:right-0 py-3 text-center bg-background/80 backdrop-blur-sm lg:bg-transparent lg:static lg:py-1 lg:shrink-0">
+          <div className="max-lg:fixed max-lg:bottom-0 max-lg:left-0 max-lg:right-0 py-1 text-center bg-background/80 backdrop-blur-sm lg:bg-transparent lg:static lg:py-0.5 lg:shrink-0">
             <Footer />
           </div>
         </main>
@@ -152,7 +152,7 @@ export default function RiseFallPage() {
             activeTradeType={activeTradeType}
             onSelectTradeType={setActiveTradeType}
           />
-          <div className={authState === 'authenticated' ? 'h-[76px] shrink-0' : 'h-[66px] shrink-0'} />
+          <div className={authState === 'authenticated' ? 'h-[64px] shrink-0' : 'h-[54px] shrink-0'} />
           <DigitsBody
             authState={authState}
             isConnected={digits.isConnected}
@@ -187,7 +187,7 @@ export default function RiseFallPage() {
             unsubscribeQuotes={digitsUnsubscribeQuotes}
             onSelectTradeType={setActiveTradeType}
           />
-          <div className="max-lg:fixed max-lg:bottom-0 max-lg:left-0 max-lg:right-0 py-3 text-center bg-background/80 backdrop-blur-sm lg:bg-transparent lg:static lg:py-1 lg:shrink-0">
+          <div className="max-lg:fixed max-lg:bottom-0 max-lg:left-0 max-lg:right-0 py-1 text-center bg-background/80 backdrop-blur-sm lg:bg-transparent lg:static lg:py-0.5 lg:shrink-0">
             <Footer />
           </div>
         </main>
