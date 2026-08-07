@@ -115,7 +115,7 @@ export function DigitTradePanel({
   const modeOptions = CONTRACT_MODE_OPTIONS[tradeType];
 
   return (
-    <div className="w-full space-y-3 lg:max-w-[400px] lg:space-y-4">
+    <div className="w-full space-y-3 lg:max-w-[200px] lg:space-y-4">
       <ToggleGroup
         type="single"
         value={contractMode}
@@ -128,7 +128,7 @@ export function DigitTradePanel({
           <ToggleGroupItem
             key={opt.value}
             value={opt.value}
-            className="flex-1 rounded-full text-sm font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-primary data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
+            className="flex-1 rounded-full text-[10px] font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-primary data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
           >
             {opt.label}
           </ToggleGroupItem>
@@ -146,9 +146,9 @@ export function DigitTradePanel({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3">
         <div className="space-y-1.5">
-          <Label htmlFor="digit-stake" className="text-xs text-muted-foreground">
+          <Label htmlFor="digit-stake" className="text-[10px] text-muted-foreground">
             Stake
           </Label>
           <Input
@@ -165,7 +165,7 @@ export function DigitTradePanel({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="digit-duration" className="text-xs text-muted-foreground">
+          <Label htmlFor="digit-duration" className="text-[10px] text-muted-foreground">
             Duration
           </Label>
           <Input
@@ -185,14 +185,14 @@ export function DigitTradePanel({
       </div>
 
       <div className="rounded-lg border border-border p-2 sm:p-3 bg-muted/20 space-y-1.5 sm:space-y-2">
-        <p className="text-[11px] sm:text-xs text-muted-foreground mb-0 sm:mb-1">Prediction</p>
-        <p className="text-xs sm:text-sm font-medium">
+        <p className="text-[10px] text-muted-foreground mb-0 sm:mb-1">Prediction</p>
+        <p className="text-[10px] font-medium">
           Last digit of the price will{' '}
           <span className="text-primary font-bold">{getPredictionText(contractMode)}</span>
           {showDigitInPrediction(contractMode) && (
             <>
               {' '}
-              <span className="inline-flex w-5 h-5 rounded-full bg-primary text-primary-foreground items-center justify-center text-xs font-bold">
+              <span className="inline-flex w-5 h-5 rounded-full bg-primary text-primary-foreground items-center justify-center text-[10px] font-bold">
                 {selectedDigit}
               </span>
             </>
@@ -200,11 +200,11 @@ export function DigitTradePanel({
         </p>
         {(proposal || isProposalLoading) && (
           <div className="flex items-center justify-between pt-1 border-t border-border">
-            <span className="text-xs text-muted-foreground">Payout</span>
+            <span className="text-[10px] text-muted-foreground">Payout</span>
             {isProposalLoading ? (
               <Skeleton className="h-4 w-24" />
             ) : (
-              <span className="text-sm font-bold text-foreground">
+              <span className="text-[10px] font-bold text-foreground">
                 {proposal!.payout.toFixed(2)} USD
               </span>
             )}
