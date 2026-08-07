@@ -71,21 +71,21 @@ export function AccumulatorTradePanel({
   }, [buyResult, onClearBuyResult]);
 
   return (
-    <div className="w-full space-y-3 lg:max-w-[200px] lg:space-y-4">
+    <div className="w-full space-y-3 lg:max-w-[240px] lg:space-y-4">
 
       {/* Growth Rate selector */}
       <div className="space-y-1.5">
         <div className="flex items-center gap-1.5">
-          <Label className="text-[10px] text-muted-foreground">Growth rate</Label>
+          <Label className="text-xs text-muted-foreground">Growth rate</Label>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-muted-foreground/40 text-[10px] text-muted-foreground">
+                <span className="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-muted-foreground/40 text-xs text-muted-foreground">
                   i
                 </span>
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-[200px]">
-                <p className="text-[10px]">
+                <p className="text-xs">
                   Your stake grows by the selected percentage for each tick that stays within the barrier range.
                 </p>
               </TooltipContent>
@@ -113,7 +113,7 @@ export function AccumulatorTradePanel({
 
       {/* Stake */}
       <div className="space-y-1.5">
-        <Label htmlFor="accu-stake" className="text-[10px] text-muted-foreground">Stake</Label>
+        <Label htmlFor="accu-stake" className="text-xs text-muted-foreground">Stake</Label>
         <Input
           id="accu-stake"
           type="number"
@@ -130,7 +130,7 @@ export function AccumulatorTradePanel({
 
       {/* Take Profit */}
       <div className="space-y-1.5">
-        <Label htmlFor="accu-take-profit" className="text-[10px] text-muted-foreground">Take profit</Label>
+        <Label htmlFor="accu-take-profit" className="text-xs text-muted-foreground">Take profit</Label>
         <Input
           id="accu-take-profit"
           type="number"
@@ -148,7 +148,7 @@ export function AccumulatorTradePanel({
 
       {/* Proposal info */}
       {proposal && !activePosition && (
-        <div className="rounded-lg bg-muted/50 px-3 py-2 space-y-1 text-[10px]">
+        <div className="rounded-lg bg-muted/50 px-3 py-2 space-y-1 text-xs">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Max payout</span>
             <span className="font-medium">{proposal.maxPayout.toFixed(2)} USD</span>
@@ -158,7 +158,7 @@ export function AccumulatorTradePanel({
 
       {/* Active position info */}
       {activePosition && (
-        <div className="rounded-lg bg-muted/50 px-3 py-2 space-y-1 text-[10px]">
+        <div className="rounded-lg bg-muted/50 px-3 py-2 space-y-1 text-xs">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Current value</span>
             <span className="font-medium">
@@ -206,7 +206,7 @@ export function AccumulatorTradePanel({
             {isClosing ? 'Closing...' : (
               <span className="flex flex-col items-center leading-tight gap-0.5">
                 <span>Close</span>
-                <span className="text-[10px] font-normal opacity-90">
+                <span className="text-xs font-normal opacity-90">
                   {(parseFloat(activePosition.buy_price) + parseFloat(activePosition.profit)).toFixed(2)} {activePosition.currency}
                 </span>
               </span>
@@ -220,7 +220,7 @@ export function AccumulatorTradePanel({
         <Button
           asChild
           variant="ghost"
-          className="w-full text-[10px] text-muted-foreground hover:text-foreground"
+          className="w-full text-xs text-muted-foreground hover:text-foreground"
         >
           <Link href="/reports">View your positions →</Link>
         </Button>
