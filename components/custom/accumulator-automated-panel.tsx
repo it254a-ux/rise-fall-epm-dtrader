@@ -64,9 +64,9 @@ export function AccumulatorAutomatedPanel({
     : 'Start';
 
   return (
-    <div className="w-full max-w-[400px] mx-auto space-y-3 lg:space-y-4">
+    <div className="w-full max-w-[200px] mx-auto space-y-3 lg:space-y-4">
       <div className="space-y-1.5">
-        <Label className="text-xs text-muted-foreground">Growth rate</Label>
+        <Label className="text-[10px] text-muted-foreground">Growth rate</Label>
         <Select
           value={String(growthRate)}
           disabled={isRunning}
@@ -86,7 +86,7 @@ export function AccumulatorAutomatedPanel({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="accu-auto-take-profit" className="text-xs text-muted-foreground">
+        <Label htmlFor="accu-auto-take-profit" className="text-[10px] text-muted-foreground">
           Take profit (per round)
         </Label>
         <input
@@ -101,7 +101,7 @@ export function AccumulatorAutomatedPanel({
           min={0}
           step="0.01"
           placeholder="-"
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-50"
         />
       </div>
 
@@ -155,8 +155,8 @@ export function AccumulatorAutomatedPanel({
       {/* Live contract card — visible while a contract is growing, and while
           it's being closed out after Stop, until settlement is confirmed. */}
       {(isRunning || isClosing) && activePosition && liveProfit !== null && (
-        <div className="rounded-md border border-blue-500/30 bg-blue-500/5 px-3 py-2 space-y-1 text-sm">
-          <p className="text-xs font-medium text-blue-500 dark:text-blue-400 mb-1">
+        <div className="rounded-md border border-blue-500/30 bg-blue-500/5 px-3 py-2 space-y-1 text-[10px]">
+          <p className="text-[10px] font-medium text-blue-500 dark:text-blue-400 mb-1">
             {isClosing ? 'Closing contract…' : 'Contract running…'}
           </p>
           <div className="flex justify-between">
@@ -174,7 +174,7 @@ export function AccumulatorAutomatedPanel({
 
       {/* Session stats — shown once at least one trade has completed */}
       {tradeCount > 0 && (
-        <div className="rounded-md border border-border bg-muted/30 px-3 py-2 space-y-1 text-sm">
+        <div className="rounded-md border border-border bg-muted/30 px-3 py-2 space-y-1 text-[10px]">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Trades completed</span>
             <span className="tabular-nums font-medium">{tradeCount}</span>
@@ -189,7 +189,7 @@ export function AccumulatorAutomatedPanel({
       )}
 
       {stopReason && !isRunning && !isClosing && (
-        <p className="text-xs text-muted-foreground rounded-md border border-border bg-muted/20 px-3 py-2">
+        <p className="text-[10px] text-muted-foreground rounded-md border border-border bg-muted/20 px-3 py-2">
           {stopReason}
         </p>
       )}
