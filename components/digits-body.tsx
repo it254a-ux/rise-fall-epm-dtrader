@@ -163,7 +163,7 @@ export function DigitsBody({
 
   return (
     <div className="flex w-full flex-col px-3 py-2 sm:px-4 sm:py-4 gap-2 sm:gap-3 max-lg:pb-32 lg:pb-2 lg:px-3 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
-      <div className="flex flex-col lg:grid lg:grid-cols-[1fr_300px_auto] lg:gap-3 lg:h-full lg:min-h-0">
+      <div className="flex flex-col lg:grid lg:grid-cols-[1fr_150px_auto] lg:gap-3 lg:h-full lg:min-h-0">
         {/* Column 1: Chart — same component as Rise/Fall, fed by the digits connection */}
         <div className="flex flex-col gap-2 px-0 pt-2 lg:py-0 lg:h-full lg:min-h-0">
           <div
@@ -189,7 +189,7 @@ export function DigitsBody({
           </div>
         </div>
 
-        {/* Column 2: Trade panel in a Card, matching Rise/Fall's panel shape — narrowed to 300px */}
+        {/* Column 2: Trade panel in a Card, matching Rise/Fall's panel shape — narrowed to 150px */}
         <div className="flex flex-col gap-3 pt-3 lg:pt-0 border-t border-border lg:border-0 lg:h-full lg:min-h-0">
           {isLoading ? (
             <Skeleton className="lg:h-full h-48 w-full rounded-xl" />
