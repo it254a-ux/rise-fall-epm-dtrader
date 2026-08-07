@@ -36,7 +36,7 @@ export function AutomatedPanel({
     setSettings({ ...settings, baseStake: value ?? 0 });
   };
   return (
-    <div className="w-full space-y-3 lg:max-w-[400px] lg:space-y-4">
+    <div className="w-full max-w-[200px] mx-auto space-y-2 lg:space-y-2.5">
       <ToggleGroup
         type="single"
         value={direction}
@@ -48,13 +48,13 @@ export function AutomatedPanel({
       >
         <ToggleGroupItem
           value="CALL"
-          className="flex-1 rounded-full text-xs font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-green-600 data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
+          className="flex-1 rounded-full text-[10px] font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-green-600 data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
         >
           Rise
         </ToggleGroupItem>
         <ToggleGroupItem
           value="PUT"
-          className="flex-1 rounded-full text-xs font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-destructive data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
+          className="flex-1 rounded-full text-[10px] font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-destructive data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
         >
           Fall
         </ToggleGroupItem>
@@ -68,7 +68,7 @@ export function AutomatedPanel({
         step={0.01}
       />
       <div className="flex items-center justify-between">
-        <Label htmlFor="allow-equals-auto" className="text-xs cursor-pointer">Allow equals</Label>
+        <Label htmlFor="allow-equals-auto" className="text-[10px] cursor-pointer">Allow equals</Label>
         <Switch
           id="allow-equals-auto"
           checked={allowEquals}
