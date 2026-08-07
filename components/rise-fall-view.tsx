@@ -5,7 +5,6 @@ import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Footer } from '@/components/custom/footer';
 import { Header } from '@/components/custom/header';
-import { ModeRail } from '@/components/custom/mode-rail';
 import { BotLibraryPanel } from '@/components/custom/bot-library-panel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-is-mobile';
@@ -222,7 +221,7 @@ export function RiseFallView({
             reserves space so the fixed Buy button and footer never cover the
             last elements (e.g. "View your positions" link). */}
         <div className="flex w-full max-w-7xl mx-auto flex-col px-3 py-2 sm:px-4 sm:py-4 gap-4 sm:gap-3 max-lg:pb-32 lg:pb-6 flex-1 min-h-0 overflow-y-auto">
-          <div className="flex flex-col flex-1 min-h-0 lg:grid lg:grid-cols-[1fr_200px_auto] lg:gap-4 lg:h-full">
+          <div className="flex flex-col flex-1 min-h-0 lg:grid lg:grid-cols-[1fr_240px] lg:gap-4 lg:h-full">
 
             {/* Column 1: Chart — touch-action:pan-y lets vertical swipes scroll the page */}
             <div className="flex flex-col gap-2 px-0 pt-2 lg:py-0 flex-1 min-h-0 lg:h-full">
@@ -251,14 +250,21 @@ export function RiseFallView({
               </div>
             </div>
 
-            {/* Column 2: Trade controls */}
+            {/* Column 2: Trade controls — the Manual/Automated/Bot-library
+                icons now render inline at the top of the card via
+                TradeModeToggle, so this column no longer shares width with a
+                separate rail column. */}
             <div className="flex flex-col gap-3 pt-3 lg:pt-0 border-t border-border lg:border-0 lg:h-full lg:min-h-0">
               {isLoading ? (
                 <Skeleton className="lg:h-full lg:min-h-[384px] h-48 w-full rounded-xl" />
               ) : (
                 <Card className="lg:h-full lg:min-h-[384px] lg:overflow-y-auto">
                   <CardContent className="pt-4 pb-6">
-                    <TradeModeToggle mode={tradeMode} onModeChange={handleModeChange} />
+                    <TradeModeToggle
+                      mode={tradeMode}
+                      onModeChange={handleModeChange}
+                      onOpenBotLibrary={() => setIsBotLibraryOpen(true)}
+                    />
                     {tradeMode === 'manual' ? (
                       <TradeControls
                         direction={direction}
@@ -302,13 +308,6 @@ export function RiseFallView({
                 </Card>
               )}
             </div>
-
-            {/* Column 3: mode rail (desktop only) */}
-            <ModeRail
-              mode={tradeMode}
-              onModeChange={handleModeChange}
-              onOpenBotLibrary={() => setIsBotLibraryOpen(true)}
-            />
           </div>
         </div>
 
