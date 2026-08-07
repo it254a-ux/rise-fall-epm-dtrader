@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useSmartChartsApi } from '@/hooks/use-smartcharts-api';
 import { useSmartChartChartData } from '@/hooks/use-smartchart-chart-data';
 import { useRiseFallTrading } from '../hooks/use-rise-fall-trading';
@@ -12,10 +13,12 @@ import { RiseFallView } from '../components/rise-fall-view';
 import { DigitsBody } from '../components/digits-body';
 import { AccumulatorsBody } from '../components/accumulators-body';
 import { Header } from '@/components/custom/header';
+import { Sidebar } from '@/components/custom/sidebar';
 import { Footer } from '@/components/custom/footer';
 
 export default function RiseFallPage() {
   const logoSrc = useLogoSrc();
+  const router = useRouter();
   const { ws, isConnected, isExhausted, auth } = useDerivWSContext();
   const { authState, accounts, activeAccount, login, signUp, logout, switchAccount } = auth;
   const isAuthenticated = !!auth.wsUrl;
@@ -51,11 +54,30 @@ export default function RiseFallPage() {
     digits.setTradeType(activeTradeType as typeof digits.tradeType);
   }
 
+  // Wires the pre-built left icon rail the same way it's wired in RiseFallView:
+  // "Reports" goes to the existing /reports route, "Account" logs in or out
+  // depending on current auth state. The rest are left as no-ops since there's
+  // no destination for them yet.
+  const handleSidebarNavigate = (label: string) => {
+    if (label === 'Reports') {
+      router.push('/reports');
+      return;
+    }
+    if (label === 'Account') {
+      if (authState === 'authenticated') {
+        logout();
+      } else {
+        login();
+      }
+    }
+  };
+
   if (activeTradeType === 'accumulators') {
     return (
       <>
+        <Sidebar onNavigate={handleSidebarNavigate} />
         <main
-          className="flex flex-col bg-background max-lg:h-dvh max-lg:overflow-y-auto lg:overflow-visible"
+          className="flex flex-col bg-background max-lg:h-dvh max-lg:overflow-y-auto lg:h-dvh lg:overflow-hidden lg:pl-[72px]"
           style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
         >
           <Header
@@ -102,7 +124,7 @@ export default function RiseFallPage() {
             subscribeQuotes={accumulatorsSubscribeQuotes}
             unsubscribeQuotes={accumulatorsUnsubscribeQuotes}
           />
-          <div className="fixed bottom-0 left-0 right-0 py-2 text-center bg-background/80 backdrop-blur-sm">
+          <div className="max-lg:fixed max-lg:bottom-0 max-lg:left-0 max-lg:right-0 py-3 text-center bg-background/80 backdrop-blur-sm lg:bg-transparent lg:static lg:py-1 lg:shrink-0">
             <Footer />
           </div>
         </main>
@@ -113,8 +135,9 @@ export default function RiseFallPage() {
   if (isDigitsTab) {
     return (
       <>
+        <Sidebar onNavigate={handleSidebarNavigate} />
         <main
-          className="flex flex-col bg-background max-lg:h-dvh max-lg:overflow-y-auto lg:overflow-visible"
+          className="flex flex-col bg-background max-lg:h-dvh max-lg:overflow-y-auto lg:h-dvh lg:overflow-hidden lg:pl-[72px]"
           style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
         >
           <Header
@@ -164,7 +187,7 @@ export default function RiseFallPage() {
             unsubscribeQuotes={digitsUnsubscribeQuotes}
             onSelectTradeType={setActiveTradeType}
           />
-          <div className="fixed bottom-0 left-0 right-0 py-2 text-center bg-background/80 backdrop-blur-sm">
+          <div className="max-lg:fixed max-lg:bottom-0 max-lg:left-0 max-lg:right-0 py-3 text-center bg-background/80 backdrop-blur-sm lg:bg-transparent lg:static lg:py-1 lg:shrink-0">
             <Footer />
           </div>
         </main>
