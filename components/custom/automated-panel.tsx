@@ -1,12 +1,10 @@
 'use client';
-
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import type { Direction } from '@/lib/types';
 import type { UseMartingaleAutomationReturn } from '@/hooks/use-martingale-automation';
 import { AutomationControls, NumberField } from '@/components/custom/automation-controls';
-
 interface AutomatedPanelProps {
   direction: Direction;
   onDirectionChange: (direction: Direction) => void;
@@ -16,7 +14,6 @@ interface AutomatedPanelProps {
   isAuthenticated: boolean;
   automation: UseMartingaleAutomationReturn;
 }
-
 /**
  * Automated Rise/Fall panel — strategy builder. Renders in place of the old
  * "Coming soon" placeholder when the mode rail is set to 'automated'.
@@ -35,11 +32,9 @@ export function AutomatedPanel({
   automation,
 }: AutomatedPanelProps) {
   const { settings, setSettings, isRunning, start, stop, netProfit, tradeCount, currentStake, stopReason } = automation;
-
   const updateBaseStake = (value: number | null) => {
     setSettings({ ...settings, baseStake: value ?? 0 });
   };
-
   return (
     <div className="w-full space-y-3 lg:max-w-[400px] lg:space-y-4">
       <ToggleGroup
@@ -53,18 +48,17 @@ export function AutomatedPanel({
       >
         <ToggleGroupItem
           value="CALL"
-          className="flex-1 rounded-full text-sm font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-green-600 data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
+          className="flex-1 rounded-full text-xs font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-green-600 data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
         >
           Rise
         </ToggleGroupItem>
         <ToggleGroupItem
           value="PUT"
-          className="flex-1 rounded-full text-sm font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-destructive data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
+          className="flex-1 rounded-full text-xs font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-destructive data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
         >
           Fall
         </ToggleGroupItem>
       </ToggleGroup>
-
       <NumberField
         label="Initial stake"
         value={settings.baseStake}
@@ -73,9 +67,8 @@ export function AutomatedPanel({
         disabled={isRunning}
         step={0.01}
       />
-
       <div className="flex items-center justify-between">
-        <Label htmlFor="allow-equals-auto" className="text-sm cursor-pointer">Allow equals</Label>
+        <Label htmlFor="allow-equals-auto" className="text-xs cursor-pointer">Allow equals</Label>
         <Switch
           id="allow-equals-auto"
           checked={allowEquals}
@@ -83,7 +76,6 @@ export function AutomatedPanel({
           onCheckedChange={onAllowEqualsChange}
         />
       </div>
-
       <AutomationControls
         settings={settings}
         setSettings={setSettings}
