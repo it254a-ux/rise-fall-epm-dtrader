@@ -1,241 +1,356 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
-import Link from 'next/link';
-import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { EndTimePicker } from '@/components/custom/end-time-picker';
-import type { DerivWS, ActiveSymbol, ProposalInfo, BuyResult } from '@deriv/core';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Footer } from '@/components/custom/footer';
+import { Header } from '@/components/custom/header';
+import { Sidebar } from '@/components/custom/sidebar';
+import { ModeRail } from '@/components/custom/mode-rail';
+import { BotLibraryPanel } from '@/components/custom/bot-library-panel';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useIsMobile } from '@/hooks/use-is-mobile';
+import { useContractMarkers } from '@/hooks/use-contract-markers';
+import { TradeControls } from './trade-controls';
+import { AutomatedPanel } from '@/components/custom/automated-panel';
+import { TradeModeToggle } from '@/components/custom/trade-mode-toggle';
+import { useMartingaleAutomation } from '../hooks/use-martingale-automation';
+import type { MartingaleSettings, StrategyId } from '../hooks/use-martingale-automation';
+import type { StrategyProgram } from '@deriv/core';
+import type {
+  AuthState,
+  DerivAccount,
+  ActiveSymbol,
+  ProposalInfo,
+  BuyResult,
+  DerivWS,
+} from '@deriv/core';
 import type { Direction, DurationSelectUnit, DurationOption } from '../lib/types';
+import type { UseSmartChartsApiReturn } from '@/hooks/use-smartcharts-api';
+import type { SmartChartChartData } from '@/hooks/use-smartchart-chart-data';
+import type { OpenPosition } from '../lib/types';
 
-interface TradeControlsProps {
-  direction: Direction;
-  onDirectionChange: (direction: Direction) => void;
-  allowEquals: boolean;
-  onAllowEqualsChange: (value: boolean) => void;
+const RiseFallChart = dynamic(() => import('./rise-fall-chart').then(m => m.RiseFallChart), {
+  ssr: false,
+  loading: () => (
+    <div className="h-full w-full animate-pulse rounded-md border border-border/50 dark:border-white/[0.08] bg-muted/30" />
+  ),
+});
+
+export interface RiseFallViewProps {
+  authState: AuthState;
+  accounts: DerivAccount[];
+  activeAccount: DerivAccount | null;
+  onLogin: () => Promise<void>;
+  onSignUp: () => Promise<void>;
+  onLogout: () => void;
+  onSwitchAccount: (accountId: string) => Promise<void>;
+  ws: DerivWS | null;
   isConnected: boolean;
+  isLoading: boolean;
+  error: string | null;
+  activeSymbol: ActiveSymbol | null;
+  selectSymbol: (symbol: string) => void;
+  direction: Direction;
+  setDirection: (direction: Direction) => void;
+  allowEquals: boolean;
+  setAllowEquals: (value: boolean) => void;
   stake: string;
   onStakeChange: (value: string) => void;
   duration: number;
-  onDurationChange: (value: number) => void;
+  setDuration: (value: number) => void;
   durationOptions: DurationOption[];
   durationUnit: DurationSelectUnit;
-  onDurationUnitChange: (unit: DurationSelectUnit) => void;
+  setDurationUnit: (unit: DurationSelectUnit) => void;
   endDate: Date | undefined;
-  onEndDateChange: (date: Date | undefined) => void;
+  setEndDate: (date: Date | undefined) => void;
   endTime: string;
-  onEndTimeChange: (time: string) => void;
-  ws: DerivWS | null;
-  activeSymbol: ActiveSymbol | null;
+  setEndTime: (time: string) => void;
   proposal: ProposalInfo | null;
-
-  onBuy: () => void;
+  buyContract: () => Promise<void>;
   isBuying: boolean;
   buyResult: BuyResult | null;
   buyError: string | null;
-  onClearBuyResult: () => void;
-  /** Whether the user is authenticated — shows the View your positions link when true. */
-  isAuthenticated?: boolean;
+  clearBuyResult: () => void;
+  openPositions: OpenPosition[];
+  sellContract: (contractId: number, bidPrice: string) => Promise<void>;
+  sellingId: number | null;
+  chartData: SmartChartChartData | undefined;
+  getQuotes: UseSmartChartsApiReturn['getQuotes'];
+  subscribeQuotes: UseSmartChartsApiReturn['subscribeQuotes'];
+  unsubscribeQuotes: UseSmartChartsApiReturn['unsubscribeQuotes'];
+  isLive?: boolean;
+  endEpoch?: number;
+  logoSrc?: string;
+  appName?: string;
+  activeTradeType?: string;
+  onSelectTradeType?: (type: string) => void;
 }
 
-export function TradeControls({
-  direction,
-  onDirectionChange,
-  allowEquals,
-  onAllowEqualsChange,
+export function RiseFallView({
+  authState,
+  accounts,
+  activeAccount,
+  onLogin,
+  onSignUp,
+  onLogout,
+  onSwitchAccount,
+  ws,
   isConnected,
+  isLoading,
+  error,
+  activeSymbol,
+  selectSymbol,
+  direction,
+  setDirection,
+  allowEquals,
+  setAllowEquals,
   stake,
   onStakeChange,
   duration,
-  onDurationChange,
+  setDuration,
   durationOptions,
   durationUnit,
-  onDurationUnitChange,
+  setDurationUnit,
   endDate,
-  onEndDateChange,
+  setEndDate,
   endTime,
-  onEndTimeChange,
-  ws,
-  activeSymbol,
+  setEndTime,
   proposal,
-  onBuy,
+  buyContract,
   isBuying,
   buyResult,
   buyError,
-  onClearBuyResult,
-  isAuthenticated,
-}: TradeControlsProps) {
-  useEffect(() => {
-    if (buyError) {
-      toast.error('Purchase Failed', { description: buyError });
-      onClearBuyResult();
-    }
-  }, [buyError, onClearBuyResult]);
+  clearBuyResult,
+  openPositions,
+  chartData,
+  getQuotes,
+  subscribeQuotes,
+  unsubscribeQuotes,
+  isLive,
+  endEpoch,
+  logoSrc,
+  appName,
+  activeTradeType,
+  onSelectTradeType,
+}: RiseFallViewProps) {
+  const isMobile = useIsMobile();
+  const router = useRouter();
+  const contractMarkers = useContractMarkers(openPositions, activeSymbol?.underlying_symbol, isMobile);
+  const [tradeMode, setTradeMode] = useState<'manual' | 'automated'>('manual');
+  const [isBotLibraryOpen, setIsBotLibraryOpen] = useState(false);
+  const isAuthenticated = authState === 'authenticated';
 
-  useEffect(() => {
-    if (buyResult) {
-      toast.success('Contract Purchased', {
-        description: `Buy price: ${buyResult.buyPrice.toFixed(2)} USD | Payout: ${buyResult.payout.toFixed(2)} USD | Balance: ${buyResult.balanceAfter.toFixed(2)} USD`,
-      });
-      onClearBuyResult();
-    }
-  }, [buyResult, onClearBuyResult]);
+  const automation = useMartingaleAutomation({
+    isConnected,
+    isAuthenticated,
+    stake,
+    setStake: onStakeChange,
+    proposal,
+    buyContract,
+    isBuying,
+    buyResult,
+    buyError,
+    clearBuyResult,
+    openPositions,
+  });
 
-  const activeOption = durationOptions.find(o => o.unit === durationUnit);
+  const handleModeChange = (mode: 'manual' | 'automated') => {
+    if (mode === 'manual' && automation.isRunning) automation.stop();
+    setTradeMode(mode);
+  };
 
-  const endTimeOption = durationOptions.find(o => o.unit === 'end-time');
-  const { endTimeMinDate, endTimeMaxDate } = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return {
-      endTimeMinDate: today,
-      endTimeMaxDate: endTimeOption
-        ? new Date(today.getTime() + endTimeOption.max * 86400000)
-        : new Date(today.getTime() + 365 * 86400000),
+  const handleSelectBot = (program: StrategyProgram) => {
+    if (automation.isRunning) automation.stop();
+    const strategyId: StrategyId = program.stakeRule.type === 'dalembert' ? 'dalembert' : 'martingale';
+    const nextSettings: MartingaleSettings = {
+      strategyId,
+      baseStake: program.baseStake,
+      multiplier: program.stakeRule.type === 'martingale' ? program.stakeRule.multiplier : 2,
+      stakeIncrement: program.stakeRule.type === 'dalembert' ? program.stakeRule.increment : 2,
+      maxStake: program.stakeRule.type !== 'fixed' ? program.stakeRule.maxStake ?? null : null,
+      profitThreshold: program.profitThreshold,
+      lossThreshold: program.lossThreshold,
     };
-  }, [endTimeOption]);
+    automation.setSettings(nextSettings);
+    setDirection(program.direction);
+    setAllowEquals(program.allowEquals ?? allowEquals);
+    setTradeMode('automated');
+    setIsBotLibraryOpen(false);
+  };
+
+  // Wires the pre-built left icon rail to the actions actually available on
+  // this page. "Reports" goes to the existing /reports route. "Account"
+  // triggers login or logout depending on current auth state, since that's
+  // the only real account action this component has access to. The rest
+  // (Home, Positions, Help, Language) have no destination yet, so they're
+  // left as harmless no-ops rather than guessing at behavior.
+  const handleSidebarNavigate = (label: string) => {
+    if (label === 'Reports') {
+      router.push('/reports');
+      return;
+    }
+    if (label === 'Account') {
+      if (isAuthenticated) {
+        onLogout();
+      } else {
+        onLogin();
+      }
+    }
+  };
+
+  if (error) {
+    return (
+      <main className="flex flex-col bg-background items-center justify-center px-4 min-h-dvh">
+        <Card className="max-w-md w-full">
+          <CardHeader>
+            <CardTitle className="text-destructive">Connection Error</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">{error}</p>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
 
   return (
-    <div className="w-full space-y-2 lg:max-w-[400px] lg:space-y-4">
-      {/* Rise / Fall direction segmented control */}
-      <ToggleGroup
-        type="single"
-        value={direction}
-        onValueChange={(value) => {
-          if (value === 'CALL' || value === 'PUT') onDirectionChange(value);
+    <>
+      <Sidebar onNavigate={handleSidebarNavigate} />
+
+      <main
+        className="flex flex-col bg-background max-lg:h-dvh max-lg:overflow-y-auto lg:h-dvh lg:overflow-hidden lg:pl-[72px]"
+        style={{
+          overflowX: 'hidden',
+          WebkitOverflowScrolling: 'touch',
+          overscrollBehavior: 'contain',
         }}
-        className="w-full gap-0 rounded-full bg-muted p-1"
       >
-        <ToggleGroupItem
-          value="CALL"
-          className="flex-1 rounded-full text-sm font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-green-600 data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
-        >
-          Rise
-        </ToggleGroupItem>
-        <ToggleGroupItem
-          value="PUT"
-          className="flex-1 rounded-full text-sm font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-destructive data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
-        >
-          Fall
-        </ToggleGroupItem>
-      </ToggleGroup>
-
-      {/* Allow equals */}
-      <div className="flex items-center justify-between">
-        <Label htmlFor="allow-equals" className="text-sm cursor-pointer">Allow equals</Label>
-        <Switch
-          id="allow-equals"
-          checked={allowEquals}
-          onCheckedChange={onAllowEqualsChange}
+        <Header
+          authState={authState}
+          accounts={accounts}
+          activeAccount={activeAccount}
+          onLogin={onLogin}
+          onSignUp={onSignUp}
+          onLogout={onLogout}
+          onSwitchAccount={onSwitchAccount}
+          logoSrc={logoSrc}
+          appName={appName}
+          activeTradeType={activeTradeType}
+          onSelectTradeType={onSelectTradeType}
         />
-      </div>
+        <div className={authState === 'authenticated' ? 'h-[76px] shrink-0' : 'h-[66px] shrink-0'} />
 
-      {/* Stake */}
-      <div className="space-y-1.5">
-        <Label htmlFor="stake" className="text-xs text-muted-foreground">Stake</Label>
-        <Input
-          id="stake"
-          type="number"
-          value={stake}
-          onChange={(e) => onStakeChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
-          }}
-          min={0}
-          step="0.01"
-          labelRight="USD"
-        />
-      </div>
+        {/* Page content — scrolls naturally on mobile. Bottom padding on mobile
+            reserves space so the fixed Buy button and footer never cover the
+            last elements (e.g. "View your positions" link). On desktop the
+            sidebar removes the need for horizontal centering/max-width, so
+            the chart and trade panel go full-bleed and fill the available
+            height instead of being capped. */}
+        <div className="flex w-full flex-col px-3 py-2 sm:px-4 sm:py-4 gap-4 sm:gap-3 max-lg:pb-32 lg:pb-2 lg:px-3 lg:gap-2 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
+          <div className="flex flex-col lg:grid lg:grid-cols-[1fr_300px_auto] lg:gap-3 lg:h-full lg:min-h-0">
 
-      {/* Duration */}
-      <div className="space-y-1.5">
-        <Label className="text-xs text-muted-foreground">Duration</Label>
-        <Select
-          value={durationUnit}
-          onValueChange={(v) => {
-            const opt = durationOptions.find(o => o.unit === v);
-            if (opt) onDurationUnitChange(opt.unit);
-          }}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {durationOptions.map(opt => (
-              <SelectItem key={opt.unit} value={opt.unit}>{opt.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            {/* Column 1: Chart — touch-action:pan-y lets vertical swipes scroll the page */}
+            <div className="flex flex-col gap-2 px-0 pt-2 lg:py-0 lg:h-full lg:min-h-0">
+              <div
+                className="h-[70vh] min-h-[420px] max-h-[640px] lg:h-full lg:min-h-0 lg:max-h-none"
+                style={{ touchAction: 'pan-y' }}
+              >
+                {chartData ? (
+                  <RiseFallChart
+                    symbolKey="rise-fall-chart"
+                    symbol={activeSymbol?.underlying_symbol}
+                    isConnectionOpened={isConnected}
+                    isMobile={isMobile}
+                    chartData={chartData}
+                    getQuotes={getQuotes}
+                    subscribeQuotes={subscribeQuotes}
+                    unsubscribeQuotes={unsubscribeQuotes}
+                    onSymbolChange={selectSymbol}
+                    isLive={isLive}
+                    endEpoch={endEpoch}
+                    contractsArray={contractMarkers}
+                  />
+                ) : (
+                  <Skeleton className="h-full w-full rounded-md" />
+                )}
+              </div>
+            </div>
 
-        {durationUnit !== 'end-time' && (
-          <Input
-            type="number"
-            value={duration}
-            onChange={(e) => {
-              const val = parseInt(e.target.value, 10);
-              if (!isNaN(val)) onDurationChange(val);
-            }}
-            min={activeOption?.min}
-            max={activeOption?.max}
-            step={1}
-          />
-        )}
-
-        {durationUnit === 'end-time' && (
-          <EndTimePicker
-            ws={ws}
-            isConnected={isConnected}
-            activeSymbol={activeSymbol}
-            endDate={endDate}
-            onEndDateChange={onEndDateChange}
-            endTime={endTime}
-            onEndTimeChange={onEndTimeChange}
-            minDate={endTimeMinDate}
-            maxDate={endTimeMaxDate}
-          />
-        )}
-      </div>
-
-      {/* Buy button — sits inline in normal page flow on all screen sizes,
-          so it never floats over other content (e.g. the "View your
-          positions" link below) on mobile. */}
-      <div className="w-full">
-        <Button
-          className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground"
-          size="lg"
-          disabled={!isConnected || !proposal || isBuying}
-          onClick={onBuy}
-        >
-          {isBuying ? (
-            'Purchasing...'
-          ) : (
-            <span className="flex flex-col items-center leading-tight gap-0.5">
-              <span>Buy</span>
-              {proposal && (
-                <span className="text-xs font-normal opacity-90">
-                  Payout {proposal.payout.toFixed(2)} USD
-                </span>
+            {/* Column 2: Trade controls — narrowed from 400px to 300px for a tighter, more professional panel */}
+            <div className="flex flex-col gap-3 pt-3 lg:pt-0 border-t border-border lg:border-0 lg:h-full lg:min-h-0">
+              {isLoading ? (
+                <Skeleton className="lg:h-full h-48 w-full rounded-xl" />
+              ) : (
+                <Card className="lg:h-full lg:min-h-0 lg:overflow-y-auto">
+                  <CardContent className="pt-4 pb-6">
+                    <TradeModeToggle mode={tradeMode} onModeChange={handleModeChange} />
+                    {tradeMode === 'manual' ? (
+                      <TradeControls
+                        direction={direction}
+                        onDirectionChange={setDirection}
+                        allowEquals={allowEquals}
+                        onAllowEqualsChange={setAllowEquals}
+                        isConnected={isConnected}
+                        stake={stake}
+                        onStakeChange={onStakeChange}
+                        duration={duration}
+                        onDurationChange={setDuration}
+                        durationOptions={durationOptions}
+                        durationUnit={durationUnit}
+                        onDurationUnitChange={setDurationUnit}
+                        endDate={endDate}
+                        onEndDateChange={setEndDate}
+                        endTime={endTime}
+                        onEndTimeChange={setEndTime}
+                        ws={ws}
+                        activeSymbol={activeSymbol}
+                        proposal={proposal}
+                        onBuy={buyContract}
+                        isBuying={isBuying}
+                        buyResult={buyResult}
+                        buyError={buyError}
+                        onClearBuyResult={clearBuyResult}
+                        isAuthenticated={isAuthenticated}
+                      />
+                    ) : (
+                      <AutomatedPanel
+                        direction={direction}
+                        onDirectionChange={setDirection}
+                        allowEquals={allowEquals}
+                        onAllowEqualsChange={setAllowEquals}
+                        isConnected={isConnected}
+                        isAuthenticated={isAuthenticated}
+                        automation={automation}
+                      />
+                    )}
+                  </CardContent>
+                </Card>
               )}
-            </span>
-          )}
-        </Button>
-      </div>
+            </div>
 
-      {/* View your positions — shown when authenticated */}
-      {isAuthenticated && (
-        <Button
-          asChild
-          variant="ghost"
-          className="w-full text-sm text-muted-foreground hover:text-foreground"
-        >
-          <Link href="/reports">View your positions →</Link>
-        </Button>
-      )}
-    </div>
+            {/* Column 3: mode rail (desktop only) */}
+            <ModeRail
+              mode={tradeMode}
+              onModeChange={handleModeChange}
+              onOpenBotLibrary={() => setIsBotLibraryOpen(true)}
+            />
+          </div>
+        </div>
+
+        {/* Footer — fixed on mobile so it never gets pushed off-screen by the
+            fixed Buy button; the pb-32 above keeps content clear of both. */}
+        <div className="max-lg:fixed max-lg:bottom-0 max-lg:left-0 max-lg:right-0 py-3 text-center bg-background/80 backdrop-blur-sm lg:bg-transparent lg:static lg:py-1 lg:shrink-0">
+          <Footer />
+        </div>
+      </main>
+
+      <BotLibraryPanel
+        open={isBotLibraryOpen}
+        onClose={() => setIsBotLibraryOpen(false)}
+        onSelectBot={handleSelectBot}
+      />
+    </>
   );
 }
