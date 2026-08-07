@@ -101,7 +101,7 @@ export function TradeControls({
   }, [endTimeOption]);
 
   return (
-    <div className="w-full space-y-2 lg:max-w-[400px] lg:space-y-4">
+    <div className="w-full max-w-[200px] mx-auto space-y-1.5 lg:space-y-2.5">
       {/* Rise / Fall direction segmented control */}
       <ToggleGroup
         type="single"
@@ -113,13 +113,13 @@ export function TradeControls({
       >
         <ToggleGroupItem
           value="CALL"
-          className="flex-1 rounded-full text-sm font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-green-600 data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
+          className="flex-1 rounded-full text-[10px] font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-green-600 data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
         >
           Rise
         </ToggleGroupItem>
         <ToggleGroupItem
           value="PUT"
-          className="flex-1 rounded-full text-sm font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-destructive data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
+          className="flex-1 rounded-full text-[10px] font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-destructive data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
         >
           Fall
         </ToggleGroupItem>
@@ -127,7 +127,7 @@ export function TradeControls({
 
       {/* Allow equals */}
       <div className="flex items-center justify-between">
-        <Label htmlFor="allow-equals" className="text-sm cursor-pointer">Allow equals</Label>
+        <Label htmlFor="allow-equals" className="text-[10px] cursor-pointer">Allow equals</Label>
         <Switch
           id="allow-equals"
           checked={allowEquals}
@@ -136,8 +136,8 @@ export function TradeControls({
       </div>
 
       {/* Stake */}
-      <div className="space-y-1.5">
-        <Label htmlFor="stake" className="text-xs text-muted-foreground">Stake</Label>
+      <div className="space-y-1">
+        <Label htmlFor="stake" className="text-[10px] text-muted-foreground">Stake</Label>
         <Input
           id="stake"
           type="number"
@@ -153,8 +153,8 @@ export function TradeControls({
       </div>
 
       {/* Duration */}
-      <div className="space-y-1.5">
-        <Label className="text-xs text-muted-foreground">Duration</Label>
+      <div className="space-y-1">
+        <Label className="text-[10px] text-muted-foreground">Duration</Label>
         <Select
           value={durationUnit}
           onValueChange={(v) => {
@@ -217,7 +217,7 @@ export function TradeControls({
             <span className="flex flex-col items-center leading-tight gap-0.5">
               <span>Buy</span>
               {proposal && (
-                <span className="text-xs font-normal opacity-90">
+                <span className="text-[10px] font-normal opacity-90">
                   Payout {proposal.payout.toFixed(2)} USD
                 </span>
               )}
@@ -231,7 +231,7 @@ export function TradeControls({
         <Button
           asChild
           variant="ghost"
-          className="w-full text-sm text-muted-foreground hover:text-foreground"
+          className="w-full text-[10px] text-muted-foreground hover:text-foreground"
         >
           <Link href="/reports">View your positions →</Link>
         </Button>
