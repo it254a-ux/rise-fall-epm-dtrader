@@ -28,6 +28,31 @@ function AccountLabel({ type }: { type: 'demo' | 'real' }) {
     </span>
   );
 }
+
+function LiveBalanceDisplay({ activeAccount }: { activeAccount: DerivAccount | null }) {
+  if (!activeAccount) return null;
+
+  const balance = Number(activeAccount.balance);
+  const currency = activeAccount.currency;
+  const isReal = activeAccount.account_type === 'real';
+
+  return (
+    <div className="flex items-center gap-2">
+      <span
+        className={cn(
+          'px-1.5 py-0.5 rounded text-[10px] font-bold',
+          isReal ? 'bg-emerald-500/15 text-emerald-600' : 'bg-orange-500/15 text-orange-500'
+        )}
+      >
+        {isReal ? 'REAL' : 'DEMO'}
+      </span>
+      <span className="text-sm font-medium">
+        {balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}
+      </span>
+    </div>
+  );
+}
+
 export function Header({
   authState,
   accounts,
@@ -54,7 +79,9 @@ export function Header({
           onSelectTradeType={onSelectTradeType ?? (() => {})}
         />
       </div>
-      <div className="flex items-center gap-3" />
+      <div className="flex items-center gap-3">
+        {authState === 'authenticated' && <LiveBalanceDisplay activeAccount={activeAccount} />}
+      </div>
     </header>
   );
 }
