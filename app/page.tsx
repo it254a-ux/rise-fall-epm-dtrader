@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useSmartChartsApi } from '@/hooks/use-smartcharts-api';
 import { useSmartChartChartData } from '@/hooks/use-smartchart-chart-data';
 import { useRiseFallTrading } from '../hooks/use-rise-fall-trading';
@@ -13,12 +12,10 @@ import { RiseFallView } from '../components/rise-fall-view';
 import { DigitsBody } from '../components/digits-body';
 import { AccumulatorsBody } from '../components/accumulators-body';
 import { Header } from '@/components/custom/header';
-import { Sidebar } from '@/components/custom/sidebar';
 import { Footer } from '@/components/custom/footer';
 
 export default function RiseFallPage() {
   const logoSrc = useLogoSrc();
-  const router = useRouter();
   const { ws, isConnected, isExhausted, auth } = useDerivWSContext();
   const { authState, accounts, activeAccount, login, signUp, logout, switchAccount } = auth;
   const isAuthenticated = !!auth.wsUrl;
@@ -54,144 +51,120 @@ export default function RiseFallPage() {
     digits.setTradeType(activeTradeType as typeof digits.tradeType);
   }
 
-  // Wires the pre-built left icon rail the same way it's wired in RiseFallView:
-  // "Reports" goes to the existing /reports route, "Account" logs in or out
-  // depending on current auth state. The rest are left as no-ops since there's
-  // no destination for them yet.
-  const handleSidebarNavigate = (label: string) => {
-    if (label === 'Reports') {
-      router.push('/reports');
-      return;
-    }
-    if (label === 'Account') {
-      if (authState === 'authenticated') {
-        logout();
-      } else {
-        login();
-      }
-    }
-  };
-
   if (activeTradeType === 'accumulators') {
     return (
-      <>
-        <Sidebar onNavigate={handleSidebarNavigate} />
-        <main
-          className="flex flex-col bg-background max-lg:h-dvh max-lg:overflow-y-auto lg:h-dvh lg:overflow-hidden lg:pl-[72px]"
-          style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
-        >
-          <Header
-            authState={authState}
-            accounts={accounts}
-            activeAccount={activeAccount}
-            onLogin={login}
-            onSignUp={signUp}
-            onLogout={logout}
-            onSwitchAccount={switchAccount}
-            logoSrc={logoSrc}
-            activeTradeType={activeTradeType}
-            onSelectTradeType={setActiveTradeType}
-          />
-          <div className={authState === 'authenticated' ? 'h-[64px] shrink-0' : 'h-[54px] shrink-0'} />
-          <AccumulatorsBody
-            ws={accumulators.ws}
-            isConnected={accumulators.isConnected}
-            isLoading={accumulators.isLoading}
-            activeSymbol={accumulators.activeSymbol}
-            selectSymbol={accumulators.selectSymbol}
-            growthRate={accumulators.growthRate}
-            setGrowthRate={accumulators.setGrowthRate}
-            growthRateOptions={accumulators.growthRateOptions}
-            stake={accumulators.stake}
-            setStake={accumulators.setStake}
-            takeProfit={accumulators.takeProfit}
-            setTakeProfit={accumulators.setTakeProfit}
-            proposal={accumulators.proposal}
-            buyContract={accumulators.buyContract}
-            isBuying={accumulators.isBuying}
-            buyResult={accumulators.buyResult}
-            buyError={accumulators.buyError}
-            clearBuyResult={accumulators.clearBuyResult}
-            currentTick={accumulators.currentTick}
-            openPositions={accumulators.openPositions}
-            sellContract={accumulators.sellContract}
-            sellingId={accumulators.sellingId}
-            sellError={accumulators.sellError}
-            clearSellError={accumulators.clearSellError}
-            isAuthenticated={authState === 'authenticated'}
-            chartData={accumulatorsChartData}
-            getQuotes={accumulatorsGetQuotes}
-            subscribeQuotes={accumulatorsSubscribeQuotes}
-            unsubscribeQuotes={accumulatorsUnsubscribeQuotes}
-          />
-          <div className="max-lg:fixed max-lg:bottom-0 max-lg:left-0 max-lg:right-0 py-1 text-center bg-background/80 backdrop-blur-sm lg:bg-transparent lg:static lg:py-0.5 lg:shrink-0">
-            <Footer />
-          </div>
-        </main>
-      </>
+      <main
+        className="flex flex-col bg-background max-lg:h-dvh max-lg:overflow-y-auto lg:h-dvh lg:overflow-hidden"
+        style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
+      >
+        <Header
+          authState={authState}
+          accounts={accounts}
+          activeAccount={activeAccount}
+          onLogin={login}
+          onSignUp={signUp}
+          onLogout={logout}
+          onSwitchAccount={switchAccount}
+          logoSrc={logoSrc}
+          activeTradeType={activeTradeType}
+          onSelectTradeType={setActiveTradeType}
+        />
+        <div className={authState === 'authenticated' ? 'h-[64px] shrink-0' : 'h-[54px] shrink-0'} />
+        <AccumulatorsBody
+          ws={accumulators.ws}
+          isConnected={accumulators.isConnected}
+          isLoading={accumulators.isLoading}
+          activeSymbol={accumulators.activeSymbol}
+          selectSymbol={accumulators.selectSymbol}
+          growthRate={accumulators.growthRate}
+          setGrowthRate={accumulators.setGrowthRate}
+          growthRateOptions={accumulators.growthRateOptions}
+          stake={accumulators.stake}
+          setStake={accumulators.setStake}
+          takeProfit={accumulators.takeProfit}
+          setTakeProfit={accumulators.setTakeProfit}
+          proposal={accumulators.proposal}
+          buyContract={accumulators.buyContract}
+          isBuying={accumulators.isBuying}
+          buyResult={accumulators.buyResult}
+          buyError={accumulators.buyError}
+          clearBuyResult={accumulators.clearBuyResult}
+          currentTick={accumulators.currentTick}
+          openPositions={accumulators.openPositions}
+          sellContract={accumulators.sellContract}
+          sellingId={accumulators.sellingId}
+          sellError={accumulators.sellError}
+          clearSellError={accumulators.clearSellError}
+          isAuthenticated={authState === 'authenticated'}
+          chartData={accumulatorsChartData}
+          getQuotes={accumulatorsGetQuotes}
+          subscribeQuotes={accumulatorsSubscribeQuotes}
+          unsubscribeQuotes={accumulatorsUnsubscribeQuotes}
+        />
+        <div className="max-lg:fixed max-lg:bottom-0 max-lg:left-0 max-lg:right-0 py-1 text-center bg-background/80 backdrop-blur-sm lg:bg-transparent lg:static lg:py-0.5 lg:shrink-0">
+          <Footer />
+        </div>
+      </main>
     );
   }
 
   if (isDigitsTab) {
     return (
-      <>
-        <Sidebar onNavigate={handleSidebarNavigate} />
-        <main
-          className="flex flex-col bg-background max-lg:h-dvh max-lg:overflow-y-auto lg:h-dvh lg:overflow-hidden lg:pl-[72px]"
-          style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
-        >
-          <Header
-            authState={authState}
-            accounts={accounts}
-            activeAccount={activeAccount}
-            onLogin={login}
-            onSignUp={signUp}
-            onLogout={logout}
-            onSwitchAccount={switchAccount}
-            logoSrc={logoSrc}
-            activeTradeType={activeTradeType}
-            onSelectTradeType={setActiveTradeType}
-          />
-          <div className={authState === 'authenticated' ? 'h-[64px] shrink-0' : 'h-[54px] shrink-0'} />
-          <DigitsBody
-            authState={authState}
-            isConnected={digits.isConnected}
-            isLoading={digits.isLoading}
-            ws={digits.ws}
-            activeSymbol={digits.activeSymbol}
-            selectSymbol={digits.selectSymbol}
-            digitStats={digits.digitStats}
-            lastDigit={digits.lastDigit}
-            tradeType={digits.tradeType}
-            setTradeType={digits.setTradeType}
-            contractMode={digits.contractMode}
-            setContractMode={digits.setContractMode}
-            selectedDigit={digits.selectedDigit}
-            setSelectedDigit={digits.setSelectedDigit}
-            stake={digits.stake}
-            setStake={digits.setStake}
-            duration={digits.duration}
-            setDuration={digits.setDuration}
-            durationLimits={digits.durationLimits}
-            proposal={digits.proposal}
-            isProposalLoading={digits.isProposalLoading}
-            buyContract={digits.buyContract}
-            isBuying={digits.isBuying}
-            buyResult={digits.buyResult}
-            buyError={digits.buyError}
-            clearBuyResult={digits.clearBuyResult}
-            openPositions={digits.openPositions}
-            chartData={digitsChartData}
-            getQuotes={digitsGetQuotes}
-            subscribeQuotes={digitsSubscribeQuotes}
-            unsubscribeQuotes={digitsUnsubscribeQuotes}
-            onSelectTradeType={setActiveTradeType}
-          />
-          <div className="max-lg:fixed max-lg:bottom-0 max-lg:left-0 max-lg:right-0 py-1 text-center bg-background/80 backdrop-blur-sm lg:bg-transparent lg:static lg:py-0.5 lg:shrink-0">
-            <Footer />
-          </div>
-        </main>
-      </>
+      <main
+        className="flex flex-col bg-background max-lg:h-dvh max-lg:overflow-y-auto lg:h-dvh lg:overflow-hidden"
+        style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
+      >
+        <Header
+          authState={authState}
+          accounts={accounts}
+          activeAccount={activeAccount}
+          onLogin={login}
+          onSignUp={signUp}
+          onLogout={logout}
+          onSwitchAccount={switchAccount}
+          logoSrc={logoSrc}
+          activeTradeType={activeTradeType}
+          onSelectTradeType={setActiveTradeType}
+        />
+        <div className={authState === 'authenticated' ? 'h-[64px] shrink-0' : 'h-[54px] shrink-0'} />
+        <DigitsBody
+          authState={authState}
+          isConnected={digits.isConnected}
+          isLoading={digits.isLoading}
+          ws={digits.ws}
+          activeSymbol={digits.activeSymbol}
+          selectSymbol={digits.selectSymbol}
+          digitStats={digits.digitStats}
+          lastDigit={digits.lastDigit}
+          tradeType={digits.tradeType}
+          setTradeType={digits.setTradeType}
+          contractMode={digits.contractMode}
+          setContractMode={digits.setContractMode}
+          selectedDigit={digits.selectedDigit}
+          setSelectedDigit={digits.setSelectedDigit}
+          stake={digits.stake}
+          setStake={digits.setStake}
+          duration={digits.duration}
+          setDuration={digits.setDuration}
+          durationLimits={digits.durationLimits}
+          proposal={digits.proposal}
+          isProposalLoading={digits.isProposalLoading}
+          buyContract={digits.buyContract}
+          isBuying={digits.isBuying}
+          buyResult={digits.buyResult}
+          buyError={digits.buyError}
+          clearBuyResult={digits.clearBuyResult}
+          openPositions={digits.openPositions}
+          chartData={digitsChartData}
+          getQuotes={digitsGetQuotes}
+          subscribeQuotes={digitsSubscribeQuotes}
+          unsubscribeQuotes={digitsUnsubscribeQuotes}
+          onSelectTradeType={setActiveTradeType}
+        />
+        <div className="max-lg:fixed max-lg:bottom-0 max-lg:left-0 max-lg:right-0 py-1 text-center bg-background/80 backdrop-blur-sm lg:bg-transparent lg:static lg:py-0.5 lg:shrink-0">
+          <Footer />
+        </div>
+      </main>
     );
   }
 
