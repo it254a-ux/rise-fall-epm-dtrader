@@ -40,7 +40,7 @@ export function NumberField({
   step?: number;
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-0.5">
       <Label className="text-[10px] text-muted-foreground">{label}</Label>
       <Input
         type="number"
@@ -54,6 +54,7 @@ export function NumberField({
           onChange(raw === '' ? null : parseFloat(raw));
         }}
         labelRight={suffix}
+        className="h-7 text-xs px-2"
       />
     </div>
   );
@@ -82,13 +83,13 @@ function StrategySelect({
   }, []);
 
   return (
-    <div ref={wrapRef} className="relative space-y-1.5">
+    <div ref={wrapRef} className="relative space-y-0.5">
       <Label className="text-[10px] text-muted-foreground">Strategy</Label>
       <button
         type="button"
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center justify-between w-full rounded-md border border-input bg-background px-3 py-2 text-[10px] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+        className="flex items-center justify-between w-full h-7 rounded-md border border-input bg-background px-2 py-1 text-[10px] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {active.label}
         <span className="text-muted-foreground">›</span>
@@ -104,7 +105,7 @@ function StrategySelect({
                 onChange(s.id);
                 setOpen(false);
               }}
-              className={`w-full text-left px-4 py-3 text-[10px] font-medium transition-colors ${
+              className={`w-full text-left px-3 py-1.5 text-[10px] font-medium transition-colors ${
                 s.id === value ? 'bg-foreground text-background' : 'hover:bg-foreground/5 text-foreground'
               }`}
             >
@@ -130,7 +131,7 @@ function InfoTooltip({ text }: { text: string }) {
         className="text-muted-foreground hover:text-foreground"
         aria-label="Strategy info"
       >
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
           <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3" />
           <path d="M8 7.5v3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
           <circle cx="8" cy="5.2" r="0.9" fill="currentColor" />
@@ -173,7 +174,7 @@ export function AutomationControls({
 
   return (
     <>
-      <div className="pt-1 border-t border-border" />
+      <div className="pt-0.5 border-t border-border" />
 
       <p className="text-[10px] font-semibold text-foreground">Strategy parameters</p>
 
@@ -193,8 +194,8 @@ export function AutomationControls({
           step={0.1}
         />
       ) : (
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-1.5">
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-1">
             <Label className="text-[10px] text-muted-foreground">Stake increment</Label>
             <InfoTooltip text={activeStrategy.description} />
           </div>
@@ -206,6 +207,7 @@ export function AutomationControls({
             min={0}
             onChange={(e) => updateSetting('stakeIncrement', parseFloat(e.target.value) || 0)}
             labelRight="unit"
+            className="h-7 text-xs px-2"
           />
         </div>
       )}
@@ -219,7 +221,7 @@ export function AutomationControls({
         step={0.01}
       />
 
-      <p className="text-[10px] font-semibold text-foreground pt-1">Risk management</p>
+      <p className="text-[10px] font-semibold text-foreground pt-0.5">Risk management</p>
 
       <NumberField
         label="Profit threshold"
@@ -240,7 +242,7 @@ export function AutomationControls({
       />
 
       {(isRunning || tradeCount > 0) && (
-        <div className="rounded-md border border-border bg-muted/30 px-3 py-2 space-y-1 text-[10px]">
+        <div className="rounded-md border border-border bg-muted/30 px-2 py-1 space-y-0.5 text-[10px]">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Trades this run</span>
             <span className="font-medium">{tradeCount}</span>
@@ -269,13 +271,12 @@ export function AutomationControls({
 
       <div className="w-full">
         {isRunning ? (
-          <Button className="w-full rounded-full" size="lg" variant="destructive" onClick={() => stop()}>
+          <Button className="w-full rounded-full h-8 text-xs" variant="destructive" onClick={() => stop()}>
             Stop
           </Button>
         ) : (
           <Button
-            className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground"
-            size="lg"
+            className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground h-8 text-xs"
             disabled={!canStart}
             onClick={start}
           >
