@@ -71,16 +71,16 @@ export function AccumulatorTradePanel({
   }, [buyResult, onClearBuyResult]);
 
   return (
-    <div className="w-full space-y-3 lg:max-w-[240px] lg:space-y-4">
+    <div className="w-full space-y-1.5 lg:max-w-[240px] lg:space-y-2">
 
       {/* Growth Rate selector */}
-      <div className="space-y-1.5">
-        <div className="flex items-center gap-1.5">
-          <Label className="text-xs text-muted-foreground">Growth rate</Label>
+      <div className="space-y-0.5">
+        <div className="flex items-center gap-1">
+          <Label className="text-[10px] text-muted-foreground">Growth rate</Label>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-muted-foreground/40 text-xs text-muted-foreground">
+                <span className="inline-flex h-3 w-3 cursor-help items-center justify-center rounded-full border border-muted-foreground/40 text-[9px] text-muted-foreground">
                   i
                 </span>
               </TooltipTrigger>
@@ -98,12 +98,12 @@ export function AccumulatorTradePanel({
             onGrowthRateChange(parseFloat(value));
           }}
         >
-          <SelectTrigger>
+          <SelectTrigger className="h-7 text-xs px-2">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {growthRateOptions.map((opt) => (
-              <SelectItem key={opt.value} value={String(opt.value)}>
+              <SelectItem key={opt.value} value={String(opt.value)} className="text-xs">
                 {opt.label}
               </SelectItem>
             ))}
@@ -112,8 +112,8 @@ export function AccumulatorTradePanel({
       </div>
 
       {/* Stake */}
-      <div className="space-y-1.5">
-        <Label htmlFor="accu-stake" className="text-xs text-muted-foreground">Stake</Label>
+      <div className="space-y-0.5">
+        <Label htmlFor="accu-stake" className="text-[10px] text-muted-foreground">Stake</Label>
         <Input
           id="accu-stake"
           type="number"
@@ -125,12 +125,13 @@ export function AccumulatorTradePanel({
           min={0}
           step="0.01"
           labelRight="USD"
+          className="h-7 text-xs px-2"
         />
       </div>
 
       {/* Take Profit */}
-      <div className="space-y-1.5">
-        <Label htmlFor="accu-take-profit" className="text-xs text-muted-foreground">Take profit</Label>
+      <div className="space-y-0.5">
+        <Label htmlFor="accu-take-profit" className="text-[10px] text-muted-foreground">Take profit</Label>
         <Input
           id="accu-take-profit"
           type="number"
@@ -143,12 +144,13 @@ export function AccumulatorTradePanel({
           step="0.01"
           placeholder="-"
           labelRight="USD"
+          className="h-7 text-xs px-2"
         />
       </div>
 
       {/* Proposal info */}
       {proposal && !activePosition && (
-        <div className="rounded-lg bg-muted/50 px-3 py-2 space-y-1 text-xs">
+        <div className="rounded-lg bg-muted/50 px-2 py-1 space-y-0.5 text-[10px]">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Max payout</span>
             <span className="font-medium">{proposal.maxPayout.toFixed(2)} USD</span>
@@ -158,7 +160,7 @@ export function AccumulatorTradePanel({
 
       {/* Active position info */}
       {activePosition && (
-        <div className="rounded-lg bg-muted/50 px-3 py-2 space-y-1 text-xs">
+        <div className="rounded-lg bg-muted/50 px-2 py-1 space-y-0.5 text-[10px]">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Current value</span>
             <span className="font-medium">
@@ -186,8 +188,7 @@ export function AccumulatorTradePanel({
       <div className="w-full">
         {!activePosition && (
           <Button
-            className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground"
-            size="lg"
+            className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground h-8 text-xs"
             disabled={!isConnected || !proposal || isBuying}
             onClick={onBuy}
           >
@@ -198,15 +199,14 @@ export function AccumulatorTradePanel({
         {activePosition && onClose && (
           <Button
             variant="outline"
-            className="w-full rounded-full border-black bg-white text-black hover:bg-white hover:text-black dark:border-white dark:bg-transparent dark:text-white dark:hover:bg-white/10"
-            size="lg"
+            className="w-full rounded-full border-black bg-white text-black hover:bg-white hover:text-black dark:border-white dark:bg-transparent dark:text-white dark:hover:bg-white/10 h-8 text-xs"
             disabled={!isConnected || isClosing || !activePosition.is_valid_to_sell}
             onClick={() => onClose(activePosition.contract_id, activePosition.bid_price)}
           >
             {isClosing ? 'Closing...' : (
               <span className="flex flex-col items-center leading-tight gap-0.5">
                 <span>Close</span>
-                <span className="text-xs font-normal opacity-90">
+                <span className="text-[10px] font-normal opacity-90">
                   {(parseFloat(activePosition.buy_price) + parseFloat(activePosition.profit)).toFixed(2)} {activePosition.currency}
                 </span>
               </span>
@@ -220,7 +220,7 @@ export function AccumulatorTradePanel({
         <Button
           asChild
           variant="ghost"
-          className="w-full text-xs text-muted-foreground hover:text-foreground"
+          className="w-full text-[10px] text-muted-foreground hover:text-foreground h-6"
         >
           <Link href="/reports">View your positions →</Link>
         </Button>
