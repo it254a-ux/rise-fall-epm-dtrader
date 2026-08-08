@@ -136,7 +136,7 @@ export function DigitTradePanel({
       </ToggleGroup>
 
       {showDigitGrid(tradeType) && (
-        <div className="h-28 sm:h-32">
+        <div>
           <DigitStatsBar
             digitStats={digitStats}
             selectedDigit={selectedDigit}
