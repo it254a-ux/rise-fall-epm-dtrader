@@ -92,7 +92,7 @@ export function DigitEntryAutomatedPanel({
         ))}
       </ToggleGroup>
 
-      <div className="h-40 sm:h-48">
+      <div>
         <DigitStatsBar
           digitStats={digitStats}
           selectedDigit={selectedDigit}
