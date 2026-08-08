@@ -220,7 +220,7 @@ export function RiseFallView({
             internally only if content overflows. Bottom padding on mobile
             reserves space so the fixed Buy button and footer never cover the
             last elements (e.g. "View your positions" link). */}
-        <div className="flex w-full max-w-7xl mx-auto flex-col px-3 py-2 sm:px-4 sm:py-4 gap-4 sm:gap-3 max-lg:pb-32 lg:pb-6 flex-1 min-h-0 overflow-y-auto">
+        <div className="flex w-full max-w-7xl mx-auto flex-col px-3 py-2 sm:px-4 sm:py-4 gap-4 sm:gap-3 max-lg:pb-16 lg:pb-2 flex-1 min-h-0 overflow-y-auto">
           <div className="flex flex-col flex-1 min-h-0 lg:grid lg:grid-cols-[1fr_240px] lg:gap-4 lg:h-full">
 
             {/* Column 1: Chart — touch-action:pan-y lets vertical swipes scroll the page */}
@@ -312,7 +312,7 @@ export function RiseFallView({
         </div>
 
         {/* Footer — fixed on mobile so it never gets pushed off-screen by the
-            fixed Buy button; the pb-32 above keeps content clear of both. */}
+            fixed Buy button; the pb-16 above keeps content clear of both. */}
         <div className="max-lg:fixed max-lg:bottom-0 max-lg:left-0 max-lg:right-0 py-1 text-center bg-background/80 backdrop-blur-sm lg:bg-transparent lg:static lg:py-0.5">
           <Footer />
         </div>
