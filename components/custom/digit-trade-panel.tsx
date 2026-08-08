@@ -67,7 +67,7 @@ function getPredictionText(contractMode: ContractMode): string {
 }
 
 function showDigitGrid(tradeType: TradeType): boolean {
-  return tradeType !== 'even-odd';
+  return true;
 }
 
 function showDigitInPrediction(contractMode: ContractMode): boolean {
@@ -136,7 +136,7 @@ export function DigitTradePanel({
       </ToggleGroup>
 
       {showDigitGrid(tradeType) && (
-        <div className="h-40 sm:h-48">
+        <div className="h-28 sm:h-32">
           <DigitStatsBar
             digitStats={digitStats}
             selectedDigit={selectedDigit}
