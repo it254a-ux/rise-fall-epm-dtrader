@@ -176,15 +176,15 @@ export function DigitStatsBar({
 
   return (
     <div className="h-full flex flex-col min-h-0">
-      <span className="text-xs text-muted-foreground mb-2">
+      <span className="text-[10px] text-muted-foreground mb-1">
         Last digit prediction
       </span>
-      <div className="flex-1 flex items-center min-h-0">
+      <div className="flex-1 flex items-start min-h-0">
         <div
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(5, minmax(32px, 1fr))',
-            gap: '10px 6px',
+            gap: '6px 6px',
             placeItems: 'center',
             width: '100%',
           }}
