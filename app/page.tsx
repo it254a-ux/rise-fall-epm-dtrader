@@ -69,7 +69,7 @@ export default function RiseFallPage() {
           activeTradeType={activeTradeType}
           onSelectTradeType={setActiveTradeType}
         />
-        <div className={authState === 'authenticated' ? 'h-[64px] shrink-0' : 'h-[54px] shrink-0'} />
+        <div className={authState === 'authenticated' ? 'h-[40px] shrink-0' : 'h-[36px] shrink-0'} />
         <AccumulatorsBody
           ws={accumulators.ws}
           isConnected={accumulators.isConnected}
@@ -126,7 +126,7 @@ export default function RiseFallPage() {
           activeTradeType={activeTradeType}
           onSelectTradeType={setActiveTradeType}
         />
-        <div className={authState === 'authenticated' ? 'h-[64px] shrink-0' : 'h-[54px] shrink-0'} />
+        <div className={authState === 'authenticated' ? 'h-[40px] shrink-0' : 'h-[36px] shrink-0'} />
         <DigitsBody
           authState={authState}
           isConnected={digits.isConnected}
