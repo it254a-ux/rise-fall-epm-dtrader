@@ -101,7 +101,7 @@ export function TradeControls({
   }, [endTimeOption]);
 
   return (
-    <div className="w-full max-w-[200px] mx-auto space-y-1.5 lg:space-y-2.5">
+    <div className="w-full max-w-[200px] mx-auto space-y-1.5 lg:space-y-2">
       {/* Rise / Fall direction segmented control */}
       <ToggleGroup
         type="single"
@@ -109,17 +109,17 @@ export function TradeControls({
         onValueChange={(value) => {
           if (value === 'CALL' || value === 'PUT') onDirectionChange(value);
         }}
-        className="w-full gap-0 rounded-full bg-muted p-1"
+        className="w-full gap-0 rounded-full bg-muted p-0.5"
       >
         <ToggleGroupItem
           value="CALL"
-          className="flex-1 rounded-full text-[10px] font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-green-600 data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
+          className="flex-1 h-6 rounded-full text-[10px] font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-green-600 data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
         >
           Rise
         </ToggleGroupItem>
         <ToggleGroupItem
           value="PUT"
-          className="flex-1 rounded-full text-[10px] font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-destructive data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
+          className="flex-1 h-6 rounded-full text-[10px] font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-destructive data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
         >
           Fall
         </ToggleGroupItem>
@@ -136,7 +136,7 @@ export function TradeControls({
       </div>
 
       {/* Stake */}
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         <Label htmlFor="stake" className="text-[10px] text-muted-foreground">Stake</Label>
         <Input
           id="stake"
@@ -149,11 +149,12 @@ export function TradeControls({
           min={0}
           step="0.01"
           labelRight="USD"
+          className="h-7 text-xs px-2"
         />
       </div>
 
       {/* Duration */}
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         <Label className="text-[10px] text-muted-foreground">Duration</Label>
         <Select
           value={durationUnit}
@@ -162,12 +163,12 @@ export function TradeControls({
             if (opt) onDurationUnitChange(opt.unit);
           }}
         >
-          <SelectTrigger>
+          <SelectTrigger className="h-7 text-xs px-2">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {durationOptions.map(opt => (
-              <SelectItem key={opt.unit} value={opt.unit}>{opt.label}</SelectItem>
+              <SelectItem key={opt.unit} value={opt.unit} className="text-xs">{opt.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -183,6 +184,7 @@ export function TradeControls({
             min={activeOption?.min}
             max={activeOption?.max}
             step={1}
+            className="h-7 text-xs px-2"
           />
         )}
 
@@ -206,8 +208,7 @@ export function TradeControls({
           positions" link below) on mobile. */}
       <div className="w-full">
         <Button
-          className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground"
-          size="lg"
+          className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground h-8 text-xs"
           disabled={!isConnected || !proposal || isBuying}
           onClick={onBuy}
         >
@@ -231,7 +232,7 @@ export function TradeControls({
         <Button
           asChild
           variant="ghost"
-          className="w-full text-[10px] text-muted-foreground hover:text-foreground"
+          className="w-full text-[10px] text-muted-foreground hover:text-foreground h-6"
         >
           <Link href="/reports">View your positions →</Link>
         </Button>
