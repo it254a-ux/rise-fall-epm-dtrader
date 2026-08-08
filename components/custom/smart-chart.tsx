@@ -220,7 +220,12 @@ export function SmartChartWrapper({
       style={{ pointerEvents: isChartReady ? 'auto' : 'none' }}
     >
       {isReadyToMount && <SmartChart
-        key={symbolKey}
+        // Theme is appended to the key so the chart remounts (and repaints
+        // in the new theme) whenever it changes. This chart is backed by a
+        // Flutter/WebAssembly widget that only reads `settings.theme` once,
+        // on mount — passing an updated `settings` prop alone doesn't make
+        // it redraw, so a full remount is needed to apply theme changes live.
+        key={`${symbolKey}-${chartTheme}`}
         chartControlsWidgets={null}
         chartData={chartData}
         chartStatusListener={() => {}}
