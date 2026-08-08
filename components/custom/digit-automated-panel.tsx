@@ -35,7 +35,7 @@ const CONTRACT_MODE_OPTIONS: Record<TradeType, { value: ContractMode; label: str
 };
 
 function showDigitGrid(tradeType: TradeType): boolean {
-  return tradeType !== 'even-odd';
+  return true;
 }
 
 /**
@@ -87,7 +87,7 @@ export function DigitAutomatedPanel({
       </ToggleGroup>
 
       {showDigitGrid(tradeType) && (
-        <div className="h-40 sm:h-48">
+        <div className="h-28 sm:h-32">
           <DigitStatsBar
             digitStats={digitStats}
             selectedDigit={selectedDigit}
