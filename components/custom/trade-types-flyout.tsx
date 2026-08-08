@@ -15,7 +15,7 @@ const TRADE_TYPES = [
 
 export function TradeTypesFlyout({ activeTradeType, onSelectTradeType }: TradeTypesFlyoutProps) {
   return (
-    <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
+    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
       {TRADE_TYPES.map(item => (
         <button
           key={item.value}
@@ -26,7 +26,7 @@ export function TradeTypesFlyout({ activeTradeType, onSelectTradeType }: TradeTy
               onSelectTradeType(item.value);
             }
           }}
-          className={`flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-xs font-medium transition-colors
+          className={`flex items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-1 text-xs font-medium transition-colors
             ${activeTradeType === item.value ? 'bg-foreground/10 text-foreground' : 'text-muted-foreground'}
             ${item.comingSoon ? 'opacity-50 cursor-not-allowed' : 'hover:bg-foreground/5 hover:text-foreground cursor-pointer'}
           `}
