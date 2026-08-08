@@ -214,7 +214,7 @@ export function RiseFallView({
           activeTradeType={activeTradeType}
           onSelectTradeType={onSelectTradeType}
         />
-        <div className={authState === 'authenticated' ? 'h-[64px] shrink-0' : 'h-[54px] shrink-0'} />
+        <div className={authState === 'authenticated' ? 'h-[40px] shrink-0' : 'h-[36px] shrink-0'} />
 
         {/* Page content — fills all remaining viewport height and scrolls
             internally only if content overflows. Bottom padding on mobile
