@@ -63,9 +63,9 @@ interface UseDigitsTradingReturn {
   clearSellError: () => void;
 }
 
-export type UseDigitsTradingParams = Pick<UseBaseTradingParams, 'ws' | 'isConnected' | 'isExhausted' | 'isAuthenticated' | 'onAuthWSFailed'>;
+export type UseDigitsTradingParams = Pick<UseBaseTradingParams, 'ws' | 'isConnected' | 'isExhausted' | 'isAuthenticated' | 'onAuthWSFailed' | 'enabled'>;
 
-export function useDigitsTrading({ ws, isConnected, isExhausted, isAuthenticated, onAuthWSFailed }: UseDigitsTradingParams): UseDigitsTradingReturn {
+export function useDigitsTrading({ ws, isConnected, isExhausted, isAuthenticated, onAuthWSFailed, enabled }: UseDigitsTradingParams): UseDigitsTradingReturn {
   const {
     ws: tradingWs,
     isConnected: tradingIsConnected,
@@ -85,7 +85,7 @@ export function useDigitsTrading({ ws, isConnected, isExhausted, isAuthenticated
     sellingId,
     sellError,
     clearSellError,
-  } = useBaseTrading({ ws, isConnected, isExhausted, isAuthenticated, onAuthWSFailed, contractTypes: CONTRACT_TYPES });
+  } = useBaseTrading({ ws, isConnected, isExhausted, isAuthenticated, onAuthWSFailed, contractTypes: CONTRACT_TYPES, enabled });
 
   const [tradeType, setTradeTypeRaw] = useState<TradeType>('matches-differs');
   const [contractMode, setContractMode] = useState<ContractMode>('DIGITMATCH');
