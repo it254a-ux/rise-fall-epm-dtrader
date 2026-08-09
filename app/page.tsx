@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSmartChartsApi } from '@/hooks/use-smartcharts-api';
 import { useSmartChartChartData } from '@/hooks/use-smartchart-chart-data';
 import { useRiseFallTrading } from '../hooks/use-rise-fall-trading';
@@ -22,11 +22,55 @@ export default function RiseFallPage() {
 
   const [activeTradeType, setActiveTradeType] = useState<string>('rise-fall');
 
-  const trading = useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticated, onAuthWSFailed: logout });
+  // Which trade-type "family" is currently selected. Computed before the
+  // trading hooks below so each hook can be told whether it's the active
+  // one — this is what lets us skip loading data for modes the user hasn't
+  // opened yet.
+  const isDigitsTab =
+    activeTradeType === 'matches-differs' ||
+    activeTradeType === 'over-under' ||
+    activeTradeType === 'even-odd';
+  const isAccumulatorsTab = activeTradeType === 'accumulators';
+  const isRiseFallTab = !isDigitsTab && !isAccumulatorsTab;
+
+  // Once a mode has been activated (the user switched to it at least once
+  // this session), it stays "warm" — we never flip it back off, so
+  // switching away and back doesn't re-trigger a fresh load. Rise/Fall
+  // starts warm since it's the default landing tab.
+  const [activatedTabs, setActivatedTabs] = useState({
+    riseFall: true,
+    digits: false,
+    accumulators: false,
+  });
+
+  useEffect(() => {
+    setActivatedTabs((prev) => {
+      if (isDigitsTab && !prev.digits) return { ...prev, digits: true };
+      if (isAccumulatorsTab && !prev.accumulators) return { ...prev, accumulators: true };
+      if (isRiseFallTab && !prev.riseFall) return { ...prev, riseFall: true };
+      return prev;
+    });
+  }, [isDigitsTab, isAccumulatorsTab, isRiseFallTab]);
+
+  const trading = useRiseFallTrading({
+    ws,
+    isConnected,
+    isExhausted,
+    isAuthenticated,
+    onAuthWSFailed: logout,
+    enabled: activatedTabs.riseFall,
+  });
   const { chartData } = useSmartChartChartData(trading.ws, trading.isConnected, trading.symbols);
   const { getQuotes, subscribeQuotes, unsubscribeQuotes } = useSmartChartsApi(trading.ws);
 
-  const digits = useDigitsTrading({ ws, isConnected, isExhausted, isAuthenticated, onAuthWSFailed: logout });
+  const digits = useDigitsTrading({
+    ws,
+    isConnected,
+    isExhausted,
+    isAuthenticated,
+    onAuthWSFailed: logout,
+    enabled: activatedTabs.digits,
+  });
   const { chartData: digitsChartData } = useSmartChartChartData(digits.ws, digits.isConnected, digits.symbols);
   const {
     getQuotes: digitsGetQuotes,
@@ -34,18 +78,20 @@ export default function RiseFallPage() {
     unsubscribeQuotes: digitsUnsubscribeQuotes,
   } = useSmartChartsApi(digits.ws);
 
-  const accumulators = useAccumulatorTrading({ ws, isConnected, isExhausted, isAuthenticated, onAuthWSFailed: logout });
+  const accumulators = useAccumulatorTrading({
+    ws,
+    isConnected,
+    isExhausted,
+    isAuthenticated,
+    onAuthWSFailed: logout,
+    enabled: activatedTabs.accumulators,
+  });
   const { chartData: accumulatorsChartData } = useSmartChartChartData(accumulators.ws, accumulators.isConnected, accumulators.symbols);
   const {
     getQuotes: accumulatorsGetQuotes,
     subscribeQuotes: accumulatorsSubscribeQuotes,
     unsubscribeQuotes: accumulatorsUnsubscribeQuotes,
   } = useSmartChartsApi(accumulators.ws);
-
-  const isDigitsTab =
-    activeTradeType === 'matches-differs' ||
-    activeTradeType === 'over-under' ||
-    activeTradeType === 'even-odd';
 
   if (isDigitsTab && digits.tradeType !== activeTradeType) {
     digits.setTradeType(activeTradeType as typeof digits.tradeType);
