@@ -57,9 +57,9 @@ interface UseRiseFallTradingReturn {
   clearSellError: () => void;
 }
 
-export type UseRiseFallTradingParams = Pick<UseBaseTradingParams, 'ws' | 'isConnected' | 'isExhausted' | 'isAuthenticated' | 'onAuthWSFailed'>;
+export type UseRiseFallTradingParams = Pick<UseBaseTradingParams, 'ws' | 'isConnected' | 'isExhausted' | 'isAuthenticated' | 'onAuthWSFailed' | 'enabled'>;
 
-export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticated, onAuthWSFailed }: UseRiseFallTradingParams): UseRiseFallTradingReturn {
+export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticated, onAuthWSFailed, enabled }: UseRiseFallTradingParams): UseRiseFallTradingReturn {
   const {
     ws: tradingWs,
     isConnected: tradingIsConnected,
@@ -78,7 +78,7 @@ export function useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticat
     sellingId,
     sellError,
     clearSellError,
-  } = useBaseTrading({ ws, isConnected, isExhausted, isAuthenticated, onAuthWSFailed, contractTypes: CONTRACT_TYPES });
+  } = useBaseTrading({ ws, isConnected, isExhausted, isAuthenticated, onAuthWSFailed, contractTypes: CONTRACT_TYPES, enabled });
 
   const [direction, setDirection] = useState<Direction>('CALL');
   const [allowEquals, setAllowEquals] = useState<boolean>(false);
