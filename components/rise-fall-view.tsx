@@ -264,7 +264,7 @@ export function RiseFallView({
                 <Skeleton className="lg:h-full lg:min-h-[384px] h-48 w-full rounded-xl" />
               ) : (
                 <Card className="lg:h-full lg:min-h-[384px] lg:overflow-y-auto">
-                  <CardContent className="pt-4 pb-6">
+                  <CardContent className="px-3 pt-4 pb-6 lg:px-6">
                     <TradeModeToggle
                       mode={tradeMode}
                       onModeChange={handleModeChange}
