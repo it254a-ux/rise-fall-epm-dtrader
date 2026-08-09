@@ -297,6 +297,8 @@ export function RiseFallView({
                         buyError={buyError}
                         onClearBuyResult={clearBuyResult}
                         isAuthenticated={isAuthenticated}
+                        activeTradeType={activeTradeType}
+                        onSelectTradeType={onSelectTradeType}
                       />
                     ) : (
                       <AutomatedPanel
