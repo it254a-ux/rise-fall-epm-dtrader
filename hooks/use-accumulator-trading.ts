@@ -57,9 +57,9 @@ interface UseAccumulatorTradingReturn {
   clearSellError: () => void;
 }
 
-export type UseAccumulatorTradingParams = Pick<UseBaseTradingParams, 'ws' | 'isConnected' | 'isExhausted' | 'isAuthenticated' | 'onAuthWSFailed'>;
+export type UseAccumulatorTradingParams = Pick<UseBaseTradingParams, 'ws' | 'isConnected' | 'isExhausted' | 'isAuthenticated' | 'onAuthWSFailed' | 'enabled'>;
 
-export function useAccumulatorTrading({ ws, isConnected, isExhausted, isAuthenticated, onAuthWSFailed }: UseAccumulatorTradingParams): UseAccumulatorTradingReturn {
+export function useAccumulatorTrading({ ws, isConnected, isExhausted, isAuthenticated, onAuthWSFailed, enabled }: UseAccumulatorTradingParams): UseAccumulatorTradingReturn {
   const {
     ws: tradingWs,
     isConnected: tradingIsConnected,
@@ -78,7 +78,7 @@ export function useAccumulatorTrading({ ws, isConnected, isExhausted, isAuthenti
     sellingId,
     sellError,
     clearSellError,
-  } = useBaseTrading({ ws, isConnected, isExhausted, isAuthenticated, onAuthWSFailed, contractTypes: CONTRACT_TYPES });
+  } = useBaseTrading({ ws, isConnected, isExhausted, isAuthenticated, onAuthWSFailed, contractTypes: CONTRACT_TYPES, enabled });
 
   const [growthRate, setGrowthRate] = useState<GrowthRate>(0.01);
   const [stake, setStake] = useState<string>('1.5');
