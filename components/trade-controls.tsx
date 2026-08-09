@@ -259,7 +259,7 @@ export function TradeControls({
                 Market contracts
               </button>
             </PopoverTrigger>
-            <PopoverContent side="top" align="start" className="w-56 p-1">
+            <PopoverContent side="top" align="start" className="w-56 p-1 z-[10050]">
               {MARKET_CONTRACT_TYPES.map(item => (
                 <button
                   key={item.value}
