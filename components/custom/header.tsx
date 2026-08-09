@@ -80,7 +80,7 @@ export function Header({
           onSelectTradeType={onSelectTradeType ?? (() => {})}
         />
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 max-lg:ml-auto">
         {authState === 'authenticated' && <LiveBalanceDisplay activeAccount={activeAccount} />}
       </div>
     </header>
