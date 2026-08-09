@@ -19,6 +19,13 @@ export interface UseBaseTradingParams {
   onAuthWSFailed?: () => void;
   /** Contract types used to filter available symbols and duration limits. */
   contractTypes: string[];
+  /**
+   * When false, this mode's symbol/contract/tick data is not fetched yet.
+   * Used so inactive trade-type tabs (e.g. Digits, Accumulators before
+   * they've been opened) don't compete with the active tab's requests on
+   * first page load. Defaults to true so existing callers are unaffected.
+   */
+  enabled?: boolean;
 }
 
 export interface UseBaseTradingReturn {
@@ -60,6 +67,7 @@ export function useBaseTrading({
   isAuthenticated,
   onAuthWSFailed,
   contractTypes,
+  enabled = true,
 }: UseBaseTradingParams): UseBaseTradingReturn {
   // When the authenticated WS exhausts all reconnect attempts, fall back to
   // the public WS by triggering logout.
@@ -78,7 +86,7 @@ export function useBaseTrading({
     durationLimits,
     defaultStake,
     isLoading: symbolsLoading,
-  } = useActiveSymbols(ws, isConnected, contractTypes);
+  } = useActiveSymbols(ws, isConnected, contractTypes, enabled);
 
   const { currentTick, prices, pipSize } = useTicks(ws, isConnected, activeSymbol);
 
