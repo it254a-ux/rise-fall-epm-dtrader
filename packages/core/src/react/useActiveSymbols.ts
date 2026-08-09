@@ -34,7 +34,8 @@ interface UseActiveSymbolsReturn {
 export function useActiveSymbols(
   ws: DerivWS | null,
   isConnected: boolean,
-  contractTypes: string[]
+  contractTypes: string[],
+  enabled: boolean = true
 ): UseActiveSymbolsReturn {
   const [symbols, setSymbols] = useState<ActiveSymbol[]>([]);
   const [activeSymbol, setActiveSymbol] = useState<ActiveSymbol | null>(null);
@@ -42,7 +43,10 @@ export function useActiveSymbols(
   const [contractsAvailable, setContractsAvailable] = useState(false);
   const [durationLimits, setDurationLimits] = useState<DurationLimits>({ min: 1, max: 10, unit: 't' });
   const [defaultStake, setDefaultStake] = useState<number>(10);
-  const [isLoading, setIsLoading] = useState(true);
+  // Only start "loading" for modes that are enabled from the outset (the
+  // default landing tab). A mode gated behind `enabled` shouldn't report
+  // as loading before it's ever been asked to fetch anything.
+  const [isLoading, setIsLoading] = useState(enabled);
 
   const loadContractsFor = useCallback(async (wsInstance: DerivWS, symbol: ActiveSymbol) => {
     const response = await wsInstance.send<ContractsForResponse>({
@@ -79,7 +83,11 @@ export function useActiveSymbols(
   }, [ws, isConnected, symbols, activeSymbol, loadContractsFor]);
 
   useEffect(() => {
-    if (!ws || !isConnected) return;
+    // Skip fetching entirely until this mode has actually been activated.
+    // This is what stops Rise/Fall, Digits, and Accumulators from all
+    // firing their active_symbols / contracts_for requests at once on
+    // first page load.
+    if (!enabled || !ws || !isConnected) return;
     let disposed = false;
 
     async function fetchSymbols() {
@@ -112,7 +120,7 @@ export function useActiveSymbols(
 
     fetchSymbols();
     return () => { disposed = true; };
-  }, [ws, isConnected, contractTypes, loadContractsFor]);
+  }, [ws, isConnected, contractTypes, loadContractsFor, enabled]);
 
   return {
     symbols,
