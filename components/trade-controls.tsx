@@ -135,77 +135,93 @@ export function TradeControls({
         />
       </div>
 
-      {/* Stake */}
-      <div className="space-y-0.5">
-        <Label htmlFor="stake" className="text-[9px] text-muted-foreground">Stake</Label>
-        <Input
-          id="stake"
-          type="number"
-          value={stake}
-          onChange={(e) => onStakeChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
-          }}
-          min={0}
-          step="0.01"
-          labelRight="USD"
-          className="h-7 text-[11px] px-2"
-        />
-      </div>
-
-      {/* Duration */}
-      <div className="space-y-0.5">
-        <Label className="text-[9px] text-muted-foreground">Duration</Label>
-        <Select
-          value={durationUnit}
-          onValueChange={(v) => {
-            const opt = durationOptions.find(o => o.unit === v);
-            if (opt) onDurationUnitChange(opt.unit);
-          }}
-        >
-          <SelectTrigger className="h-7 text-[11px] px-2">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {durationOptions.map(opt => (
-              <SelectItem key={opt.unit} value={opt.unit} className="text-[11px]">{opt.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {durationUnit !== 'end-time' && (
-          <Input
-            type="number"
-            value={duration}
-            onChange={(e) => {
-              const val = parseInt(e.target.value, 10);
-              if (!isNaN(val)) onDurationChange(val);
+      {/* Three-column row: Duration | Stake | Payout.
+          Each column is independently scrollable (max-h + overflow-y-auto)
+          so a column's content never pushes the others out of alignment,
+          per the requested mobile layout. Thin dividers separate columns. */}
+      <div className="grid grid-cols-3 divide-x divide-border rounded-md border border-border overflow-hidden">
+        {/* Column 1: Duration */}
+        <div className="flex flex-col items-center gap-1 px-1 py-1.5 max-h-28 overflow-y-auto">
+          <Select
+            value={durationUnit}
+            onValueChange={(v) => {
+              const opt = durationOptions.find(o => o.unit === v);
+              if (opt) onDurationUnitChange(opt.unit);
             }}
-            min={activeOption?.min}
-            max={activeOption?.max}
-            step={1}
-            className="h-7 text-[11px] px-2"
-          />
-        )}
+          >
+            <SelectTrigger className="h-5 w-full border-0 shadow-none bg-transparent px-1 text-[9px] justify-center gap-1 text-muted-foreground">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {durationOptions.map(opt => (
+                <SelectItem key={opt.unit} value={opt.unit} className="text-[11px]">{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        {durationUnit === 'end-time' && (
-          <EndTimePicker
-            ws={ws}
-            isConnected={isConnected}
-            activeSymbol={activeSymbol}
-            endDate={endDate}
-            onEndDateChange={onEndDateChange}
-            endTime={endTime}
-            onEndTimeChange={onEndTimeChange}
-            minDate={endTimeMinDate}
-            maxDate={endTimeMaxDate}
+          {durationUnit !== 'end-time' && (
+            <Input
+              type="number"
+              value={duration}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val)) onDurationChange(val);
+              }}
+              min={activeOption?.min}
+              max={activeOption?.max}
+              step={1}
+              className="h-7 w-full text-[11px] text-center px-1"
+            />
+          )}
+
+          {durationUnit === 'end-time' && (
+            <EndTimePicker
+              ws={ws}
+              isConnected={isConnected}
+              activeSymbol={activeSymbol}
+              endDate={endDate}
+              onEndDateChange={onEndDateChange}
+              endTime={endTime}
+              onEndTimeChange={onEndTimeChange}
+              minDate={endTimeMinDate}
+              maxDate={endTimeMaxDate}
+            />
+          )}
+        </div>
+
+        {/* Column 2: Stake */}
+        <div className="flex flex-col items-center gap-1 px-1 py-1.5 max-h-28 overflow-y-auto">
+          <Label htmlFor="stake" className="text-[9px] text-muted-foreground text-center leading-tight">
+            Stake (USD)
+          </Label>
+          <Input
+            id="stake"
+            type="number"
+            value={stake}
+            onChange={(e) => onStakeChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
+            }}
+            min={0}
+            step="0.01"
+            className="h-7 w-full text-[11px] text-center px-1"
           />
-        )}
+        </div>
+
+        {/* Column 3: Payout (read-only) — new display, previously payout
+            was only shown as small text inside the Buy button. */}
+        <div className="flex flex-col items-center gap-1 px-1 py-1.5 max-h-28 overflow-y-auto">
+          <Label className="text-[9px] text-muted-foreground text-center leading-tight">
+            Payout
+          </Label>
+          <div className="flex h-7 w-full items-center justify-center rounded-md border border-input bg-transparent px-1 text-[11px] font-semibold text-green-600">
+            {proposal ? `${proposal.payout.toFixed(2)}` : '-'}
+          </div>
+        </div>
       </div>
 
-      {/* Buy button — sits inline in normal page flow on all screen sizes,
-          so it never floats over other content (e.g. the "View your
-          positions" link below) on mobile. */}
+      {/* Buy button — sits below the three columns, full width, in normal
+          page flow so it never floats over other content on mobile. */}
       <div className="w-full">
         <Button
           className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground h-8 text-[11px]"
