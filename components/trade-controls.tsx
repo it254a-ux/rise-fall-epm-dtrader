@@ -122,7 +122,7 @@ export function TradeControls({
   }, [endTimeOption]);
 
   return (
-    <div className="w-full max-w-full lg:max-w-[200px] mx-auto space-y-1.5 lg:space-y-2">
+    <div className="relative z-[9999] lg:static lg:z-auto w-full max-w-full lg:max-w-[200px] mx-auto space-y-1.5 lg:space-y-2">
       {/* Rise / Fall direction segmented control */}
       <ToggleGroup
         type="single"
