@@ -220,7 +220,7 @@ export function RiseFallView({
             internally only if content overflows. Bottom padding on mobile
             reserves space so the fixed Buy button and footer never cover the
             last elements (e.g. "View your positions" link). */}
-        <div className="flex w-full max-w-7xl mx-auto flex-col px-3 py-2 sm:px-4 sm:py-4 gap-4 sm:gap-3 max-lg:pb-16 lg:pb-2 flex-1 min-h-0 overflow-y-auto">
+        <div className="flex w-full max-w-7xl mx-auto flex-col px-3 py-2 sm:px-4 sm:py-4 gap-4 sm:gap-3 max-lg:pb-8 lg:pb-2 flex-1 min-h-0 overflow-y-auto">
           {/* FIX: added `gap-3` so there is breathing room between the chart
               and the trade-controls card on mobile. Previously this only had
               `lg:gap-4`, meaning phones got a 0px gap — the trade panel sat
