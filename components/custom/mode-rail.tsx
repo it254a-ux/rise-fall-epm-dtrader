@@ -1,21 +1,24 @@
 'use client';
-
 interface ModeRailProps {
   mode: 'manual' | 'automated';
   onModeChange: (mode: 'manual' | 'automated') => void;
   onOpenBotLibrary: () => void;
 }
-
 /**
  * Manual / Automated / Bot-library icon row. Previously rendered as a
  * floating vertical column in its own grid cell outside the trade panel
  * card; now rendered horizontally, inline at the top of the card (see
  * TradeModeToggle), so it no longer eats a dedicated grid column or
  * squeezes the panel width.
+ *
+ * Mobile-only: given a relative position + elevated z-index so it sits
+ * above whatever overlay/loading layer is covering it for the first ~2
+ * minutes after reload on mobile (same tap-lock issue fixed on the
+ * Rise/Fall trade-controls panel). Desktop (lg:) is untouched.
  */
 export function ModeRail({ mode, onModeChange, onOpenBotLibrary }: ModeRailProps) {
   return (
-    <div className="flex flex-row items-center gap-2 mb-2">
+    <div className="flex flex-row items-center gap-2 mb-2 max-lg:relative max-lg:z-[9999]">
       <button
         onClick={() => onModeChange('manual')}
         title="Manual trading"
