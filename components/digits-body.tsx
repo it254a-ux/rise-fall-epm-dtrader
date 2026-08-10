@@ -4,13 +4,12 @@ import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-is-mobile';
-import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { DigitTradePanel } from '@/components/custom/digit-trade-panel';
 import { DigitAutomatedPanel } from '@/components/custom/digit-automated-panel';
 import { DigitEntryAutomatedPanel } from '@/components/custom/digit-entry-automated-panel';
-import { TradeModeToggle } from '@/components/custom/trade-mode-toggle';
+import { TradeBody } from '@/components/trade-body';
 import { useMartingaleAutomation } from '@/hooks/use-martingale-automation';
 import { useDigitsEntryAutomation } from '@/hooks/use-digits-entry-automation';
 import type { AuthState, ActiveSymbol, ProposalInfo, DurationLimits, BuyResult, DerivWS } from '@deriv/core';
@@ -184,127 +183,99 @@ export function DigitsBody({
     }
   }, [buyResult, clearBuyResult]);
 
-  return (
-    <div className="flex w-full flex-col px-3 py-2 sm:px-4 sm:py-4 gap-2 sm:gap-3 max-lg:pb-16 lg:pb-2 lg:px-3 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
-      <div className="flex flex-col lg:grid lg:grid-cols-[1fr_240px] lg:gap-3 lg:h-full lg:min-h-0">
-        {/* Column 1: Chart — same component as Rise/Fall, fed by the digits connection */}
-        <div className="flex flex-col gap-2 px-0 pt-2 lg:py-0 lg:h-full lg:min-h-0">
-          <div
-            className="h-[70vh] min-h-[420px] max-h-[640px] lg:h-full lg:min-h-0 lg:max-h-none"
-            style={{ touchAction: 'pan-y' }}
-          >
-            {chartData ? (
-              <RiseFallChart
-                symbolKey="digits-chart"
-                symbol={activeSymbol?.underlying_symbol}
-                isConnectionOpened={isConnected}
-                isMobile={isMobile}
-                chartData={chartData}
-                getQuotes={getQuotes}
-                subscribeQuotes={subscribeQuotes}
-                unsubscribeQuotes={unsubscribeQuotes}
-                onSymbolChange={selectSymbol}
-                contractsArray={[]}
-              />
-            ) : (
-              <Skeleton className="h-full w-full rounded-md" />
-            )}
-          </div>
-        </div>
+  const chart = chartData ? (
+    <RiseFallChart
+      symbolKey="digits-chart"
+      symbol={activeSymbol?.underlying_symbol}
+      isConnectionOpened={isConnected}
+      isMobile={isMobile}
+      chartData={chartData}
+      getQuotes={getQuotes}
+      subscribeQuotes={subscribeQuotes}
+      unsubscribeQuotes={unsubscribeQuotes}
+      onSymbolChange={selectSymbol}
+      contractsArray={[]}
+    />
+  ) : (
+    <Skeleton className="h-full w-full rounded-md" />
+  );
 
-        {/* Column 2: Trade panel in a Card — the Manual/Automated/Bot-library
-            icons now render inline at the top of the card via TradeModeToggle,
-            so this column no longer has to share width with a separate rail. */}
-        <div className="flex flex-col gap-3 pt-3 lg:pt-0 border-t border-border lg:border-0 lg:h-full lg:min-h-0">
-          {isLoading ? (
-            <Skeleton className="lg:h-full h-48 w-full rounded-xl" />
-          ) : (
-            <Card className="lg:h-full lg:min-h-0 lg:overflow-y-auto">
-              <CardContent className="pt-4">
-                <TradeModeToggle
-                  mode={tradeMode}
-                  onModeChange={handleModeChange}
-                  onOpenBotLibrary={handleOpenBotLibrary}
-                  label={TRADE_TYPE_LABELS[tradeType]}
-                  activeTradeType={activeTradeType}
-                  onSelectTradeType={onSelectTradeType}
-                />
-
-                {/* Buy button — moved here so it sits right after Market
-                    contracts / the mode row instead of at the bottom (it
-                    was previously mobile-fixed to the bottom of the
-                    screen; now rendered inline, same treatment as
-                    Accumulators). Manual mode only — the automated panels
-                    manage their own start/stop via the automation hooks. */}
-                {tradeMode === 'manual' && (
-                  <div className="w-full mb-3 max-lg:relative max-lg:z-[9999]">
-                    <Button
-                      className="w-full h-8 rounded-full px-4 text-xs"
-                      disabled={!isConnected || !proposal || isBuying}
-                      onClick={buyContract}
-                    >
-                      {isBuying
-                        ? 'Purchasing...'
-                        : proposal
-                          ? `Buy @ ${proposal.askPrice.toFixed(2)} USD`
-                          : 'Buy Contract'}
-                    </Button>
-                  </div>
-                )}
-
-                {tradeMode === 'manual' ? (
-                  <DigitTradePanel
-                    tradeType={tradeType}
-                    contractMode={contractMode}
-                    onContractModeChange={setContractMode}
-                    digitStats={digitStats}
-                    lastDigit={lastDigit}
-                    selectedDigit={selectedDigit}
-                    onSelectedDigitChange={setSelectedDigit}
-                    stake={stake}
-                    onStakeChange={setStake}
-                    duration={duration}
-                    onDurationChange={setDuration}
-                    durationLimits={durationLimits}
-                    proposal={proposal}
-                    isProposalLoading={isProposalLoading}
-                  />
-                ) : isOverUnder ? (
-                  <DigitEntryAutomatedPanel
-                    contractMode={contractMode}
-                    onContractModeChange={setContractMode}
-                    digitStats={digitStats}
-                    lastDigit={lastDigit}
-                    selectedDigit={selectedDigit}
-                    onSelectedDigitChange={setSelectedDigit}
-                    stake={stake}
-                    onStakeChange={setStake}
-                    duration={duration}
-                    onDurationChange={setDuration}
-                    durationLimits={durationLimits}
-                    isConnected={isConnected}
-                    isAuthenticated={isAuthenticated}
-                    automation={overUnderAutomation}
-                  />
-                ) : (
-                  <DigitAutomatedPanel
-                    tradeType={tradeType}
-                    contractMode={contractMode}
-                    onContractModeChange={setContractMode}
-                    digitStats={digitStats}
-                    lastDigit={lastDigit}
-                    selectedDigit={selectedDigit}
-                    onSelectedDigitChange={setSelectedDigit}
-                    isConnected={isConnected}
-                    isAuthenticated={isAuthenticated}
-                    automation={martingaleAutomation}
-                  />
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
+  const buyButton = (
+    <div className="w-full mb-3 max-lg:relative max-lg:z-[9999]">
+      <Button
+        className="w-full h-8 rounded-full px-4 text-xs"
+        disabled={!isConnected || !proposal || isBuying}
+        onClick={buyContract}
+      >
+        {isBuying
+          ? 'Purchasing...'
+          : proposal
+            ? `Buy @ ${proposal.askPrice.toFixed(2)} USD`
+            : 'Buy Contract'}
+      </Button>
     </div>
+  );
+
+  return (
+    <TradeBody
+      chart={chart}
+      isLoading={isLoading}
+      tradeMode={tradeMode}
+      onModeChange={handleModeChange}
+      onOpenBotLibrary={handleOpenBotLibrary}
+      label={TRADE_TYPE_LABELS[tradeType]}
+      activeTradeType={activeTradeType}
+      onSelectTradeType={onSelectTradeType}
+      buyButton={buyButton}
+    >
+      {tradeMode === 'manual' ? (
+        <DigitTradePanel
+          tradeType={tradeType}
+          contractMode={contractMode}
+          onContractModeChange={setContractMode}
+          digitStats={digitStats}
+          lastDigit={lastDigit}
+          selectedDigit={selectedDigit}
+          onSelectedDigitChange={setSelectedDigit}
+          stake={stake}
+          onStakeChange={setStake}
+          duration={duration}
+          onDurationChange={setDuration}
+          durationLimits={durationLimits}
+          proposal={proposal}
+          isProposalLoading={isProposalLoading}
+        />
+      ) : isOverUnder ? (
+        <DigitEntryAutomatedPanel
+          contractMode={contractMode}
+          onContractModeChange={setContractMode}
+          digitStats={digitStats}
+          lastDigit={lastDigit}
+          selectedDigit={selectedDigit}
+          onSelectedDigitChange={setSelectedDigit}
+          stake={stake}
+          onStakeChange={setStake}
+          duration={duration}
+          onDurationChange={setDuration}
+          durationLimits={durationLimits}
+          isConnected={isConnected}
+          isAuthenticated={isAuthenticated}
+          automation={overUnderAutomation}
+        />
+      ) : (
+        <DigitAutomatedPanel
+          tradeType={tradeType}
+          contractMode={contractMode}
+          onContractModeChange={setContractMode}
+          digitStats={digitStats}
+          lastDigit={lastDigit}
+          selectedDigit={selectedDigit}
+          onSelectedDigitChange={setSelectedDigit}
+          isConnected={isConnected}
+          isAuthenticated={isAuthenticated}
+          automation={martingaleAutomation}
+        />
+      )}
+    </TradeBody>
   );
 }
