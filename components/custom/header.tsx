@@ -1,8 +1,10 @@
 'use client';
+
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { TradeTypesFlyout } from './trade-types-flyout';
 import type { AuthState, DerivAccount } from '@deriv/core';
+
 interface HeaderProps {
   authState: AuthState;
   accounts: DerivAccount[];
@@ -16,6 +18,7 @@ interface HeaderProps {
   activeTradeType?: string;
   onSelectTradeType?: (type: string) => void;
 }
+
 function AccountLabel({ type }: { type: 'demo' | 'real' }) {
   return (
     <span
@@ -28,6 +31,7 @@ function AccountLabel({ type }: { type: 'demo' | 'real' }) {
     </span>
   );
 }
+
 function LiveBalanceDisplay({ activeAccount }: { activeAccount: DerivAccount | null }) {
   if (!activeAccount) return null;
   const balance = Number(activeAccount.balance);
@@ -49,6 +53,7 @@ function LiveBalanceDisplay({ activeAccount }: { activeAccount: DerivAccount | n
     </div>
   );
 }
+
 export function Header({
   authState,
   accounts,
@@ -67,6 +72,7 @@ export function Header({
     .trim()
     .charAt(0)
     .toUpperCase() || 'D';
+
   return (
     <header className="fixed top-0 left-0 lg:left-[72px] right-0 z-50 flex items-center justify-between px-4 py-1.5 border-b bg-background/80 backdrop-blur-sm">
       {/* FIX (mobile only): the top TradeTypesFlyout tab row was overlapping
@@ -80,7 +86,12 @@ export function Header({
           onSelectTradeType={onSelectTradeType ?? (() => {})}
         />
       </div>
-      <div className="flex items-center gap-3 max-lg:ml-auto">
+      {/* FIX (mobile only): removed `max-lg:ml-auto` — with the flyout
+          hidden on mobile, this balance display is the only item left in
+          the justify-between header, so without the forced right-margin it
+          now sits at the top-left corner. Desktop is untouched since that
+          class only applied below the lg breakpoint. */}
+      <div className="flex items-center gap-3">
         {authState === 'authenticated' && <LiveBalanceDisplay activeAccount={activeAccount} />}
       </div>
     </header>
