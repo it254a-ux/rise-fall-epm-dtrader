@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { DigitTradePanel } from '@/components/custom/digit-trade-panel';
 import { DigitAutomatedPanel } from '@/components/custom/digit-automated-panel';
 import { DigitEntryAutomatedPanel } from '@/components/custom/digit-entry-automated-panel';
@@ -66,7 +68,9 @@ export interface DigitsBodyProps {
   unsubscribeQuotes: UseSmartChartsApiReturn['unsubscribeQuotes'];
 
   // Trade type tabs (shared header owns the actual tab list; this lets a
-  // selected bot — once digit bots exist — force the tab to match the bot)
+  // selected bot — once digit bots exist — force the tab to match the bot).
+  // Also passed down to TradeModeToggle to power the "Market contracts" menu.
+  activeTradeType?: string;
   onSelectTradeType?: (type: string) => void;
 }
 
@@ -100,6 +104,8 @@ export function DigitsBody({
   getQuotes,
   subscribeQuotes,
   unsubscribeQuotes,
+  activeTradeType,
+  onSelectTradeType,
 }: DigitsBodyProps) {
   const [tradeMode, setTradeMode] = useState<'manual' | 'automated'>('manual');
   const isAuthenticated = authState === 'authenticated';
@@ -160,8 +166,26 @@ export function DigitsBody({
     // no-op for now — see TODO above
   };
 
+  // Buy purchase-result toasts — previously lived inside DigitTradePanel
+  // alongside the Buy button; moved here with the button itself.
+  useEffect(() => {
+    if (buyError) {
+      toast.error('Purchase Failed', { description: buyError });
+      clearBuyResult();
+    }
+  }, [buyError, clearBuyResult]);
+
+  useEffect(() => {
+    if (buyResult) {
+      toast.success('Contract Purchased', {
+        description: `Buy price: ${buyResult.buyPrice.toFixed(2)} USD | Payout: ${buyResult.payout.toFixed(2)} USD | Balance: ${buyResult.balanceAfter.toFixed(2)} USD`,
+      });
+      clearBuyResult();
+    }
+  }, [buyResult, clearBuyResult]);
+
   return (
-    <div className="flex w-full flex-col px-3 py-2 sm:px-4 sm:py-4 gap-2 sm:gap-3 max-lg:pb-32 lg:pb-2 lg:px-3 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
+    <div className="flex w-full flex-col px-3 py-2 sm:px-4 sm:py-4 gap-2 sm:gap-3 max-lg:pb-16 lg:pb-2 lg:px-3 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
       <div className="flex flex-col lg:grid lg:grid-cols-[1fr_240px] lg:gap-3 lg:h-full lg:min-h-0">
         {/* Column 1: Chart — same component as Rise/Fall, fed by the digits connection */}
         <div className="flex flex-col gap-2 px-0 pt-2 lg:py-0 lg:h-full lg:min-h-0">
@@ -202,7 +226,31 @@ export function DigitsBody({
                   onModeChange={handleModeChange}
                   onOpenBotLibrary={handleOpenBotLibrary}
                   label={TRADE_TYPE_LABELS[tradeType]}
+                  activeTradeType={activeTradeType}
+                  onSelectTradeType={onSelectTradeType}
                 />
+
+                {/* Buy button — moved here so it sits right after Market
+                    contracts / the mode row instead of at the bottom (it
+                    was previously mobile-fixed to the bottom of the
+                    screen; now rendered inline, same treatment as
+                    Accumulators). Manual mode only — the automated panels
+                    manage their own start/stop via the automation hooks. */}
+                {tradeMode === 'manual' && (
+                  <div className="w-full mb-3 max-lg:relative max-lg:z-[9999]">
+                    <Button
+                      className="w-full h-8 rounded-full px-4 text-xs"
+                      disabled={!isConnected || !proposal || isBuying}
+                      onClick={buyContract}
+                    >
+                      {isBuying
+                        ? 'Purchasing...'
+                        : proposal
+                          ? `Buy @ ${proposal.askPrice.toFixed(2)} USD`
+                          : 'Buy Contract'}
+                    </Button>
+                  </div>
+                )}
 
                 {tradeMode === 'manual' ? (
                   <DigitTradePanel
@@ -213,7 +261,6 @@ export function DigitsBody({
                     lastDigit={lastDigit}
                     selectedDigit={selectedDigit}
                     onSelectedDigitChange={setSelectedDigit}
-                    isConnected={isConnected}
                     stake={stake}
                     onStakeChange={setStake}
                     duration={duration}
@@ -221,11 +268,6 @@ export function DigitsBody({
                     durationLimits={durationLimits}
                     proposal={proposal}
                     isProposalLoading={isProposalLoading}
-                    onBuy={buyContract}
-                    isBuying={isBuying}
-                    buyResult={buyResult}
-                    buyError={buyError}
-                    onClearBuyResult={clearBuyResult}
                   />
                 ) : isOverUnder ? (
                   <DigitEntryAutomatedPanel
