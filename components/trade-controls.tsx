@@ -1,18 +1,15 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import Link from 'next/link';
-import { toast } from 'sonner';
-import { FileText, LayoutGrid } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { FileText } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { EndTimePicker } from '@/components/custom/end-time-picker';
-import type { DerivWS, ActiveSymbol, ProposalInfo, BuyResult } from '@deriv/core';
+import type { DerivWS, ActiveSymbol, ProposalInfo } from '@deriv/core';
 import type { Direction, DurationSelectUnit, DurationOption } from '../lib/types';
 
 interface TradeControlsProps {
@@ -35,30 +32,9 @@ interface TradeControlsProps {
   ws: DerivWS | null;
   activeSymbol: ActiveSymbol | null;
   proposal: ProposalInfo | null;
-
-  onBuy: () => void;
-  isBuying: boolean;
-  buyResult: BuyResult | null;
-  buyError: string | null;
-  onClearBuyResult: () => void;
   /** Whether the user is authenticated — shows the View reports link when true. */
   isAuthenticated?: boolean;
-  /** Currently selected trade type, for the "Market contracts" upward menu. */
-  activeTradeType?: string;
-  /** Called when the user picks a trade type from the "Market contracts" menu. */
-  onSelectTradeType?: (type: string) => void;
 }
-
-/** Same trade-type list as the top TradeTypesFlyout tabs — duplicated here
- * (rather than imported) since that file doesn't currently export it, to
- * avoid touching an unrelated component for this change. */
-const MARKET_CONTRACT_TYPES = [
-  { label: 'Accumulators', value: 'accumulators' },
-  { label: 'Directional Rise/Fall', value: 'rise-fall' },
-  { label: 'Digit based Matches/Differs', value: 'matches-differs' },
-  { label: 'Over/Under', value: 'over-under' },
-  { label: 'Even/Odd', value: 'even-odd' },
-];
 
 export function TradeControls({
   direction,
@@ -80,33 +56,8 @@ export function TradeControls({
   ws,
   activeSymbol,
   proposal,
-  onBuy,
-  isBuying,
-  buyResult,
-  buyError,
-  onClearBuyResult,
   isAuthenticated,
-  activeTradeType,
-  onSelectTradeType,
 }: TradeControlsProps) {
-  const [isMarketMenuOpen, setIsMarketMenuOpen] = useState(false);
-
-  useEffect(() => {
-    if (buyError) {
-      toast.error('Purchase Failed', { description: buyError });
-      onClearBuyResult();
-    }
-  }, [buyError, onClearBuyResult]);
-
-  useEffect(() => {
-    if (buyResult) {
-      toast.success('Contract Purchased', {
-        description: `Buy price: ${buyResult.buyPrice.toFixed(2)} USD | Payout: ${buyResult.payout.toFixed(2)} USD | Balance: ${buyResult.balanceAfter.toFixed(2)} USD`,
-      });
-      onClearBuyResult();
-    }
-  }, [buyResult, onClearBuyResult]);
-
   const activeOption = durationOptions.find(o => o.unit === durationUnit);
 
   const endTimeOption = durationOptions.find(o => o.unit === 'end-time');
@@ -241,76 +192,21 @@ export function TradeControls({
         </div>
       </div>
 
-      {/* Bottom action row: Market contracts + View reports on the left,
-          Buy on the right, separated from the columns above by a thin
-          divider — matches the requested mobile layout. */}
-      <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
-        <div className="flex items-center gap-3">
-          {/* Market contracts — opens an upward menu of trade types
-              (Accumulators, Rise/Fall, Digits, etc). Selecting one calls
-              onSelectTradeType and the menu closes itself automatically. */}
-          <Popover open={isMarketMenuOpen} onOpenChange={setIsMarketMenuOpen}>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className="flex items-center gap-1 text-[9px] text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <LayoutGrid size={12} strokeWidth={1.75} />
-                Market contracts
-              </button>
-            </PopoverTrigger>
-            <PopoverContent side="top" align="start" className="w-56 p-1 z-[10050]">
-              {MARKET_CONTRACT_TYPES.map(item => (
-                <button
-                  key={item.value}
-                  type="button"
-                  onClick={() => {
-                    onSelectTradeType?.(item.value);
-                    setIsMarketMenuOpen(false);
-                  }}
-                  className={`w-full rounded-md px-2 py-1.5 text-left text-[11px] transition-colors ${
-                    activeTradeType === item.value
-                      ? 'bg-foreground/10 text-foreground font-medium'
-                      : 'text-muted-foreground hover:bg-foreground/5 hover:text-foreground'
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </PopoverContent>
-          </Popover>
-
-          {/* View reports — shown when authenticated */}
-          {isAuthenticated && (
-            <Link
-              href="/reports"
-              className="flex items-center gap-1 text-[9px] text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <FileText size={12} strokeWidth={1.75} />
-              View reports
-            </Link>
-          )}
+      {/* View reports — shown when authenticated. Market contracts and the
+          Buy button used to live in this bottom row too; both have moved
+          up above TradeControls (Buy) and into the ModeRail icon row
+          (Market contracts), so this row now only holds the reports link. */}
+      {isAuthenticated && (
+        <div className="border-t border-border pt-2">
+          <Link
+            href="/reports"
+            className="flex items-center justify-center gap-1 text-[9px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <FileText size={12} strokeWidth={1.75} />
+            View reports
+          </Link>
         </div>
-
-        <Button
-          className="shrink-0 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground h-8 px-4 text-[11px]"
-          disabled={!isConnected || !proposal || isBuying}
-          onClick={onBuy}
-        >
-          {isBuying ? (
-            'Purchasing...'
-          ) : (
-            <span className="flex flex-col items-center leading-tight gap-0.5">
-              <span>Buy</span>
-              {proposal && (
-                <span className="text-[9px] font-normal opacity-90">
-                  {proposal.payout.toFixed(2)} USD
-                </span>
-              )}
-            </span>
-          )}
-        </Button>
-      </div>
+      )}
     </div>
   );
 }
