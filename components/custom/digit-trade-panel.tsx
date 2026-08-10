@@ -1,14 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
-import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { DigitStatsBar } from '@/components/custom/digit-stats-bar';
-import type { DurationLimits, ProposalInfo, BuyResult } from '@deriv/core';
+import type { DurationLimits, ProposalInfo } from '@deriv/core';
 import type { ContractMode, TradeType, DigitStats } from '@/lib/digit-types';
 
 interface DigitTradePanelProps {
@@ -19,7 +16,6 @@ interface DigitTradePanelProps {
   lastDigit: number | null;
   selectedDigit: number;
   onSelectedDigitChange: (digit: number) => void;
-  isConnected: boolean;
   stake: string;
   onStakeChange: (value: string) => void;
   duration: number;
@@ -27,11 +23,6 @@ interface DigitTradePanelProps {
   durationLimits: DurationLimits;
   proposal: ProposalInfo | null;
   isProposalLoading: boolean;
-  onBuy: () => void;
-  isBuying: boolean;
-  buyResult: BuyResult | null;
-  buyError: string | null;
-  onClearBuyResult: () => void;
 }
 
 const CONTRACT_MODE_OPTIONS: Record<TradeType, { value: ContractMode; label: string }[]> = {
@@ -82,7 +73,6 @@ export function DigitTradePanel({
   lastDigit,
   selectedDigit,
   onSelectedDigitChange,
-  isConnected,
   stake,
   onStakeChange,
   duration,
@@ -90,32 +80,11 @@ export function DigitTradePanel({
   durationLimits,
   proposal,
   isProposalLoading,
-  onBuy,
-  isBuying,
-  buyResult,
-  buyError,
-  onClearBuyResult,
 }: DigitTradePanelProps) {
-  useEffect(() => {
-    if (buyError) {
-      toast.error('Purchase Failed', { description: buyError });
-      onClearBuyResult();
-    }
-  }, [buyError, onClearBuyResult]);
-
-  useEffect(() => {
-    if (buyResult) {
-      toast.success('Contract Purchased', {
-        description: `Buy price: ${buyResult.buyPrice.toFixed(2)} USD | Payout: ${buyResult.payout.toFixed(2)} USD | Balance: ${buyResult.balanceAfter.toFixed(2)} USD`,
-      });
-      onClearBuyResult();
-    }
-  }, [buyResult, onClearBuyResult]);
-
   const modeOptions = CONTRACT_MODE_OPTIONS[tradeType];
 
   return (
-    <div className="w-full space-y-1.5 lg:max-w-[240px] lg:space-y-2">
+    <div className="relative z-[9999] lg:static lg:z-auto w-full space-y-1.5 lg:max-w-[240px] lg:space-y-2">
       <ToggleGroup
         type="single"
         value={contractMode}
@@ -212,20 +181,6 @@ export function DigitTradePanel({
             )}
           </div>
         )}
-      </div>
-
-      <div className="max-lg:fixed max-lg:bottom-[calc(env(safe-area-inset-bottom)+5rem)] max-lg:left-3 max-lg:right-3 lg:static">
-        <Button
-          className="w-full h-8 rounded-full px-4 sm:h-8 sm:px-4 text-xs"
-          disabled={!isConnected || !proposal || isBuying}
-          onClick={onBuy}
-        >
-          {isBuying
-            ? 'Purchasing...'
-            : proposal
-              ? `Buy @ ${proposal.askPrice.toFixed(2)} USD`
-              : 'Buy Contract'}
-        </Button>
       </div>
     </div>
   );
