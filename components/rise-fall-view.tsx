@@ -252,7 +252,7 @@ export function RiseFallView({
             {/* Column 1: Chart — touch-action:pan-y lets vertical swipes scroll the page */}
             <div className="flex flex-col gap-2 px-0 pt-2 lg:py-0 flex-1 min-h-0 lg:h-full">
               <div
-                className="flex-1 min-h-[420px] lg:h-full lg:min-h-[384px]"
+                className="flex-1 min-h-[420px] lg:h-full lg:min-h-[384px] overflow-hidden relative"
                 style={{ touchAction: 'pan-y' }}
               >
                 {chartData ? (
