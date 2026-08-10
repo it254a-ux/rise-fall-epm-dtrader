@@ -71,7 +71,7 @@ export function AccumulatorTradePanel({
   }, [buyResult, onClearBuyResult]);
 
   return (
-    <div className="w-full space-y-1.5 lg:max-w-[240px] lg:space-y-2">
+    <div className="relative z-[9999] lg:static lg:z-auto w-full space-y-1.5 lg:max-w-[240px] lg:space-y-2">
 
       {/* Growth Rate selector */}
       <div className="space-y-0.5">
@@ -84,7 +84,7 @@ export function AccumulatorTradePanel({
                   i
                 </span>
               </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-[200px]">
+              <TooltipContent side="top" className="max-w-[200px] z-[10050]">
                 <p className="text-xs">
                   Your stake grows by the selected percentage for each tick that stays within the barrier range.
                 </p>
@@ -101,7 +101,7 @@ export function AccumulatorTradePanel({
           <SelectTrigger className="h-7 text-xs px-2">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="z-[10050]">
             {growthRateOptions.map((opt) => (
               <SelectItem key={opt.value} value={String(opt.value)} className="text-xs">
                 {opt.label}
