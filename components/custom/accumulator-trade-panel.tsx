@@ -1,14 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
 import Link from 'next/link';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import type { BuyResult } from '@deriv/core';
 import type { AccumulatorProposalInfo } from '@/hooks/use-accumulator-proposal';
 import type { GrowthRate } from '@/lib/accumulator-types';
 import type { OpenPosition } from '@/lib/types';
@@ -17,20 +14,15 @@ interface AccumulatorTradePanelProps {
   growthRate: GrowthRate;
   onGrowthRateChange: (rate: GrowthRate) => void;
   growthRateOptions: { value: number; label: string }[];
-  isConnected: boolean;
   stake: string;
   onStakeChange: (value: string) => void;
   takeProfit: string;
   onTakeProfitChange: (value: string) => void;
   proposal: AccumulatorProposalInfo | null;
-  onBuy: () => void;
-  isBuying: boolean;
-  buyResult: BuyResult | null;
-  buyError: string | null;
-  onClearBuyResult: () => void;
+  /** Shown in the "Active position" info block below. The Buy/Close button
+   * itself now lives in accumulators-body.tsx, rendered directly under
+   * TradeModeToggle — this panel only displays position info here. */
   activePosition?: OpenPosition | null;
-  onClose?: (contractId: number, bidPrice: string) => void;
-  isClosing?: boolean;
   isAuthenticated?: boolean;
 }
 
@@ -38,38 +30,14 @@ export function AccumulatorTradePanel({
   growthRate,
   onGrowthRateChange,
   growthRateOptions,
-  isConnected,
   stake,
   onStakeChange,
   takeProfit,
   onTakeProfitChange,
   proposal,
-  onBuy,
-  isBuying,
-  buyResult,
-  buyError,
-  onClearBuyResult,
   activePosition,
-  onClose,
-  isClosing,
   isAuthenticated,
 }: AccumulatorTradePanelProps) {
-  useEffect(() => {
-    if (buyError) {
-      toast.error('Purchase Failed', { description: buyError });
-      onClearBuyResult();
-    }
-  }, [buyError, onClearBuyResult]);
-
-  useEffect(() => {
-    if (buyResult) {
-      toast.success('Contract Purchased', {
-        description: `Buy price: ${buyResult.buyPrice.toFixed(2)} USD | Payout: ${buyResult.payout.toFixed(2)} USD | Balance: ${buyResult.balanceAfter.toFixed(2)} USD`,
-      });
-      onClearBuyResult();
-    }
-  }, [buyResult, onClearBuyResult]);
-
   return (
     <div className="relative z-[9999] lg:static lg:z-auto w-full space-y-1.5 lg:max-w-[240px] lg:space-y-2">
 
@@ -181,39 +149,6 @@ export function AccumulatorTradePanel({
           </div>
         </div>
       )}
-
-      {/* Buy / Close button — always inline in the normal page flow on all
-          screen sizes so it never floats over the "View your positions" link
-          or any other content below it on mobile. */}
-      <div className="w-full">
-        {!activePosition && (
-          <Button
-            className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground h-8 text-xs"
-            disabled={!isConnected || !proposal || isBuying}
-            onClick={onBuy}
-          >
-            {isBuying ? 'Purchasing...' : 'Buy'}
-          </Button>
-        )}
-
-        {activePosition && onClose && (
-          <Button
-            variant="outline"
-            className="w-full rounded-full border-black bg-white text-black hover:bg-white hover:text-black dark:border-white dark:bg-transparent dark:text-white dark:hover:bg-white/10 h-8 text-xs"
-            disabled={!isConnected || isClosing || !activePosition.is_valid_to_sell}
-            onClick={() => onClose(activePosition.contract_id, activePosition.bid_price)}
-          >
-            {isClosing ? 'Closing...' : (
-              <span className="flex flex-col items-center leading-tight gap-0.5">
-                <span>Close</span>
-                <span className="text-[10px] font-normal opacity-90">
-                  {(parseFloat(activePosition.buy_price) + parseFloat(activePosition.profit)).toFixed(2)} {activePosition.currency}
-                </span>
-              </span>
-            )}
-          </Button>
-        )}
-      </div>
 
       {/* View your positions — shown when authenticated */}
       {isAuthenticated && (
