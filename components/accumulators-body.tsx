@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { AccumulatorTradePanel } from '@/components/custom/accumulator-trade-panel';
 import { AccumulatorAutomatedPanel } from '@/components/custom/accumulator-automated-panel';
 import { TradeModeToggle } from '@/components/custom/trade-mode-toggle';
@@ -59,6 +61,11 @@ export interface AccumulatorsBodyProps {
   getQuotes: UseSmartChartsApiReturn['getQuotes'];
   subscribeQuotes: UseSmartChartsApiReturn['subscribeQuotes'];
   unsubscribeQuotes: UseSmartChartsApiReturn['unsubscribeQuotes'];
+  /** Currently selected trade type across the whole app (rise-fall,
+   * accumulators, matches-differs, etc) and the setter for it — passed
+   * down to TradeModeToggle so the "Market contracts" menu can switch tabs. */
+  activeTradeType?: string;
+  onSelectTradeType?: (type: string) => void;
 }
 
 export function AccumulatorsBody({
@@ -90,6 +97,8 @@ export function AccumulatorsBody({
   getQuotes,
   subscribeQuotes,
   unsubscribeQuotes,
+  activeTradeType,
+  onSelectTradeType,
 }: AccumulatorsBodyProps) {
   const isMobile = useIsMobile();
   const contractMarkers = useContractMarkers(openPositions, activeSymbol?.underlying_symbol, isMobile);
@@ -126,6 +135,25 @@ export function AccumulatorsBody({
   const activeAccuPosition = openPositions.find(
     (p) => p.contract_type === 'ACCU' && p.underlying_symbol === activeSymbol?.underlying_symbol
   ) ?? null;
+
+  // Buy/Close purchase-result toasts — previously lived inside
+  // AccumulatorTradePanel alongside the Buy button; moved here with the
+  // button itself so both stay together.
+  useEffect(() => {
+    if (buyError) {
+      toast.error('Purchase Failed', { description: buyError });
+      clearBuyResult();
+    }
+  }, [buyError, clearBuyResult]);
+
+  useEffect(() => {
+    if (buyResult) {
+      toast.success('Contract Purchased', {
+        description: `Buy price: ${buyResult.buyPrice.toFixed(2)} USD | Payout: ${buyResult.payout.toFixed(2)} USD | Balance: ${buyResult.balanceAfter.toFixed(2)} USD`,
+      });
+      clearBuyResult();
+    }
+  }, [buyResult, clearBuyResult]);
 
   const barrierColor = proposal?.hasCrossedBarrier ? '#cc2e3d' : '#008832';
 
@@ -193,26 +221,57 @@ export function AccumulatorsBody({
                   onModeChange={handleModeChange}
                   onOpenBotLibrary={handleOpenBotLibrary}
                   label="Accumulators"
+                  activeTradeType={activeTradeType}
+                  onSelectTradeType={onSelectTradeType}
                 />
+
+                {/* Buy / Close button — moved here so it sits right after
+                    Market contracts / the mode row instead of at the
+                    bottom of the panel, manual mode only (automated mode
+                    manages its own buy/sell via the automation panel). */}
+                {tradeMode === 'manual' && (
+                  <div className="w-full mb-3">
+                    {!activeAccuPosition && (
+                      <Button
+                        className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground h-8 text-xs"
+                        disabled={!isConnected || !proposal || isBuying}
+                        onClick={buyContract}
+                      >
+                        {isBuying ? 'Purchasing...' : 'Buy'}
+                      </Button>
+                    )}
+
+                    {activeAccuPosition && (
+                      <Button
+                        variant="outline"
+                        className="w-full rounded-full border-black bg-white text-black hover:bg-white hover:text-black dark:border-white dark:bg-transparent dark:text-white dark:hover:bg-white/10 h-8 text-xs"
+                        disabled={!isConnected || sellingId === activeAccuPosition.contract_id || !activeAccuPosition.is_valid_to_sell}
+                        onClick={() => sellContract(activeAccuPosition.contract_id, activeAccuPosition.bid_price)}
+                      >
+                        {sellingId === activeAccuPosition.contract_id ? 'Closing...' : (
+                          <span className="flex flex-col items-center leading-tight gap-0.5">
+                            <span>Close</span>
+                            <span className="text-[10px] font-normal opacity-90">
+                              {(parseFloat(activeAccuPosition.buy_price) + parseFloat(activeAccuPosition.profit)).toFixed(2)} {activeAccuPosition.currency}
+                            </span>
+                          </span>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                )}
+
                 {tradeMode === 'manual' ? (
                   <AccumulatorTradePanel
                     growthRate={growthRate}
                     onGrowthRateChange={setGrowthRate}
                     growthRateOptions={growthRateOptions}
-                    isConnected={isConnected}
                     stake={stake}
                     onStakeChange={setStake}
                     takeProfit={takeProfit}
                     onTakeProfitChange={setTakeProfit}
                     proposal={proposal}
-                    onBuy={buyContract}
-                    isBuying={isBuying}
-                    buyResult={buyResult}
-                    buyError={buyError}
-                    onClearBuyResult={clearBuyResult}
                     activePosition={activeAccuPosition}
-                    onClose={sellContract}
-                    isClosing={sellingId === activeAccuPosition?.contract_id}
                     isAuthenticated={isAuthenticated}
                   />
                 ) : (
