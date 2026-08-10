@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Footer } from '@/components/custom/footer';
 import { Header } from '@/components/custom/header';
 import { BotLibraryPanel } from '@/components/custom/bot-library-panel';
@@ -176,6 +178,25 @@ export function RiseFallView({
     setIsBotLibraryOpen(false);
   };
 
+  // Buy purchase-result toasts — previously lived inside TradeControls
+  // alongside the Buy button; moved here with the button itself, same
+  // pattern as Accumulators and Digits.
+  useEffect(() => {
+    if (buyError) {
+      toast.error('Purchase Failed', { description: buyError });
+      clearBuyResult();
+    }
+  }, [buyError, clearBuyResult]);
+
+  useEffect(() => {
+    if (buyResult) {
+      toast.success('Contract Purchased', {
+        description: `Buy price: ${buyResult.buyPrice.toFixed(2)} USD | Payout: ${buyResult.payout.toFixed(2)} USD | Balance: ${buyResult.balanceAfter.toFixed(2)} USD`,
+      });
+      clearBuyResult();
+    }
+  }, [buyResult, clearBuyResult]);
+
   if (error) {
     return (
       <main className="flex flex-col bg-background items-center justify-center px-4 min-h-dvh">
@@ -269,7 +290,38 @@ export function RiseFallView({
                       mode={tradeMode}
                       onModeChange={handleModeChange}
                       onOpenBotLibrary={() => setIsBotLibraryOpen(true)}
+                      activeTradeType={activeTradeType}
+                      onSelectTradeType={onSelectTradeType}
                     />
+
+                    {/* Buy button — moved here so it sits right after
+                        Market contracts / the mode row, before the rest of
+                        the trade settings, matching Accumulators/Digits.
+                        Manual mode only — the automated panel manages its
+                        own start/stop via the automation hook. */}
+                    {tradeMode === 'manual' && (
+                      <div className="w-full mb-3 max-lg:relative max-lg:z-[9999]">
+                        <Button
+                          className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground h-8 text-xs"
+                          disabled={!isConnected || !proposal || isBuying}
+                          onClick={buyContract}
+                        >
+                          {isBuying ? (
+                            'Purchasing...'
+                          ) : (
+                            <span className="flex flex-col items-center leading-tight gap-0.5">
+                              <span>Buy</span>
+                              {proposal && (
+                                <span className="text-[9px] font-normal opacity-90">
+                                  {proposal.payout.toFixed(2)} USD
+                                </span>
+                              )}
+                            </span>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+
                     {tradeMode === 'manual' ? (
                       <TradeControls
                         direction={direction}
@@ -291,14 +343,7 @@ export function RiseFallView({
                         ws={ws}
                         activeSymbol={activeSymbol}
                         proposal={proposal}
-                        onBuy={buyContract}
-                        isBuying={isBuying}
-                        buyResult={buyResult}
-                        buyError={buyError}
-                        onClearBuyResult={clearBuyResult}
                         isAuthenticated={isAuthenticated}
-                        activeTradeType={activeTradeType}
-                        onSelectTradeType={onSelectTradeType}
                       />
                     ) : (
                       <AutomatedPanel
