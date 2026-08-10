@@ -207,6 +207,7 @@ export default function RiseFallPage() {
           getQuotes={digitsGetQuotes}
           subscribeQuotes={digitsSubscribeQuotes}
           unsubscribeQuotes={digitsUnsubscribeQuotes}
+          activeTradeType={activeTradeType}
           onSelectTradeType={setActiveTradeType}
         />
         <div className="max-lg:fixed max-lg:bottom-0 max-lg:left-0 max-lg:right-0 py-1 text-center bg-background/80 backdrop-blur-sm lg:bg-transparent lg:static lg:py-0.5 lg:shrink-0">
