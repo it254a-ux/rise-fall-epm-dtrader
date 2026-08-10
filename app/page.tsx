@@ -8,7 +8,7 @@ import { useDigitsTrading } from '../hooks/use-digits-trading';
 import { useAccumulatorTrading } from '../hooks/use-accumulator-trading';
 import { useDerivWSContext } from '@/components/custom/deriv-ws-provider';
 import { useLogoSrc } from '@/components/custom/logo-src-provider';
-import { RiseFallView } from '../components/rise-fall-view';
+import { RiseFallBody } from '../components/rise-fall-body';
 import { DigitsBody } from '../components/digits-body';
 import { AccumulatorsBody } from '../components/accumulators-body';
 import { Header } from '@/components/custom/header';
@@ -218,51 +218,65 @@ export default function RiseFallPage() {
   }
 
   return (
-    <RiseFallView
-      authState={authState}
-      accounts={accounts}
-      activeAccount={activeAccount}
-      onLogin={login}
-      onSignUp={signUp}
-      onLogout={logout}
-      onSwitchAccount={switchAccount}
-      logoSrc={logoSrc}
-      ws={trading.ws}
-      isConnected={trading.isConnected}
-      isLoading={trading.isLoading}
-      error={trading.error}
-      activeSymbol={trading.activeSymbol}
-      selectSymbol={trading.selectSymbol}
-      direction={trading.direction}
-      setDirection={trading.setDirection}
-      allowEquals={trading.allowEquals}
-      setAllowEquals={trading.setAllowEquals}
-      stake={trading.stake}
-      onStakeChange={trading.setStake}
-      duration={trading.duration}
-      setDuration={trading.setDuration}
-      durationOptions={trading.durationOptions}
-      durationUnit={trading.durationUnit}
-      setDurationUnit={trading.setDurationUnit}
-      endDate={trading.endDate}
-      setEndDate={trading.setEndDate}
-      endTime={trading.endTime}
-      setEndTime={trading.setEndTime}
-      proposal={trading.proposal}
-      buyContract={trading.buyContract}
-      isBuying={trading.isBuying}
-      buyResult={trading.buyResult}
-      buyError={trading.buyError}
-      clearBuyResult={trading.clearBuyResult}
-      openPositions={trading.openPositions}
-      sellContract={trading.sellContract}
-      sellingId={trading.sellingId}
-      chartData={chartData}
-      getQuotes={getQuotes}
-      subscribeQuotes={subscribeQuotes}
-      unsubscribeQuotes={unsubscribeQuotes}
-      activeTradeType={activeTradeType}
-      onSelectTradeType={setActiveTradeType}
-    />
+    <main
+      className="flex flex-col bg-background max-lg:h-dvh max-lg:overflow-y-auto lg:h-dvh lg:overflow-hidden"
+      style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
+    >
+      <Header
+        authState={authState}
+        accounts={accounts}
+        activeAccount={activeAccount}
+        onLogin={login}
+        onSignUp={signUp}
+        onLogout={logout}
+        onSwitchAccount={switchAccount}
+        logoSrc={logoSrc}
+        activeTradeType={activeTradeType}
+        onSelectTradeType={setActiveTradeType}
+      />
+      <div className={authState === 'authenticated' ? 'h-[40px] shrink-0' : 'h-[36px] shrink-0'} />
+      <RiseFallBody
+        ws={trading.ws}
+        isConnected={trading.isConnected}
+        isLoading={trading.isLoading}
+        error={trading.error}
+        activeSymbol={trading.activeSymbol}
+        selectSymbol={trading.selectSymbol}
+        direction={trading.direction}
+        setDirection={trading.setDirection}
+        allowEquals={trading.allowEquals}
+        setAllowEquals={trading.setAllowEquals}
+        stake={trading.stake}
+        onStakeChange={trading.setStake}
+        duration={trading.duration}
+        setDuration={trading.setDuration}
+        durationOptions={trading.durationOptions}
+        durationUnit={trading.durationUnit}
+        setDurationUnit={trading.setDurationUnit}
+        endDate={trading.endDate}
+        setEndDate={trading.setEndDate}
+        endTime={trading.endTime}
+        setEndTime={trading.setEndTime}
+        proposal={trading.proposal}
+        buyContract={trading.buyContract}
+        isBuying={trading.isBuying}
+        buyResult={trading.buyResult}
+        buyError={trading.buyError}
+        clearBuyResult={trading.clearBuyResult}
+        openPositions={trading.openPositions}
+        sellContract={trading.sellContract}
+        sellingId={trading.sellingId}
+        chartData={chartData}
+        getQuotes={getQuotes}
+        subscribeQuotes={subscribeQuotes}
+        unsubscribeQuotes={unsubscribeQuotes}
+        isAuthenticated={authState === 'authenticated'}
+        activeTradeType={activeTradeType}
+        onSelectTradeType={setActiveTradeType}
+      />
+      <div className="max-lg:fixed max-lg:bottom-0 max-lg:left-0 max-lg:right-0 py-1 text-center bg-background/80 backdrop-blur-sm lg:bg-transparent lg:static lg:py-0.5 lg:shrink-0">
+        <Footer />
+      </div>
+    </main>
   );
 }
