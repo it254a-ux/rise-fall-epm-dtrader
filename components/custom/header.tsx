@@ -86,12 +86,15 @@ export function Header({
           onSelectTradeType={onSelectTradeType ?? (() => {})}
         />
       </div>
-      {/* FIX (mobile only): removed `max-lg:ml-auto` — with the flyout
-          hidden on mobile, this balance display is the only item left in
-          the justify-between header, so without the forced right-margin it
-          now sits at the top-left corner. Desktop is untouched since that
-          class only applied below the lg breakpoint. */}
-      <div className="flex items-center gap-3">
+      {/* FIX (mobile only): with the flyout hidden on mobile, this balance
+          display becomes the only child in the justify-between header —
+          and a lone flex child sits at the main-start (left) regardless of
+          justify-between. max-lg:ml-auto pushes it back to the end (right)
+          on mobile, which is where it belongs. Desktop is untouched: that
+          class only applies below the lg breakpoint, and on desktop the
+          flyout (left) + this balance div (right) already sit correctly
+          via justify-between on their own. */}
+      <div className="flex items-center gap-3 max-lg:ml-auto">
         {authState === 'authenticated' && <LiveBalanceDisplay activeAccount={activeAccount} />}
       </div>
     </header>
