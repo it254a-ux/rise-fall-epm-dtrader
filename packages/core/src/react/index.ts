@@ -3,3 +3,4 @@ export { useActiveSymbols } from './useActiveSymbols';
 export { useTicks } from './useTicks';
 export { useProposal } from './useProposal';
 export { useBuy } from './useBuy';
+export { useBalance } from './useBalance';
