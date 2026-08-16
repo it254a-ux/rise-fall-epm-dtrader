@@ -93,6 +93,7 @@ export interface UseAuthReturn {
   signUp: () => Promise<void>;
   logout: () => void;
   switchAccount: (accountId: string) => Promise<void>;
+  updateBalance: (accountId: string, balance: string) => void;
   error: string | null;
 }
 
@@ -305,6 +306,19 @@ export function useAuth(): UseAuthReturn {
     [fetchOTPUrl, accounts]
   );
 
+  // Patches the live balance for a given account into `accounts` state as
+  // updates arrive from the balance WS stream (see useBalance / the
+  // deriv-ws-provider wiring). Matched by account_id, which is the same id
+  // fetchOTPUrl/switchAccount use elsewhere in this file, and which the
+  // balance stream's `loginid` field corresponds to. This is additive only
+  // - it never touches authState, wsUrl, or any other field, so nothing
+  // else in the login/reconnect/switch flow above is affected.
+  const updateBalance = useCallback((accountId: string, balance: string) => {
+    setAccounts(prev =>
+      prev.map(acc => (acc.account_id === accountId ? { ...acc, balance } : acc))
+    );
+  }, []);
+
   const activeAccount =
     accounts.find(acc => acc.account_id === activeAccountId) ?? accounts[0] ?? null;
 
@@ -318,6 +332,7 @@ export function useAuth(): UseAuthReturn {
     signUp,
     logout,
     switchAccount,
+    updateBalance,
     error,
   };
 }
