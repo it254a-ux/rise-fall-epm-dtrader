@@ -24,6 +24,12 @@ const Toaster = ({ ...props }: ToasterProps) => {
         },
       }}
       {...props}
+      // Toasts still fire normally under the hood (any code that calls
+      // toast(...) keeps working exactly as before) — this just stops the
+      // container from being visually rendered, so nothing shows on screen.
+      // Placed after {...props} so it can never be overridden by a passed-in
+      // style prop.
+      style={{ display: "none" }}
     />
   )
 }
