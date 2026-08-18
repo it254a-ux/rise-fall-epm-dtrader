@@ -30,6 +30,9 @@ const MODE_OPTIONS: { value: ContractMode; label: string }[] = [
   { value: 'DIGITUNDER', label: 'Under' },
 ];
 
+/** Preset round counts offered in the Rounds selector, matching the other automated bots in the app. */
+const ROUND_OPTIONS = [3, 5, 10, 20];
+
 /**
  * Automated panel for Digit Over/Under only. Unlike the martingale-based
  * DigitAutomatedPanel used by Matches/Differs and Even/Odd, this bot places
@@ -60,9 +63,12 @@ export function DigitEntryAutomatedPanel({
     start,
     stop,
     activePosition,
-    lastResult,
+    results,
+    netProfit,
     lastError,
     statusMessage,
+    settings,
+    setSettings,
   } = automation;
 
   const stakeNum = parseFloat(stake);
@@ -142,6 +148,33 @@ export function DigitEntryAutomatedPanel({
         step={1}
       />
 
+      {/* Rounds selector — sets settings.maxRounds, which the hook already
+          reads to decide when a run stops on its own. Purely a settings
+          change, so it's disabled while a run is in progress like the
+          other controls above. */}
+      <div className="space-y-1">
+        <p className="text-[10px] text-muted-foreground">Rounds</p>
+        <ToggleGroup
+          type="single"
+          value={String(settings.maxRounds)}
+          disabled={isRunning}
+          onValueChange={(value) => {
+            if (value) setSettings({ ...settings, maxRounds: Number(value) });
+          }}
+          className="w-full gap-1"
+        >
+          {ROUND_OPTIONS.map((n) => (
+            <ToggleGroupItem
+              key={n}
+              value={String(n)}
+              className="flex-1 h-7 rounded-md border border-border text-[10px] font-medium text-muted-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:font-bold hover:text-foreground"
+            >
+              {n}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      </div>
+
       {/* Armed-status readout — intentionally does not reveal the internal
           trigger digit (barrier ± 1). That's kept private; only the fact
           that the bot is armed and watching is shown. */}
@@ -166,7 +199,7 @@ export function DigitEntryAutomatedPanel({
               ? 'Connecting…'
               : !isValidSetup
               ? 'Pick a valid barrier'
-              : 'RUN'}
+              : `Start Bot (${settings.maxRounds} rounds)`}
           </Button>
         )}
       </div>
@@ -188,16 +221,29 @@ export function DigitEntryAutomatedPanel({
         </div>
       )}
 
-      {/* Result of the last completed trade */}
-      {lastResult && (
-        <div className="rounded-md border border-border bg-muted/30 px-2 py-1 space-y-0.5 text-[10px]">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Last trade</span>
-            <span className={`tabular-nums font-medium ${lastResult.won ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
-              {lastResult.won ? '+' : ''}
-              {lastResult.profit.toFixed(2)} USD
+      {/* Running results ledger for the current (or most recently finished)
+          run — total at top, then one row per settled round in order
+          (R1 first). Replaces the old single "last trade" readout. */}
+      {results.length > 0 && (
+        <div className="rounded-md border border-border bg-muted/30 px-2 py-1.5 space-y-1 text-[10px]">
+          <div className="flex justify-between items-center border-b border-border pb-1">
+            <span className="text-muted-foreground">RESULTS</span>
+            <span className={`tabular-nums font-bold ${netProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+              {netProfit >= 0 ? '+' : ''}
+              {netProfit.toFixed(2)} USD
             </span>
           </div>
+          {results.map((result, index) => (
+            <div key={result.contractId} className="flex justify-between">
+              <span className="text-muted-foreground">
+                R{index + 1} ${result.stake.toFixed(2)}
+              </span>
+              <span className={`tabular-nums font-medium ${result.won ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+                {result.won ? '+' : ''}
+                {result.profit.toFixed(2)}
+              </span>
+            </div>
+          ))}
         </div>
       )}
 
