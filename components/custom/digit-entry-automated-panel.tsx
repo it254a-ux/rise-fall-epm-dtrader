@@ -56,7 +56,6 @@ export function DigitEntryAutomatedPanel({
   const {
     isRunning,
     phase,
-    triggerDigit,
     isValidSetup,
     start,
     stop,
@@ -69,6 +68,7 @@ export function DigitEntryAutomatedPanel({
   const stakeNum = parseFloat(stake);
   const canStart =
     isConnected && isAuthenticated && !isRunning && isValidSetup && !!stakeNum && stakeNum > 0;
+  const isOver = contractMode === 'DIGITOVER';
 
   return (
     <div className="w-full space-y-1.5 lg:max-w-[240px] lg:space-y-2">
@@ -91,6 +91,30 @@ export function DigitEntryAutomatedPanel({
           </ToggleGroupItem>
         ))}
       </ToggleGroup>
+
+      {/* Prediction summary — mirrors the plain-language "Last digit of the
+          price will be over/under N" readout used elsewhere in the app, so
+          the chosen digit is unambiguous at a glance. This does not reveal
+          the internal trigger digit (barrier ± 1) — only the barrier the
+          user actually picked. */}
+      <div className="rounded-md border border-border bg-muted/30 px-2 py-1.5 space-y-1">
+        <p className="text-[10px] text-muted-foreground">Prediction</p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-xs font-medium text-foreground">
+            Last digit of the price will be{' '}
+            <span className={isOver ? 'font-bold text-green-600 dark:text-green-400' : 'font-bold text-red-500'}>
+              {isOver ? 'over' : 'under'}
+            </span>
+          </p>
+          <span
+            className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${
+              isOver ? 'bg-green-600' : 'bg-red-500'
+            }`}
+          >
+            {selectedDigit}
+          </span>
+        </div>
+      </div>
 
       <div>
         <DigitStatsBar
@@ -118,13 +142,12 @@ export function DigitEntryAutomatedPanel({
         step={1}
       />
 
-      {/* Trigger-digit readout — updates live as the barrier changes */}
+      {/* Armed-status readout — intentionally does not reveal the internal
+          trigger digit (barrier ± 1). That's kept private; only the fact
+          that the bot is armed and watching is shown. */}
       <div className="rounded-md border border-border bg-muted/30 px-2 py-1 text-[10px]">
         {isValidSetup ? (
-          <span className="text-muted-foreground">
-            Will enter the instant a{' '}
-            <span className="font-semibold text-foreground">{triggerDigit}</span> lands.
-          </span>
+          <span className="text-muted-foreground">Armed — watching the tick stream for your entry signal…</span>
         ) : (
           <span className="text-amber-600 dark:text-amber-400">{statusMessage}</span>
         )}
@@ -143,7 +166,7 @@ export function DigitEntryAutomatedPanel({
               ? 'Connecting…'
               : !isValidSetup
               ? 'Pick a valid barrier'
-              : 'Start'}
+              : 'RUN'}
           </Button>
         )}
       </div>
@@ -152,7 +175,7 @@ export function DigitEntryAutomatedPanel({
       {(isRunning || phase === 'entered') && (
         <div className="rounded-md border border-blue-500/30 bg-blue-500/5 px-2 py-1 space-y-0.5 text-[10px]">
           <p className="text-[10px] font-medium text-blue-500 dark:text-blue-400">
-            {phase === 'entered' ? 'Trade placed — waiting to settle…' : `Watching for ${triggerDigit}…`}
+            {phase === 'entered' ? 'Trade placed — waiting to settle…' : 'Watching for entry signal…'}
           </p>
           {activePosition && (
             <div className="flex justify-between">
