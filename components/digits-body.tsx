@@ -127,7 +127,9 @@ export function DigitsBody({
 
   // Entry-watcher automation — used only for Over/Under. Places no trade on
   // Start; arms and watches the digit stream, fires once the trigger digit
-  // lands, then lets the contract settle on its own.
+  // lands, then lets the contract settle on its own. Needs stake/setStake
+  // itself (not just proposal/buyContract) because it drives the stake
+  // between rounds — doubling once on a loss, resetting on a win.
   const overUnderAutomation = useDigitsEntryAutomation({
     isConnected,
     isAuthenticated,
@@ -141,6 +143,8 @@ export function DigitsBody({
     buyError,
     clearBuyResult,
     openPositions,
+    stake,
+    setStake,
   });
 
   const isOverUnder = tradeType === 'over-under';
