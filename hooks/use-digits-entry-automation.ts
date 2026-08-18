@@ -11,6 +11,8 @@ export interface DigitEntryResult {
   contractId: number;
   profit: number;
   won: boolean;
+  /** The stake this specific round was placed at (base stake, or doubled after a loss). */
+  stake: number;
 }
 
 /**
@@ -73,6 +75,8 @@ export interface UseDigitsEntryAutomationReturn {
   stop: (reason?: string) => void;
   activePosition: OpenPosition | null;
   lastResult: DigitEntryResult | null;
+  /** Every round settled so far in the current (or most recently finished) run, in order — R1 first. Cleared on start(). */
+  results: DigitEntryResult[];
   lastError: string | null;
   statusMessage: string;
   settings: EntryAutomationSettings;
@@ -117,6 +121,7 @@ export function useDigitsEntryAutomation({
   const [phase, setPhase] = useState<DigitEntryPhase>('idle');
   const [activeContractId, setActiveContractId] = useState<number | null>(null);
   const [lastResult, setLastResult] = useState<DigitEntryResult | null>(null);
+  const [results, setResults] = useState<DigitEntryResult[]>([]);
   const [lastError, setLastError] = useState<string | null>(null);
   const [settings, setSettings] = useState<EntryAutomationSettings>(DEFAULT_ENTRY_AUTOMATION_SETTINGS);
   const [roundCount, setRoundCount] = useState(0);
@@ -154,6 +159,7 @@ export function useDigitsEntryAutomation({
 
     setActiveContractId(null);
     setLastResult(null);
+    setResults([]);
     setLastError(null);
     setStopReason(null);
     setRoundCount(0);
@@ -248,12 +254,17 @@ export function useDigitsEntryAutomation({
     const won = profit >= 0;
     const nextRoundCount = roundCount + 1;
     const nextNet = netProfit + profit;
+    // The stake this round was actually placed at — captured before it's
+    // possibly updated below for the next round.
+    const roundStake = currentStakeRef.current;
     // Was the round that just settled already running at the doubled
     // stake (i.e. not the base stake)? Used below to decide whether a
     // loss should double again or stop the run.
     const wasAtDoubledStake = currentStakeRef.current > baseStakeRef.current + 0.01;
 
-    setLastResult({ contractId, profit, won });
+    const result: DigitEntryResult = { contractId, profit, won, stake: roundStake };
+    setLastResult(result);
+    setResults((prev) => [...prev, result]);
     setRoundCount(nextRoundCount);
     setNetProfit(nextNet);
     pendingContractId.current = null;
@@ -326,6 +337,7 @@ export function useDigitsEntryAutomation({
     stop,
     activePosition,
     lastResult,
+    results,
     lastError,
     statusMessage,
     settings,
