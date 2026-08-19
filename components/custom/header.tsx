@@ -1,9 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { forwardRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { TradeTypesFlyout } from './trade-types-flyout';
 import type { AuthState, DerivAccount } from '@deriv/core';
-
 interface HeaderProps {
   authState: AuthState;
   accounts: DerivAccount[];
@@ -17,7 +16,6 @@ interface HeaderProps {
   activeTradeType?: string;
   onSelectTradeType?: (type: string) => void;
 }
-
 function AccountLabel({ type }: { type: 'demo' | 'real' }) {
   return (
     <span
@@ -30,7 +28,6 @@ function AccountLabel({ type }: { type: 'demo' | 'real' }) {
     </span>
   );
 }
-
 function LiveBalanceDisplay({ activeAccount }: { activeAccount: DerivAccount | null }) {
   if (!activeAccount) return null;
   const balance = Number(activeAccount.balance);
@@ -52,8 +49,12 @@ function LiveBalanceDisplay({ activeAccount }: { activeAccount: DerivAccount | n
     </div>
   );
 }
-
-export function Header({
+// FIX: Header now forwards its ref to the actual <header> DOM element.
+// This lets page.tsx measure the header's real rendered height (via
+// ResizeObserver) and use that exact number for the content spacer below
+// it, instead of a manually guessed pixel value that goes stale every
+// time the header's padding changes.
+export const Header = forwardRef<HTMLElement, HeaderProps>(function Header({
   authState,
   accounts,
   activeAccount,
@@ -65,14 +66,17 @@ export function Header({
   appName,
   activeTradeType = 'rise-fall',
   onSelectTradeType,
-}: HeaderProps) {
+}, ref) {
   const [logoError, setLogoError] = useState(false);
   const logoLetter = (appName ?? process.env.NEXT_PUBLIC_DERIV_APP_NAME ?? 'Deriv Trading')
     .trim()
     .charAt(0)
     .toUpperCase() || 'D';
   return (
-    <header className="fixed top-0 left-0 lg:left-[72px] right-0 z-50 flex items-center justify-between px-4 pt-3 pb-1 border-b bg-background/80 backdrop-blur-sm">
+    <header
+      ref={ref}
+      className="fixed top-0 left-0 lg:left-[72px] right-0 z-50 flex items-center justify-between px-4 pt-3 pb-1 border-b bg-background/80 backdrop-blur-sm"
+    >
       {/* FIX (mobile only): the top TradeTypesFlyout tab row was overlapping
           the chart on mobile, and now duplicates the "Market contracts"
           menu in the trade panel below the chart. Hidden on mobile with
@@ -97,4 +101,4 @@ export function Header({
       </div>
     </header>
   );
-}
+});
