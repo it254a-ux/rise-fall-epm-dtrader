@@ -72,7 +72,7 @@ export function Header({
     .charAt(0)
     .toUpperCase() || 'D';
   return (
-    <header className="fixed top-0 left-0 lg:left-[72px] right-0 z-50 flex items-center justify-between px-4 py-2.5 border-b bg-background/80 backdrop-blur-sm">
+    <header className="fixed top-0 left-0 lg:left-[72px] right-0 z-50 flex items-center justify-between px-4 pt-3 pb-1 border-b bg-background/80 backdrop-blur-sm">
       {/* FIX (mobile only): the top TradeTypesFlyout tab row was overlapping
           the chart on mobile, and now duplicates the "Market contracts"
           menu in the trade panel below the chart. Hidden on mobile with
