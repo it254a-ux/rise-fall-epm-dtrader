@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSmartChartsApi } from '@/hooks/use-smartcharts-api';
 import { useSmartChartChartData } from '@/hooks/use-smartchart-chart-data';
 import { useRiseFallTrading } from '../hooks/use-rise-fall-trading';
@@ -21,6 +21,26 @@ export default function RiseFallPage() {
   const isAuthenticated = !!auth.wsUrl;
 
   const [activeTradeType, setActiveTradeType] = useState<string>('rise-fall');
+
+  // FIX: instead of a hardcoded pixel spacer that goes stale every time the
+  // header's padding changes, measure the header's real rendered height via
+  // ResizeObserver and use that exact number for the content spacer below
+  // it. Updates automatically if the header ever resizes (auth state
+  // change, responsive breakpoint, font change, future padding tweaks).
+  const headerRef = useRef<HTMLElement>(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
+
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setHeaderHeight(entry.contentRect.height);
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // Which trade-type "family" is currently selected. Computed before the
   // trading hooks below so each hook can be told whether it's the active
@@ -104,6 +124,7 @@ export default function RiseFallPage() {
         style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
       >
         <Header
+          ref={headerRef}
           authState={authState}
           accounts={accounts}
           activeAccount={activeAccount}
@@ -115,7 +136,7 @@ export default function RiseFallPage() {
           activeTradeType={activeTradeType}
           onSelectTradeType={setActiveTradeType}
         />
-        <div className={authState === 'authenticated' ? 'h-[44px] shrink-0' : 'h-[40px] shrink-0'} />
+        <div style={{ height: headerHeight }} className="shrink-0" />
         <AccumulatorsBody
           ws={accumulators.ws}
           isConnected={accumulators.isConnected}
@@ -163,6 +184,7 @@ export default function RiseFallPage() {
         style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
       >
         <Header
+          ref={headerRef}
           authState={authState}
           accounts={accounts}
           activeAccount={activeAccount}
@@ -174,7 +196,7 @@ export default function RiseFallPage() {
           activeTradeType={activeTradeType}
           onSelectTradeType={setActiveTradeType}
         />
-        <div className={authState === 'authenticated' ? 'h-[44px] shrink-0' : 'h-[40px] shrink-0'} />
+        <div style={{ height: headerHeight }} className="shrink-0" />
         <DigitsBody
           authState={authState}
           isConnected={digits.isConnected}
@@ -223,6 +245,7 @@ export default function RiseFallPage() {
       style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
     >
       <Header
+        ref={headerRef}
         authState={authState}
         accounts={accounts}
         activeAccount={activeAccount}
@@ -234,7 +257,7 @@ export default function RiseFallPage() {
         activeTradeType={activeTradeType}
         onSelectTradeType={setActiveTradeType}
       />
-      <div className={authState === 'authenticated' ? 'h-[44px] shrink-0' : 'h-[40px] shrink-0'} />
+      <div style={{ height: headerHeight }} className="shrink-0" />
       <RiseFallBody
         ws={trading.ws}
         isConnected={trading.isConnected}
