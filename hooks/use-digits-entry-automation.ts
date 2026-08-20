@@ -13,7 +13,22 @@ export interface DigitEntryResult {
   won: boolean;
   /** The stake this specific round was placed at (base stake, or doubled after a loss). */
   stake: number;
+  /** The barrier setup this round actually ran at. Only meaningful for readouts — the
+   * hook itself always drives off contractMode/selectedDigit at fire time. */
+  contractMode?: ContractMode;
+  selectedDigit?: number;
 }
+
+/**
+ * The fixed Over/Under pair that Hybrid Mode alternates between. Barrier
+ * digits are intentionally fixed at 1 and 8 (Over 1 / Under 8) rather than
+ * derived from whatever digit happens to be selected in the manual
+ * controls — the trader picks which SIDE to start on, not the digit.
+ */
+const HYBRID_PAIR: { contractMode: ContractMode; digit: number }[] = [
+  { contractMode: 'DIGITOVER', digit: 1 },
+  { contractMode: 'DIGITUNDER', digit: 8 },
+];
 
 /**
  * Adjustable run controls for the Over/Under entry watcher — mirrors the
@@ -35,12 +50,21 @@ export interface EntryAutomationSettings {
   maxRounds: number;
   /** Stop the run once cumulative loss reaches this amount. Null = no limit. */
   lossThreshold: number | null;
+  /**
+   * ADDITIVE — off by default, does not change existing behavior. When
+   * true, the bot alternates the barrier every round (win or lose)
+   * between Over 1 and Under 8, starting on whichever side is selected
+   * in the manual controls at Start. When false, behaves exactly as
+   * before: locked on whatever barrier is selected.
+   */
+  hybridMode: boolean;
 }
 
 export const DEFAULT_ENTRY_AUTOMATION_SETTINGS: EntryAutomationSettings = {
   multiplier: 2,
   maxRounds: 5,
   lossThreshold: 10,
+  hybridMode: false,
 };
 
 interface UseDigitsEntryAutomationParams {
@@ -62,6 +86,13 @@ interface UseDigitsEntryAutomationParams {
   /** Stake field (string, matches the rest of the app's controlled inputs) and its setter. Read as the run's starting/base stake at Start, then driven by this hook itself — doubled once on a loss, reset to the start value on a win — as rounds progress. */
   stake: string;
   setStake: (value: string) => void;
+  /**
+   * ADDITIVE — optional. Only required if you want Hybrid Mode to work.
+   * Lets the hook flip the barrier itself between rounds. If omitted,
+   * hybridMode is silently ignored and behavior is unchanged.
+   */
+  setContractMode?: (mode: ContractMode) => void;
+  setSelectedDigit?: (digit: number) => void;
 }
 
 export interface UseDigitsEntryAutomationReturn {
@@ -116,6 +147,8 @@ export function useDigitsEntryAutomation({
   openPositions,
   stake,
   setStake,
+  setContractMode,
+  setSelectedDigit,
 }: UseDigitsEntryAutomationParams): UseDigitsEntryAutomationReturn {
   const [isRunning, setIsRunning] = useState(false);
   const [phase, setPhase] = useState<DigitEntryPhase>('idle');
@@ -144,6 +177,22 @@ export function useDigitsEntryAutomation({
   const baseStakeRef = useRef(0);
   const currentStakeRef = useRef(0);
 
+  // ADDITIVE — Hybrid Mode state. Only used when settings.hybridMode is true.
+  // slotIndexRef tracks which side of HYBRID_PAIR the run is currently on.
+  const slotIndexRef = useRef(0);
+  // Always mirrors the latest proposal, so effects that fire on other
+  // triggers (like the settle effect) can read the current proposal id
+  // without adding `proposal` to their dependency array.
+  const latestProposalRef = useRef<ProposalInfo | null>(null);
+  useEffect(() => {
+    latestProposalRef.current = proposal;
+  }, [proposal]);
+  // When set, the WATCH effect below refuses to fire until it sees a
+  // proposal whose id differs from this one — i.e. a fresh quote that
+  // actually reflects the barrier we just shifted to. Prevents firing a
+  // buy against a stale price left over from the previous barrier.
+  const staleProposalId = useRef<string | null>(null);
+
   const triggerDigit = computeTriggerDigit(contractMode, selectedDigit);
   const isValidSetup = triggerDigit !== null;
 
@@ -156,6 +205,21 @@ export function useDigitsEntryAutomation({
     isRunningRef.current = true;
     baseStakeRef.current = startingStake;
     currentStakeRef.current = startingStake;
+    staleProposalId.current = null;
+
+    // ADDITIVE — Hybrid Mode: lock the starting slot to whichever side
+    // (Over/Under) is currently selected, snapping the digit to the fixed
+    // pair value (1 for Over, 8 for Under) if it isn't already there.
+    if (settings.hybridMode && setContractMode && setSelectedDigit) {
+      const startIndex = contractMode === 'DIGITUNDER' ? 1 : 0;
+      slotIndexRef.current = startIndex;
+      const startSetup = HYBRID_PAIR[startIndex];
+      if (contractMode !== startSetup.contractMode || selectedDigit !== startSetup.digit) {
+        staleProposalId.current = latestProposalRef.current?.id ?? null;
+        setContractMode(startSetup.contractMode);
+        setSelectedDigit(startSetup.digit);
+      }
+    }
 
     setActiveContractId(null);
     setLastResult(null);
@@ -167,7 +231,7 @@ export function useDigitsEntryAutomation({
     setStake(String(startingStake));
     setPhase('watching');
     setIsRunning(true);
-  }, [stake, setStake]);
+  }, [stake, setStake, settings.hybridMode, setContractMode, setSelectedDigit, contractMode, selectedDigit]);
 
   const stop = useCallback((reason?: string) => {
     isRunningRef.current = false;
@@ -201,6 +265,11 @@ export function useDigitsEntryAutomation({
   // check matters specifically after a loss doubles the stake — without it,
   // a stale-priced proposal from just before the stake changed could get
   // bought at the wrong size.
+  //
+  // ADDITIVE — also refuses to fire if the current proposal id matches
+  // staleProposalId (a leftover quote from the barrier we just shifted off
+  // of in Hybrid Mode). Only ever set when hybridMode is on, so this is a
+  // no-op otherwise.
   useEffect(() => {
     if (!isRunning || phase !== 'watching') return;
     if (hasFired.current) return;
@@ -208,8 +277,10 @@ export function useDigitsEntryAutomation({
     if (lastDigit === null || lastDigit !== triggerDigit) return;
     if (isBuying) return;
     if (!proposal) return;
+    if (staleProposalId.current !== null && proposal.id === staleProposalId.current) return;
     if (Math.abs(proposal.askPrice - currentStakeRef.current) > 0.01) return;
 
+    staleProposalId.current = null;
     hasFired.current = true;
     buyContract();
   }, [isRunning, phase, lastDigit, triggerDigit, isValidSetup, isBuying, proposal, buyContract]);
@@ -262,7 +333,14 @@ export function useDigitsEntryAutomation({
     // loss should double again or stop the run.
     const wasAtDoubledStake = currentStakeRef.current > baseStakeRef.current + 0.01;
 
-    const result: DigitEntryResult = { contractId, profit, won, stake: roundStake };
+    const result: DigitEntryResult = {
+      contractId,
+      profit,
+      won,
+      stake: roundStake,
+      contractMode,
+      selectedDigit,
+    };
     setLastResult(result);
     setResults((prev) => [...prev, result]);
     setRoundCount(nextRoundCount);
@@ -308,8 +386,22 @@ export function useDigitsEntryAutomation({
     const nextStake = won ? baseStakeRef.current : currentStakeRef.current * settings.multiplier;
     currentStakeRef.current = nextStake;
     setStake(String(nextStake));
+
+    // ADDITIVE — Hybrid Mode: flip to the other side of the fixed pair
+    // every round, win or lose, and mark the current proposal as stale so
+    // the WATCH effect waits for a fresh quote priced for the new barrier
+    // before it's allowed to fire again.
+    if (settings.hybridMode && setContractMode && setSelectedDigit) {
+      const nextSlot = (slotIndexRef.current + 1) % HYBRID_PAIR.length;
+      slotIndexRef.current = nextSlot;
+      const nextSetup = HYBRID_PAIR[nextSlot];
+      staleProposalId.current = latestProposalRef.current?.id ?? null;
+      setContractMode(nextSetup.contractMode);
+      setSelectedDigit(nextSetup.digit);
+    }
+
     setPhase('watching');
-  }, [openPositions, phase, roundCount, netProfit, settings, setStake]);
+  }, [openPositions, phase, roundCount, netProfit, settings, setStake, contractMode, selectedDigit, setContractMode, setSelectedDigit]);
 
   const activePosition =
     activeContractId !== null
@@ -323,7 +415,9 @@ export function useDigitsEntryAutomation({
       ? 'Pick a barrier below 9 to get a valid trigger digit.'
       : 'Entry watching only supports Over/Under.'
     : phase === 'watching'
-    ? `Watching — round ${Math.min(roundCount + 1, settings.maxRounds)} of ${settings.maxRounds}.`
+    ? `Watching — round ${Math.min(roundCount + 1, settings.maxRounds)} of ${settings.maxRounds}${
+        settings.hybridMode ? ` (hybrid: ${contractMode === 'DIGITOVER' ? 'Over 1' : 'Under 8'})` : ''
+      }.`
     : phase === 'entered'
     ? 'Trade placed — waiting for it to settle.'
     : 'Idle';
