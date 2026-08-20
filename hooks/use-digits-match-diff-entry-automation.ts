@@ -311,15 +311,25 @@ export function useDigitsMatchDiffEntryAutomation({
     if (settings.digitShiftMode !== 'fixed' && setSelectedDigit) {
       let nextDigit: number;
       if (settings.digitShiftMode === 'random') {
-        // Independent random pick each round — no detectable pattern.
+        // Independent random pick each round — no detectable pattern. Can
+        // land on the same digit as the round that just finished; that's
+        // expected with true randomness, not a bug.
         nextDigit = randomDigit();
       } else {
         const { next, direction } = nextBounceDigit(selectedDigit, bounceDirectionRef.current);
         bounceDirectionRef.current = direction;
         nextDigit = next;
       }
-      staleProposalId.current = latestProposalRef.current?.id ?? null;
-      setSelectedDigit(nextDigit);
+      // Only wait for a fresh quote if the digit is actually DIFFERENT.
+      // If Random Mode happens to repick the same digit, no new proposal
+      // request ever gets sent (nothing about the trade params changed),
+      // so its id would never change either — marking it stale in that
+      // case would make the bot wait forever for a quote that never
+      // arrives. This was the cause of the run hanging.
+      if (nextDigit !== selectedDigit) {
+        staleProposalId.current = latestProposalRef.current?.id ?? null;
+        setSelectedDigit(nextDigit);
+      }
     }
 
     setPhase('watching');
