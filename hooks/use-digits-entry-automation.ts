@@ -7,6 +7,18 @@ import type { ContractMode } from '@/lib/digit-types';
 
 export type DigitEntryPhase = 'idle' | 'watching' | 'entered' | 'settled';
 
+/**
+ * ADDITIVE — which digit the watcher waits for before firing.
+ * - 'edge' (default): today's existing behavior — waits for the digit
+ *   adjacent to the barrier (barrier − 1 for Over, barrier + 1 for Under).
+ * - 'direct': waits for the barrier digit itself to appear on the tick
+ *   stream (e.g. Over 1 waits for a live last-digit of 1), then fires.
+ * Combinable with Hybrid Mode — whichever barrier Hybrid Mode is currently
+ * on, this setting decides which digit relative to that barrier triggers
+ * the buy.
+ */
+export type EntryStrategy = 'edge' | 'direct';
+
 export interface DigitEntryResult {
   contractId: number;
   profit: number;
@@ -58,6 +70,12 @@ export interface EntryAutomationSettings {
    * before: locked on whatever barrier is selected.
    */
   hybridMode: boolean;
+  /**
+   * ADDITIVE — defaults to 'edge', which is byte-for-byte the existing
+   * behavior. See the EntryStrategy type above for what each value does.
+   * Combinable with hybridMode.
+   */
+  entryStrategy: EntryStrategy;
 }
 
 export const DEFAULT_ENTRY_AUTOMATION_SETTINGS: EntryAutomationSettings = {
@@ -65,6 +83,7 @@ export const DEFAULT_ENTRY_AUTOMATION_SETTINGS: EntryAutomationSettings = {
   maxRounds: 5,
   lossThreshold: 10,
   hybridMode: false,
+  entryStrategy: 'edge',
 };
 
 interface UseDigitsEntryAutomationParams {
@@ -120,16 +139,30 @@ export interface UseDigitsEntryAutomationReturn {
   stopReason: string | null;
 }
 
-function computeTriggerDigit(contractMode: ContractMode, selectedDigit: number): number | null {
+/**
+ * ADDITIVE — now takes entryStrategy as a third parameter.
+ * - 'edge': unchanged from before — barrier − 1 for Over, barrier + 1 for Under.
+ * - 'direct': the trigger digit IS the barrier digit itself, for either side.
+ * Only DIGITOVER / DIGITUNDER are ever valid regardless of strategy.
+ */
+function computeTriggerDigit(
+  contractMode: ContractMode,
+  selectedDigit: number,
+  entryStrategy: EntryStrategy
+): number | null {
+  if (contractMode !== 'DIGITOVER' && contractMode !== 'DIGITUNDER') return null;
+
+  if (entryStrategy === 'direct') {
+    return selectedDigit >= 0 && selectedDigit <= 9 ? selectedDigit : null;
+  }
+
+  // Edge Entry (default) — identical to the original single-strategy logic.
   if (contractMode === 'DIGITOVER') {
     const trigger = selectedDigit - 1;
     return trigger >= 0 && trigger <= 9 ? trigger : null;
   }
-  if (contractMode === 'DIGITUNDER') {
-    const trigger = selectedDigit + 1;
-    return trigger >= 0 && trigger <= 9 ? trigger : null;
-  }
-  return null;
+  const trigger = selectedDigit + 1;
+  return trigger >= 0 && trigger <= 9 ? trigger : null;
 }
 
 export function useDigitsEntryAutomation({
@@ -177,7 +210,7 @@ export function useDigitsEntryAutomation({
   const baseStakeRef = useRef(0);
   const currentStakeRef = useRef(0);
 
-  // ADDITIVE — Hybrid Mode state. Only used when settings.hybridMode is true.
+  // Hybrid Mode state. Only used when settings.hybridMode is true.
   // slotIndexRef tracks which side of HYBRID_PAIR the run is currently on.
   const slotIndexRef = useRef(0);
   // Always mirrors the latest proposal, so effects that fire on other
@@ -193,7 +226,7 @@ export function useDigitsEntryAutomation({
   // buy against a stale price left over from the previous barrier.
   const staleProposalId = useRef<string | null>(null);
 
-  const triggerDigit = computeTriggerDigit(contractMode, selectedDigit);
+  const triggerDigit = computeTriggerDigit(contractMode, selectedDigit, settings.entryStrategy);
   const isValidSetup = triggerDigit !== null;
 
   const start = useCallback(() => {
@@ -207,9 +240,9 @@ export function useDigitsEntryAutomation({
     currentStakeRef.current = startingStake;
     staleProposalId.current = null;
 
-    // ADDITIVE — Hybrid Mode: lock the starting slot to whichever side
-    // (Over/Under) is currently selected, snapping the digit to the fixed
-    // pair value (1 for Over, 8 for Under) if it isn't already there.
+    // Hybrid Mode: lock the starting slot to whichever side (Over/Under)
+    // is currently selected, snapping the digit to the fixed pair value
+    // (1 for Over, 8 for Under) if it isn't already there.
     if (settings.hybridMode && setContractMode && setSelectedDigit) {
       const startIndex = contractMode === 'DIGITUNDER' ? 1 : 0;
       slotIndexRef.current = startIndex;
@@ -266,10 +299,11 @@ export function useDigitsEntryAutomation({
   // a stale-priced proposal from just before the stake changed could get
   // bought at the wrong size.
   //
-  // ADDITIVE — also refuses to fire if the current proposal id matches
-  // staleProposalId (a leftover quote from the barrier we just shifted off
-  // of in Hybrid Mode). Only ever set when hybridMode is on, so this is a
-  // no-op otherwise.
+  // Also refuses to fire if the current proposal id matches staleProposalId
+  // (a leftover quote from the barrier we just shifted off of in Hybrid
+  // Mode). Only ever set when hybridMode is on, so this is a no-op
+  // otherwise. triggerDigit itself already reflects entryStrategy (edge vs
+  // direct), so no separate check is needed here for that setting.
   useEffect(() => {
     if (!isRunning || phase !== 'watching') return;
     if (hasFired.current) return;
@@ -387,10 +421,10 @@ export function useDigitsEntryAutomation({
     currentStakeRef.current = nextStake;
     setStake(String(nextStake));
 
-    // ADDITIVE — Hybrid Mode: flip to the other side of the fixed pair
-    // every round, win or lose, and mark the current proposal as stale so
-    // the WATCH effect waits for a fresh quote priced for the new barrier
-    // before it's allowed to fire again.
+    // Hybrid Mode: flip to the other side of the fixed pair every round,
+    // win or lose, and mark the current proposal as stale so the WATCH
+    // effect waits for a fresh quote priced for the new barrier before
+    // it's allowed to fire again.
     if (settings.hybridMode && setContractMode && setSelectedDigit) {
       const nextSlot = (slotIndexRef.current + 1) % HYBRID_PAIR.length;
       slotIndexRef.current = nextSlot;
@@ -417,7 +451,7 @@ export function useDigitsEntryAutomation({
     : phase === 'watching'
     ? `Watching — round ${Math.min(roundCount + 1, settings.maxRounds)} of ${settings.maxRounds}${
         settings.hybridMode ? ` (hybrid: ${contractMode === 'DIGITOVER' ? 'Over 1' : 'Under 8'})` : ''
-      }.`
+      }${settings.entryStrategy === 'direct' ? ' [Direct Entry]' : ''}.`
     : phase === 'entered'
     ? 'Trade placed — waiting for it to settle.'
     : 'Idle';
