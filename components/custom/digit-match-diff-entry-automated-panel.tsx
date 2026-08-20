@@ -120,7 +120,7 @@ export function DigitMatchDiffEntryAutomatedPanel({
 
       {/* Prediction summary. While a non-Hold mode is running, this updates
           on its own each round since selectedDigit is driven by the hook. */}
-      <div className="rounded-md border border-border bg-muted/30 px-2 py-1.5 space-y-1">
+      <div className="rounded-md border border-border bg-muted/30 px-2 py-1 space-y-0.5">
         <p className="text-[10px] text-muted-foreground">Prediction</p>
         <div className="flex items-center gap-1.5">
           <p className="text-xs font-medium text-foreground">
@@ -180,7 +180,7 @@ export function DigitMatchDiffEntryAutomatedPanel({
             <ToggleGroupItem
               key={n}
               value={String(n)}
-              className="flex-1 h-7 rounded-md border border-border text-[10px] font-medium text-muted-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:font-bold hover:text-foreground"
+              className="flex-1 h-6 rounded-md border border-border text-[10px] font-medium text-muted-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:font-bold hover:text-foreground"
             >
               {n}
             </ToggleGroupItem>
@@ -208,7 +208,7 @@ export function DigitMatchDiffEntryAutomatedPanel({
             <ToggleGroupItem
               key={opt.value}
               value={opt.value}
-              className="flex-1 h-7 rounded-md border border-border text-[10px] font-medium text-muted-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:font-bold hover:text-foreground"
+              className="flex-1 h-6 rounded-md border border-border text-[10px] font-medium text-muted-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:font-bold hover:text-foreground"
             >
               {opt.label}
             </ToggleGroupItem>
@@ -216,7 +216,7 @@ export function DigitMatchDiffEntryAutomatedPanel({
         </ToggleGroup>
       </div>
 
-      <div className="rounded-md border border-border bg-muted/30 px-2 py-1 text-[10px]">
+      <div className="rounded-md border border-border bg-muted/30 px-2 py-0.5 text-[10px]">
         {isValidSetup ? (
           <span className="text-muted-foreground">Armed — watching the tick stream for your entry signal…</span>
         ) : (
@@ -226,11 +226,11 @@ export function DigitMatchDiffEntryAutomatedPanel({
 
       <div className="pt-0.5">
         {isRunning || phase === 'entered' ? (
-          <Button variant="destructive" className="w-full h-8 text-xs" onClick={() => stop('Stopped manually')}>
+          <Button variant="destructive" className="w-full h-7 text-[10px]" onClick={() => stop('Stopped manually')}>
             Stop
           </Button>
         ) : (
-          <Button className="w-full h-8 text-xs" disabled={!canStart} onClick={start}>
+          <Button className="w-full h-7 text-[10px]" disabled={!canStart} onClick={start}>
             {!isAuthenticated
               ? 'Log in to trade'
               : !isConnected
@@ -243,7 +243,7 @@ export function DigitMatchDiffEntryAutomatedPanel({
       </div>
 
       {(isRunning || phase === 'entered') && (
-        <div className="rounded-md border border-blue-500/30 bg-blue-500/5 px-2 py-1 space-y-0.5 text-[10px]">
+        <div className="rounded-md border border-blue-500/30 bg-blue-500/5 px-2 py-0.5 space-y-0.5 text-[10px]">
           <p className="text-[10px] font-medium text-blue-500 dark:text-blue-400">
             {phase === 'entered' ? 'Trade placed — waiting to settle…' : 'Watching for entry signal…'}
           </p>
@@ -262,7 +262,7 @@ export function DigitMatchDiffEntryAutomatedPanel({
           Over/Under panel, so the running mode/pattern isn't visible on
           screen to anyone glancing at it. */}
       {results.length > 0 && (
-        <div className="rounded-md border border-border bg-muted/30 px-2 py-1.5 space-y-1 text-[10px]">
+        <div className="rounded-md border border-border bg-muted/30 px-2 py-1 space-y-0.5 text-[10px]">
           <div className="flex justify-between items-center border-b border-border pb-1">
             <span className="text-muted-foreground">RESULTS</span>
             <span className={`tabular-nums font-bold ${netProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
