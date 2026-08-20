@@ -1,285 +1,477 @@
 'use client';
 
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { NumberField } from '@/components/custom/automation-controls';
-import { DigitStatsBar } from '@/components/custom/digit-stats-bar';
-import type { UseDigitsEntryAutomationReturn } from '@/hooks/use-digits-entry-automation';
-import type { ContractMode, DigitStats } from '@/lib/digit-types';
-import type { DurationLimits } from '@deriv/core';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import type { BuyResult, ProposalInfo } from '@deriv/core';
+import type { OpenPosition } from '../lib/types';
+import type { ContractMode } from '@/lib/digit-types';
 
-interface DigitEntryAutomatedPanelProps {
-  contractMode: ContractMode;
-  onContractModeChange: (mode: ContractMode) => void;
-  digitStats: DigitStats;
-  lastDigit: number | null;
-  selectedDigit: number;
-  onSelectedDigitChange: (digit: number) => void;
-  stake: string;
-  onStakeChange: (value: string) => void;
-  duration: number;
-  onDurationChange: (value: number) => void;
-  durationLimits: DurationLimits;
-  isConnected: boolean;
-  isAuthenticated: boolean;
-  automation: UseDigitsEntryAutomationReturn;
-}
-
-const MODE_OPTIONS: { value: ContractMode; label: string }[] = [
-  { value: 'DIGITOVER', label: 'Over' },
-  { value: 'DIGITUNDER', label: 'Under' },
-];
-
-/** Preset round counts offered in the Rounds selector, matching the other automated bots in the app. */
-const ROUND_OPTIONS = [3, 5, 10, 20];
+export type DigitEntryPhase = 'idle' | 'watching' | 'entered' | 'settled';
 
 /**
- * Automated panel for Digit Over/Under only. Unlike the martingale-based
- * DigitAutomatedPanel used by Matches/Differs and Even/Odd, this bot places
- * no trade at all when Start is clicked — it arms itself and watches the
- * live digit stream, firing exactly one buy the instant the trigger digit
- * appears (barrier − 1 for Over, barrier + 1 for Under), then lets the
- * contract settle on its own like any other digit contract.
- *
- * ADDITIVE: Hybrid Mode toggle below the Rounds selector. When on, the bot
- * alternates every round between Over 1 and Under 8 instead of staying on
- * one barrier — the toggle itself is the only new UI here, everything else
- * is unchanged from before.
+ * ADDITIVE — which digit the watcher waits for before firing.
+ * - 'edge' (default): today's existing behavior — waits for the digit
+ *   adjacent to the barrier (barrier − 1 for Over, barrier + 1 for Under).
+ * - 'direct': waits for the barrier digit itself to appear on the tick
+ *   stream (e.g. Over 1 waits for a live last-digit of 1), then fires.
+ * Combinable with Hybrid Mode — whichever barrier Hybrid Mode is currently
+ * on, this setting decides which digit relative to that barrier triggers
+ * the buy.
  */
-export function DigitEntryAutomatedPanel({
-  contractMode,
-  onContractModeChange,
-  digitStats,
-  lastDigit,
-  selectedDigit,
-  onSelectedDigitChange,
-  stake,
-  onStakeChange,
-  duration,
-  onDurationChange,
+export type EntryStrategy = 'edge' | 'direct';
+
+export interface DigitEntryResult {
+  contractId: number;
+  profit: number;
+  won: boolean;
+  /** The stake this specific round was placed at (base stake, or doubled after a loss). */
+  stake: number;
+  /** The barrier setup this round actually ran at. Only meaningful for readouts — the
+   * hook itself always drives off contractMode/selectedDigit at fire time. */
+  contractMode?: ContractMode;
+  selectedDigit?: number;
+}
+
+/**
+ * The fixed Over/Under pair that Hybrid Mode alternates between. Barrier
+ * digits are intentionally fixed at 1 and 8 (Over 1 / Under 8) rather than
+ * derived from whatever digit happens to be selected in the manual
+ * controls — the trader picks which SIDE to start on, not the digit.
+ */
+const HYBRID_PAIR: { contractMode: ContractMode; digit: number }[] = [
+  { contractMode: 'DIGITOVER', digit: 1 },
+  { contractMode: 'DIGITUNDER', digit: 8 },
+];
+
+/**
+ * Adjustable run controls for the Over/Under entry watcher — mirrors the
+ * Martingale settings pattern already used for Matches/Differs and Even/Odd
+ * (see use-martingale-automation.ts), scoped to what this bot needs: a
+ * stake multiplier applied after a loss, a hard cap on how many rounds a
+ * single run will place, and a cumulative stop-loss.
+ *
+ * Stake behavior is intentionally NOT full Martingale: the stake doubles
+ * only once after a loss. If that doubled-stake round also loses, the run
+ * stops instead of doubling again — it never reaches a third stake level.
+ * A win at any point resets to the base stake and the run continues (if
+ * still within maxRounds / lossThreshold).
+ */
+export interface EntryAutomationSettings {
+  /** Multiplier applied to the stake after the FIRST loss in a row (e.g. 2 = double on loss). A second consecutive loss stops the run instead of multiplying again. Resets to the run's starting stake after a win. */
+  multiplier: number;
+  /** Hard cap on the number of rounds a single run will place before stopping on its own, win or lose. */
+  maxRounds: number;
+  /** Stop the run once cumulative loss reaches this amount. Null = no limit. */
+  lossThreshold: number | null;
+  /**
+   * ADDITIVE — off by default, does not change existing behavior. When
+   * true, the bot alternates the barrier every round (win or lose)
+   * between Over 1 and Under 8, starting on whichever side is selected
+   * in the manual controls at Start. When false, behaves exactly as
+   * before: locked on whatever barrier is selected.
+   */
+  hybridMode: boolean;
+  /**
+   * ADDITIVE — defaults to 'edge', which is byte-for-byte the existing
+   * behavior. See the EntryStrategy type above for what each value does.
+   * Combinable with hybridMode.
+   */
+  entryStrategy: EntryStrategy;
+}
+
+export const DEFAULT_ENTRY_AUTOMATION_SETTINGS: EntryAutomationSettings = {
+  multiplier: 2,
+  maxRounds: 5,
+  lossThreshold: 10,
+  hybridMode: false,
+  entryStrategy: 'edge',
+};
+
+interface UseDigitsEntryAutomationParams {
+  isConnected: boolean;
+  isAuthenticated: boolean;
+  /** Only DIGITOVER / DIGITUNDER are supported — the watcher is a no-op for other modes. */
+  contractMode: ContractMode;
+  /** The barrier digit currently selected in the manual controls (e.g. 1 for "Over 1", 8 for "Under 8"). */
+  selectedDigit: number;
+  /** Live last-digit of the current tick, already computed elsewhere. */
+  lastDigit: number | null;
+  proposal: ProposalInfo | null;
+  buyContract: () => Promise<void>;
+  isBuying: boolean;
+  buyResult: BuyResult | null;
+  buyError: string | null;
+  clearBuyResult: () => void;
+  openPositions: OpenPosition[];
+  /** Stake field (string, matches the rest of the app's controlled inputs) and its setter. Read as the run's starting/base stake at Start, then driven by this hook itself — doubled once on a loss, reset to the start value on a win — as rounds progress. */
+  stake: string;
+  setStake: (value: string) => void;
+  /**
+   * ADDITIVE — optional. Only required if you want Hybrid Mode to work.
+   * Lets the hook flip the barrier itself between rounds. If omitted,
+   * hybridMode is silently ignored and behavior is unchanged.
+   */
+  setContractMode?: (mode: ContractMode) => void;
+  setSelectedDigit?: (digit: number) => void;
+}
+
+export interface UseDigitsEntryAutomationReturn {
+  isRunning: boolean;
+  phase: DigitEntryPhase;
+  /** The digit the bot is currently waiting for, or null if the mode isn't Over/Under or the barrier has no valid trigger. */
+  triggerDigit: number | null;
+  /** False when the current barrier is a degenerate value with no valid trigger digit (e.g. Over 0, Under 9). */
+  isValidSetup: boolean;
+  start: () => void;
+  stop: (reason?: string) => void;
+  activePosition: OpenPosition | null;
+  lastResult: DigitEntryResult | null;
+  /** Every round settled so far in the current (or most recently finished) run, in order — R1 first. Cleared on start(). */
+  results: DigitEntryResult[];
+  lastError: string | null;
+  statusMessage: string;
+  settings: EntryAutomationSettings;
+  setSettings: (settings: EntryAutomationSettings) => void;
+  /** Rounds completed so far in the current (or most recently finished) run. */
+  roundCount: number;
+  /** Cumulative profit/loss across the current (or most recently finished) run. */
+  netProfit: number;
+  /** Set when a run ends on its own — max rounds reached, stop-loss hit, or two losses in a row. Null while idle/watching/entered, or after a manual stop. */
+  stopReason: string | null;
+}
+
+/**
+ * ADDITIVE — now takes entryStrategy as a third parameter.
+ * - 'edge': unchanged from before — barrier − 1 for Over, barrier + 1 for Under.
+ * - 'direct': the trigger digit IS the barrier digit itself, for either side.
+ * Only DIGITOVER / DIGITUNDER are ever valid regardless of strategy.
+ */
+function computeTriggerDigit(
+  contractMode: ContractMode,
+  selectedDigit: number,
+  entryStrategy: EntryStrategy
+): number | null {
+  if (contractMode !== 'DIGITOVER' && contractMode !== 'DIGITUNDER') return null;
+
+  if (entryStrategy === 'direct') {
+    return selectedDigit >= 0 && selectedDigit <= 9 ? selectedDigit : null;
+  }
+
+  // Edge Entry (default) — identical to the original single-strategy logic.
+  if (contractMode === 'DIGITOVER') {
+    const trigger = selectedDigit - 1;
+    return trigger >= 0 && trigger <= 9 ? trigger : null;
+  }
+  const trigger = selectedDigit + 1;
+  return trigger >= 0 && trigger <= 9 ? trigger : null;
+}
+
+export function useDigitsEntryAutomation({
   isConnected,
   isAuthenticated,
-  automation,
-}: DigitEntryAutomatedPanelProps) {
-  const {
+  contractMode,
+  selectedDigit,
+  lastDigit,
+  proposal,
+  buyContract,
+  isBuying,
+  buyResult,
+  buyError,
+  clearBuyResult,
+  openPositions,
+  stake,
+  setStake,
+  setContractMode,
+  setSelectedDigit,
+}: UseDigitsEntryAutomationParams): UseDigitsEntryAutomationReturn {
+  const [isRunning, setIsRunning] = useState(false);
+  const [phase, setPhase] = useState<DigitEntryPhase>('idle');
+  const [activeContractId, setActiveContractId] = useState<number | null>(null);
+  const [lastResult, setLastResult] = useState<DigitEntryResult | null>(null);
+  const [results, setResults] = useState<DigitEntryResult[]>([]);
+  const [lastError, setLastError] = useState<string | null>(null);
+  const [settings, setSettings] = useState<EntryAutomationSettings>(DEFAULT_ENTRY_AUTOMATION_SETTINGS);
+  const [roundCount, setRoundCount] = useState(0);
+  const [netProfit, setNetProfit] = useState(0);
+  const [stopReason, setStopReason] = useState<string | null>(null);
+
+  // True from the moment we actually dispatch a buy until that contract is
+  // confirmed settled. Distinct from `phase === 'entered'` so stop() can
+  // check it synchronously without waiting for a state update.
+  const hasFired = useRef(false);
+  const pendingContractId = useRef<number | null>(null);
+  // Mirrors isRunning synchronously so the settle effect can tell whether a
+  // manual stop happened while the last-fired trade was still in flight,
+  // without depending on a possibly-stale closure over `isRunning`.
+  const isRunningRef = useRef(false);
+  // Starting stake for the current run, and the stake the round in flight
+  // is actually using — the round loop multiplies off these directly
+  // rather than re-parsing the (disabled-while-running) Stake field, so
+  // there's never any ambiguity about which value is authoritative.
+  const baseStakeRef = useRef(0);
+  const currentStakeRef = useRef(0);
+
+  // Hybrid Mode state. Only used when settings.hybridMode is true.
+  // slotIndexRef tracks which side of HYBRID_PAIR the run is currently on.
+  const slotIndexRef = useRef(0);
+  // Always mirrors the latest proposal, so effects that fire on other
+  // triggers (like the settle effect) can read the current proposal id
+  // without adding `proposal` to their dependency array.
+  const latestProposalRef = useRef<ProposalInfo | null>(null);
+  useEffect(() => {
+    latestProposalRef.current = proposal;
+  }, [proposal]);
+  // When set, the WATCH effect below refuses to fire until it sees a
+  // proposal whose id differs from this one — i.e. a fresh quote that
+  // actually reflects the barrier we just shifted to. Prevents firing a
+  // buy against a stale price left over from the previous barrier.
+  const staleProposalId = useRef<string | null>(null);
+
+  const triggerDigit = computeTriggerDigit(contractMode, selectedDigit, settings.entryStrategy);
+  const isValidSetup = triggerDigit !== null;
+
+  const start = useCallback(() => {
+    const parsedStake = parseFloat(stake);
+    const startingStake = Number.isFinite(parsedStake) && parsedStake > 0 ? parsedStake : 0;
+
+    hasFired.current = false;
+    pendingContractId.current = null;
+    isRunningRef.current = true;
+    baseStakeRef.current = startingStake;
+    currentStakeRef.current = startingStake;
+    staleProposalId.current = null;
+
+    // Hybrid Mode: lock the starting slot to whichever side (Over/Under)
+    // is currently selected, snapping the digit to the fixed pair value
+    // (1 for Over, 8 for Under) if it isn't already there.
+    if (settings.hybridMode && setContractMode && setSelectedDigit) {
+      const startIndex = contractMode === 'DIGITUNDER' ? 1 : 0;
+      slotIndexRef.current = startIndex;
+      const startSetup = HYBRID_PAIR[startIndex];
+      if (contractMode !== startSetup.contractMode || selectedDigit !== startSetup.digit) {
+        staleProposalId.current = latestProposalRef.current?.id ?? null;
+        setContractMode(startSetup.contractMode);
+        setSelectedDigit(startSetup.digit);
+      }
+    }
+
+    setActiveContractId(null);
+    setLastResult(null);
+    setResults([]);
+    setLastError(null);
+    setStopReason(null);
+    setRoundCount(0);
+    setNetProfit(0);
+    setStake(String(startingStake));
+    setPhase('watching');
+    setIsRunning(true);
+  }, [stake, setStake, settings.hybridMode, setContractMode, setSelectedDigit, contractMode, selectedDigit]);
+
+  const stop = useCallback((reason?: string) => {
+    isRunningRef.current = false;
+    setIsRunning(false);
+    if (!hasFired.current) {
+      // Nothing has been placed yet — fully safe to cancel the watch.
+      setPhase('idle');
+      pendingContractId.current = null;
+    }
+    // If a trade is already live (hasFired === true), leave phase as
+    // 'entered' and pendingContractId set — the settlement watcher below
+    // keeps tracking it in the background so the result still gets
+    // recorded, even though the bot is no longer "running" (and, per
+    // isRunningRef being false, it will not start another round after).
+    if (reason) {
+      setLastError(reason);
+      setStopReason(reason);
+    }
+  }, []);
+
+  // Drop the automation if the connection goes away mid-watch.
+  useEffect(() => {
+    if (isRunning && (!isConnected || !isAuthenticated)) {
+      stop('Connection lost — automation stopped.');
+    }
+  }, [isConnected, isAuthenticated, isRunning, stop]);
+
+  // WATCH — fire the buy the instant the trigger digit lands, but only if a
+  // proposal is actually available at that exact moment, and only once its
+  // price reflects the stake this round is supposed to use. That second
+  // check matters specifically after a loss doubles the stake — without it,
+  // a stale-priced proposal from just before the stake changed could get
+  // bought at the wrong size.
+  //
+  // Also refuses to fire if the current proposal id matches staleProposalId
+  // (a leftover quote from the barrier we just shifted off of in Hybrid
+  // Mode). Only ever set when hybridMode is on, so this is a no-op
+  // otherwise. triggerDigit itself already reflects entryStrategy (edge vs
+  // direct), so no separate check is needed here for that setting.
+  useEffect(() => {
+    if (!isRunning || phase !== 'watching') return;
+    if (hasFired.current) return;
+    if (!isValidSetup || triggerDigit === null) return;
+    if (lastDigit === null || lastDigit !== triggerDigit) return;
+    if (isBuying) return;
+    if (!proposal) return;
+    if (staleProposalId.current !== null && proposal.id === staleProposalId.current) return;
+    if (Math.abs(proposal.askPrice - currentStakeRef.current) > 0.01) return;
+
+    staleProposalId.current = null;
+    hasFired.current = true;
+    buyContract();
+  }, [isRunning, phase, lastDigit, triggerDigit, isValidSetup, isBuying, proposal, buyContract]);
+
+  // Buy confirmed — start tracking the contract to settlement.
+  useEffect(() => {
+    if (!hasFired.current || phase !== 'watching' || !buyResult) return;
+    pendingContractId.current = buyResult.contractId;
+    setActiveContractId(buyResult.contractId);
+    setPhase('entered');
+    clearBuyResult();
+  }, [buyResult, phase, clearBuyResult]);
+
+  // Buy failed — nothing was placed, so resume watching for the next
+  // occurrence of the trigger digit instead of stopping the whole run.
+  useEffect(() => {
+    if (!hasFired.current || phase !== 'watching' || !buyError) return;
+    hasFired.current = false;
+    setLastError(buyError);
+    clearBuyResult();
+  }, [buyError, phase, clearBuyResult]);
+
+  // SETTLE — Digit contracts close on their own; we just watch for that.
+  // Absence from openPositions is never treated as "closed" here, so
+  // there's no risk of mistaking subscription lag for settlement. Once
+  // settled: record the round, then either stop (max rounds reached,
+  // stop-loss hit, two losses in a row, or a manual stop happened while
+  // this trade was in flight) or continue — doubling the stake once on a
+  // loss, resetting to the run's starting stake on a win.
+  useEffect(() => {
+    if (phase !== 'entered') return;
+    const contractId = pendingContractId.current;
+    if (contractId === null) return;
+
+    const position = openPositions.find((p) => p.contract_id === contractId);
+    if (!position) return; // still waiting for the feed to catch up
+
+    const isClosed = !!position.is_sold || !!position.is_expired || position.status !== 'open';
+    if (!isClosed) return; // still running — it'll settle itself
+
+    const profit = parseFloat(position.profit);
+    const won = profit >= 0;
+    const nextRoundCount = roundCount + 1;
+    const nextNet = netProfit + profit;
+    // The stake this round was actually placed at — captured before it's
+    // possibly updated below for the next round.
+    const roundStake = currentStakeRef.current;
+    // Was the round that just settled already running at the doubled
+    // stake (i.e. not the base stake)? Used below to decide whether a
+    // loss should double again or stop the run.
+    const wasAtDoubledStake = currentStakeRef.current > baseStakeRef.current + 0.01;
+
+    const result: DigitEntryResult = {
+      contractId,
+      profit,
+      won,
+      stake: roundStake,
+      contractMode,
+      selectedDigit,
+    };
+    setLastResult(result);
+    setResults((prev) => [...prev, result]);
+    setRoundCount(nextRoundCount);
+    setNetProfit(nextNet);
+    pendingContractId.current = null;
+    setActiveContractId(null);
+    hasFired.current = false;
+
+    if (!isRunningRef.current) {
+      // Stopped manually while this trade was in flight — result is
+      // recorded above, but do not start another round.
+      setPhase('idle');
+      setIsRunning(false);
+      return;
+    }
+
+    if (nextRoundCount >= settings.maxRounds) {
+      isRunningRef.current = false;
+      setIsRunning(false);
+      setPhase('idle');
+      setStopReason(`Reached max rounds (${settings.maxRounds}).`);
+      return;
+    }
+
+    if (settings.lossThreshold !== null && nextNet <= -settings.lossThreshold) {
+      isRunningRef.current = false;
+      setIsRunning(false);
+      setPhase('idle');
+      setStopReason(`Stop-loss reached: ${nextNet.toFixed(2)} USD.`);
+      return;
+    }
+
+    if (!won && wasAtDoubledStake) {
+      // Second loss in a row: the doubled-stake round also lost. Stop
+      // instead of doubling to a third level.
+      isRunningRef.current = false;
+      setIsRunning(false);
+      setPhase('idle');
+      setStopReason('Two losses in a row — stopping.');
+      return;
+    }
+
+    const nextStake = won ? baseStakeRef.current : currentStakeRef.current * settings.multiplier;
+    currentStakeRef.current = nextStake;
+    setStake(String(nextStake));
+
+    // Hybrid Mode: flip to the other side of the fixed pair every round,
+    // win or lose, and mark the current proposal as stale so the WATCH
+    // effect waits for a fresh quote priced for the new barrier before
+    // it's allowed to fire again.
+    if (settings.hybridMode && setContractMode && setSelectedDigit) {
+      const nextSlot = (slotIndexRef.current + 1) % HYBRID_PAIR.length;
+      slotIndexRef.current = nextSlot;
+      const nextSetup = HYBRID_PAIR[nextSlot];
+      staleProposalId.current = latestProposalRef.current?.id ?? null;
+      setContractMode(nextSetup.contractMode);
+      setSelectedDigit(nextSetup.digit);
+    }
+
+    setPhase('watching');
+  }, [openPositions, phase, roundCount, netProfit, settings, setStake, contractMode, selectedDigit, setContractMode, setSelectedDigit]);
+
+  const activePosition =
+    activeContractId !== null
+      ? (openPositions.find((p) => p.contract_id === activeContractId) ?? null)
+      : null;
+
+  const statusMessage = !isValidSetup
+    ? contractMode === 'DIGITOVER'
+      ? 'Pick a barrier above 0 to get a valid trigger digit.'
+      : contractMode === 'DIGITUNDER'
+      ? 'Pick a barrier below 9 to get a valid trigger digit.'
+      : 'Entry watching only supports Over/Under.'
+    : phase === 'watching'
+    ? `Watching — round ${Math.min(roundCount + 1, settings.maxRounds)} of ${settings.maxRounds}${
+        settings.hybridMode ? ` (hybrid: ${contractMode === 'DIGITOVER' ? 'Over 1' : 'Under 8'})` : ''
+      }${settings.entryStrategy === 'direct' ? ' [Direct Entry]' : ''}.`
+    : phase === 'entered'
+    ? 'Trade placed — waiting for it to settle.'
+    : 'Idle';
+
+  return {
     isRunning,
     phase,
+    triggerDigit,
     isValidSetup,
     start,
     stop,
     activePosition,
+    lastResult,
     results,
-    netProfit,
     lastError,
     statusMessage,
     settings,
     setSettings,
-  } = automation;
-
-  const stakeNum = parseFloat(stake);
-  const canStart =
-    isConnected && isAuthenticated && !isRunning && isValidSetup && !!stakeNum && stakeNum > 0;
-  const isOver = contractMode === 'DIGITOVER';
-
-  return (
-    <div className="w-full space-y-1.5 lg:max-w-[240px] lg:space-y-2">
-      <ToggleGroup
-        type="single"
-        value={contractMode}
-        disabled={isRunning}
-        onValueChange={(value) => {
-          if (value) onContractModeChange(value as ContractMode);
-        }}
-        className="w-full gap-0 rounded-full bg-muted p-0.5"
-      >
-        {MODE_OPTIONS.map((opt) => (
-          <ToggleGroupItem
-            key={opt.value}
-            value={opt.value}
-            className="flex-1 h-6 rounded-full text-[10px] font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-primary data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
-          >
-            {opt.label}
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
-
-      {/* Prediction summary — mirrors the plain-language "Last digit of the
-          price will be over/under N" readout used elsewhere in the app, so
-          the chosen digit is unambiguous at a glance. This does not reveal
-          the internal trigger digit (barrier ± 1) — only the barrier the
-          user actually picked. While Hybrid Mode is running, this updates
-          on its own each round since contractMode/selectedDigit are driven
-          by the automation hook. */}
-      <div className="rounded-md border border-border bg-muted/30 px-2 py-1.5 space-y-1">
-        <p className="text-[10px] text-muted-foreground">Prediction</p>
-        <div className="flex items-center gap-1.5">
-          <p className="text-xs font-medium text-foreground">
-            Last digit of the price will be{' '}
-            <span className={isOver ? 'font-bold text-green-600 dark:text-green-400' : 'font-bold text-red-500'}>
-              {isOver ? 'over' : 'under'}
-            </span>
-          </p>
-          <span
-            className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${
-              isOver ? 'bg-green-600' : 'bg-red-500'
-            }`}
-          >
-            {selectedDigit}
-          </span>
-        </div>
-      </div>
-
-      <div>
-        <DigitStatsBar
-          digitStats={digitStats}
-          selectedDigit={selectedDigit}
-          onDigitSelect={onSelectedDigitChange}
-          lastDigit={lastDigit}
-        />
-      </div>
-
-      <NumberField
-        label="Stake"
-        value={stakeNum || 0}
-        onChange={(value) => onStakeChange(String(value ?? 0))}
-        suffix="USD"
-        disabled={isRunning}
-        step={0.01}
-      />
-      <NumberField
-        label="Duration"
-        value={duration}
-        onChange={(value) => onDurationChange(Math.max(1, Math.round(value ?? 1)))}
-        suffix="ticks"
-        disabled={isRunning}
-        step={1}
-      />
-
-      {/* Rounds selector — sets settings.maxRounds, which the hook already
-          reads to decide when a run stops on its own. Purely a settings
-          change, so it's disabled while a run is in progress like the
-          other controls above. */}
-      <div className="space-y-1">
-        <p className="text-[10px] text-muted-foreground">Rounds</p>
-        <ToggleGroup
-          type="single"
-          value={String(settings.maxRounds)}
-          disabled={isRunning}
-          onValueChange={(value) => {
-            if (value) setSettings({ ...settings, maxRounds: Number(value) });
-          }}
-          className="w-full gap-1"
-        >
-          {ROUND_OPTIONS.map((n) => (
-            <ToggleGroupItem
-              key={n}
-              value={String(n)}
-              className="flex-1 h-7 rounded-md border border-border text-[10px] font-medium text-muted-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:font-bold hover:text-foreground"
-            >
-              {n}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-      </div>
-
-      {/* ADDITIVE — Hybrid Mode toggle. Off by default (matches existing
-          behavior exactly). When on, the bot alternates every round between
-          Over 1 and Under 8 instead of staying on one barrier. Disabled
-          while running, same as Rounds above, since it's a Start-time
-          setting. */}
-      <div className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-2 py-1.5">
-        <div className="space-y-0.5">
-          <p className="text-[10px] font-medium text-foreground">Hybrid Mode</p>
-          <p className="text-[9px] text-muted-foreground">Alternate Over 1 / Under 8 each round</p>
-        </div>
-        <Switch
-          checked={settings.hybridMode}
-          disabled={isRunning}
-          onCheckedChange={(checked) => setSettings({ ...settings, hybridMode: checked })}
-        />
-      </div>
-
-      {/* Armed-status readout — intentionally does not reveal the internal
-          trigger digit (barrier ± 1). That's kept private; only the fact
-          that the bot is armed and watching is shown. */}
-      <div className="rounded-md border border-border bg-muted/30 px-2 py-1 text-[10px]">
-        {isValidSetup ? (
-          <span className="text-muted-foreground">Armed — watching the tick stream for your entry signal…</span>
-        ) : (
-          <span className="text-amber-600 dark:text-amber-400">{statusMessage}</span>
-        )}
-      </div>
-
-      <div className="pt-0.5">
-        {isRunning || phase === 'entered' ? (
-          <Button variant="destructive" className="w-full h-8 text-xs" onClick={() => stop('Stopped manually')}>
-            Stop
-          </Button>
-        ) : (
-          <Button className="w-full h-8 text-xs" disabled={!canStart} onClick={start}>
-            {!isAuthenticated
-              ? 'Log in to trade'
-              : !isConnected
-              ? 'Connecting…'
-              : !isValidSetup
-              ? 'Pick a valid barrier'
-              : `Start Bot (${settings.maxRounds} rounds)`}
-          </Button>
-        )}
-      </div>
-
-      {/* Live status while watching or holding a placed trade */}
-      {(isRunning || phase === 'entered') && (
-        <div className="rounded-md border border-blue-500/30 bg-blue-500/5 px-2 py-1 space-y-0.5 text-[10px]">
-          <p className="text-[10px] font-medium text-blue-500 dark:text-blue-400">
-            {phase === 'entered' ? 'Trade placed — waiting to settle…' : 'Watching for entry signal…'}
-          </p>
-          {activePosition && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Current value</span>
-              <span className="tabular-nums font-medium">
-                {parseFloat(activePosition.bid_price).toFixed(2)} USD
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Running results ledger for the current (or most recently finished)
-          run — total at top, then one row per settled round in order
-          (R1 first). Replaces the old single "last trade" readout. */}
-      {results.length > 0 && (
-        <div className="rounded-md border border-border bg-muted/30 px-2 py-1.5 space-y-1 text-[10px]">
-          <div className="flex justify-between items-center border-b border-border pb-1">
-            <span className="text-muted-foreground">RESULTS</span>
-            <span className={`tabular-nums font-bold ${netProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
-              {netProfit >= 0 ? '+' : ''}
-              {netProfit.toFixed(2)} USD
-            </span>
-          </div>
-          {results.map((result, index) => (
-            <div key={result.contractId} className="flex justify-between">
-              <span className="text-muted-foreground">
-                R{index + 1} ${result.stake.toFixed(2)}
-                {settings.hybridMode && result.contractMode
-                  ? ` (${result.contractMode === 'DIGITOVER' ? 'O' : 'U'}${result.selectedDigit})`
-                  : ''}
-              </span>
-              <span className={`tabular-nums font-medium ${result.won ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
-                {result.won ? '+' : ''}
-                {result.profit.toFixed(2)}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {lastError && !isRunning && phase !== 'entered' && (
-        <p className="text-[10px] text-muted-foreground rounded-md border border-border bg-muted/20 px-2 py-1">
-          {lastError}
-        </p>
-      )}
-    </div>
-  );
+    roundCount,
+    netProfit,
+    stopReason,
+  };
 }
