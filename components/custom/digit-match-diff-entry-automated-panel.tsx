@@ -36,11 +36,16 @@ const MODE_OPTIONS: { value: ContractMode; label: string }[] = [
 /** Preset round counts offered in the Rounds selector, matching the other automated bots in the app. */
 const ROUND_OPTIONS = [3, 5, 10, 20];
 
-/** How the watched digit moves between rounds — see DigitShiftMode in the hook. */
+/**
+ * How the watched digit moves between rounds — see DigitShiftMode in the
+ * hook. Labels are intentionally generic (Hold/Swing/Flex) rather than
+ * descriptive of the underlying mechanism (fixed/bounce/random) — the
+ * underlying values are unchanged, only what's shown on screen.
+ */
 const SHIFT_MODE_OPTIONS: { value: DigitShiftMode; label: string }[] = [
-  { value: 'fixed', label: 'Fixed' },
-  { value: 'bounce', label: 'Bounce' },
-  { value: 'random', label: 'Random' },
+  { value: 'fixed', label: 'Hold' },
+  { value: 'bounce', label: 'Swing' },
+  { value: 'random', label: 'Flex' },
 ];
 
 /**
@@ -50,10 +55,11 @@ const SHIFT_MODE_OPTIONS: { value: DigitShiftMode; label: string }[] = [
  * stream, firing exactly one buy the instant the selected digit appears,
  * then lets the contract settle on its own.
  *
- * Digit shift (Fixed by default — original behavior): optionally the
- * watched digit can move every round instead of staying fixed — either
- * Bounce (predictable 0→9→0 step) or Random (fresh random digit each
- * round, no detectable pattern).
+ * Mode (Hold by default — original behavior): optionally the watched
+ * digit can move every round instead of staying fixed — either Swing
+ * (predictable 0→9→0 step) or Flex (fresh random digit each round, no
+ * detectable pattern). Results ledger intentionally does not show which
+ * digit each round watched, same privacy policy as the Over/Under panel.
  */
 export function DigitMatchDiffEntryAutomatedPanel({
   contractMode,
@@ -112,8 +118,8 @@ export function DigitMatchDiffEntryAutomatedPanel({
         ))}
       </ToggleGroup>
 
-      {/* Prediction summary. While Bounce Mode is running, this updates on
-          its own each round since selectedDigit is driven by the hook. */}
+      {/* Prediction summary. While a non-Hold mode is running, this updates
+          on its own each round since selectedDigit is driven by the hook. */}
       <div className="rounded-md border border-border bg-muted/30 px-2 py-1.5 space-y-1">
         <p className="text-[10px] text-muted-foreground">Prediction</p>
         <div className="flex items-center gap-1.5">
@@ -182,13 +188,13 @@ export function DigitMatchDiffEntryAutomatedPanel({
         </ToggleGroup>
       </div>
 
-      {/* Digit shift mode — Fixed (original behavior) / Bounce (predictable
-          0→9→0 step) / Random (fresh random digit every round, win or
-          lose, so there's no detectable pattern). Defaults to Fixed.
-          Disabled while running, same as the other Start-time settings
-          above. */}
+      {/* Mode selector — Hold (original behavior) / Swing (predictable
+          0→9→0 step) / Flex (fresh random digit every round, win or lose,
+          so there's no detectable pattern). Defaults to Hold. Disabled
+          while running, same as the other Start-time settings above.
+          Section title kept generic on purpose — see file header note. */}
       <div className="space-y-1">
-        <p className="text-[10px] text-muted-foreground">Digit shift each round</p>
+        <p className="text-[10px] text-muted-foreground">Mode</p>
         <ToggleGroup
           type="single"
           value={settings.digitShiftMode}
@@ -252,6 +258,9 @@ export function DigitMatchDiffEntryAutomatedPanel({
         </div>
       )}
 
+      {/* Results ledger — no per-round digit tag here, same as the
+          Over/Under panel, so the running mode/pattern isn't visible on
+          screen to anyone glancing at it. */}
       {results.length > 0 && (
         <div className="rounded-md border border-border bg-muted/30 px-2 py-1.5 space-y-1 text-[10px]">
           <div className="flex justify-between items-center border-b border-border pb-1">
@@ -265,7 +274,6 @@ export function DigitMatchDiffEntryAutomatedPanel({
             <div key={result.contractId} className="flex justify-between">
               <span className="text-muted-foreground">
                 R{index + 1} ${result.stake.toFixed(2)}
-                {settings.digitShiftMode !== 'fixed' && result.selectedDigit !== undefined ? ` (d${result.selectedDigit})` : ''}
               </span>
               <span className={`tabular-nums font-medium ${result.won ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
                 {result.won ? '+' : ''}
