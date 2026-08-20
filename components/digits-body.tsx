@@ -9,9 +9,11 @@ import { Button } from '@/components/ui/button';
 import { DigitTradePanel } from '@/components/custom/digit-trade-panel';
 import { DigitAutomatedPanel } from '@/components/custom/digit-automated-panel';
 import { DigitEntryAutomatedPanel } from '@/components/custom/digit-entry-automated-panel';
+import { DigitMatchDiffEntryAutomatedPanel } from '@/components/custom/digit-match-diff-entry-automated-panel';
 import { TradeBody } from '@/components/trade-body';
 import { useMartingaleAutomation } from '@/hooks/use-martingale-automation';
 import { useDigitsEntryAutomation } from '@/hooks/use-digits-entry-automation';
+import { useDigitsMatchDiffEntryAutomation } from '@/hooks/use-digits-match-diff-entry-automation';
 import type { AuthState, ActiveSymbol, ProposalInfo, DurationLimits, BuyResult, DerivWS } from '@deriv/core';
 import type { ContractMode, TradeType, DigitStats } from '@/lib/digit-types';
 import type { UseSmartChartsApiReturn } from '@/hooks/use-smartcharts-api';
@@ -110,7 +112,7 @@ export function DigitsBody({
   const isAuthenticated = authState === 'authenticated';
   const isMobile = useIsMobile();
 
-  // Martingale automation — used for Matches/Differs and Even/Odd, unchanged.
+  // Martingale automation — used for Even/Odd only now, unchanged.
   const martingaleAutomation = useMartingaleAutomation({
     isConnected,
     isAuthenticated,
@@ -131,11 +133,10 @@ export function DigitsBody({
   // itself (not just proposal/buyContract) because it drives the stake
   // between rounds — doubling once on a loss, resetting on a win.
   //
-  // ADDITIVE: setContractMode/setSelectedDigit are now also passed in so
-  // that, when Hybrid Mode is turned on in the panel, the hook can flip the
-  // barrier itself between rounds. Passing these does not change any
-  // existing behavior — the hook only touches them when settings.hybridMode
-  // is explicitly enabled (off by default).
+  // setContractMode/setSelectedDigit are passed in so that, when Hybrid
+  // Mode is turned on in the panel, the hook can flip the barrier itself
+  // between rounds. Off by default — no change to existing behavior unless
+  // explicitly enabled.
   const overUnderAutomation = useDigitsEntryAutomation({
     isConnected,
     isAuthenticated,
@@ -155,13 +156,42 @@ export function DigitsBody({
     setSelectedDigit,
   });
 
+  // NEW — entry-watcher automation for Matches/Differs, completely separate
+  // hook from the Over/Under one above (which is untouched). Watches for
+  // the selected digit itself (no offset), with an optional Bounce Mode
+  // that steps the digit 0→9→0 each round instead of staying fixed.
+  const matchDiffAutomation = useDigitsMatchDiffEntryAutomation({
+    isConnected,
+    isAuthenticated,
+    contractMode,
+    selectedDigit,
+    lastDigit,
+    proposal,
+    buyContract,
+    isBuying,
+    buyResult,
+    buyError,
+    clearBuyResult,
+    openPositions,
+    stake,
+    setStake,
+    setSelectedDigit,
+  });
+
   const isOverUnder = tradeType === 'over-under';
-  const activeIsRunning = isOverUnder ? overUnderAutomation.isRunning : martingaleAutomation.isRunning;
+  const isMatchesDiffers = tradeType === 'matches-differs';
+  const activeIsRunning = isOverUnder
+    ? overUnderAutomation.isRunning
+    : isMatchesDiffers
+    ? matchDiffAutomation.isRunning
+    : martingaleAutomation.isRunning;
 
   const handleModeChange = (mode: 'manual' | 'automated') => {
     if (mode === 'manual' && activeIsRunning) {
       if (isOverUnder) {
         overUnderAutomation.stop('Stopped manually');
+      } else if (isMatchesDiffers) {
+        matchDiffAutomation.stop('Stopped manually');
       } else {
         martingaleAutomation.stop();
       }
@@ -273,6 +303,23 @@ export function DigitsBody({
           isConnected={isConnected}
           isAuthenticated={isAuthenticated}
           automation={overUnderAutomation}
+        />
+      ) : isMatchesDiffers ? (
+        <DigitMatchDiffEntryAutomatedPanel
+          contractMode={contractMode}
+          onContractModeChange={setContractMode}
+          digitStats={digitStats}
+          lastDigit={lastDigit}
+          selectedDigit={selectedDigit}
+          onSelectedDigitChange={setSelectedDigit}
+          stake={stake}
+          onStakeChange={setStake}
+          duration={duration}
+          onDurationChange={setDuration}
+          durationLimits={durationLimits}
+          isConnected={isConnected}
+          isAuthenticated={isAuthenticated}
+          automation={matchDiffAutomation}
         />
       ) : (
         <DigitAutomatedPanel
