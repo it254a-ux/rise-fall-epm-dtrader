@@ -56,7 +56,13 @@ const HYBRID_PAIR: { contractMode: ContractMode; digit: number }[] = [
  * still within maxRounds / lossThreshold).
  */
 export interface EntryAutomationSettings {
-  /** Multiplier applied to the stake after the FIRST loss in a row (e.g. 2 = double on loss). A second consecutive loss stops the run instead of multiplying again. Resets to the run's starting stake after a win. */
+  /**
+   * Multiplier applied to the BASE stake once a loss happens at the base
+   * stake (e.g. 4 = base stake × 4). That elevated stake is then held for
+   * exactly the next two rounds — win or lose, no early exit — before
+   * automatically dropping back to the base stake. There is no stop on
+   * consecutive losses; the two-round streak always completes and resets.
+   */
   multiplier: number;
   /** Hard cap on the number of rounds a single run will place before stopping on its own, win or lose. */
   maxRounds: number;
@@ -79,7 +85,7 @@ export interface EntryAutomationSettings {
 }
 
 export const DEFAULT_ENTRY_AUTOMATION_SETTINGS: EntryAutomationSettings = {
-  multiplier: 2,
+  multiplier: 4,
   maxRounds: 5,
   lossThreshold: 10,
   hybridMode: false,
@@ -209,6 +215,11 @@ export function useDigitsEntryAutomation({
   // there's never any ambiguity about which value is authoritative.
   const baseStakeRef = useRef(0);
   const currentStakeRef = useRef(0);
+  // How many more rounds (after the one just settled) should run at the
+  // elevated (base × multiplier) stake. Set to 2 the instant a loss
+  // happens at the base stake; counts down each settle regardless of
+  // win/loss until it hits 0, at which point the stake drops back to base.
+  const elevatedRoundsLeftRef = useRef(0);
 
   // Hybrid Mode state. Only used when settings.hybridMode is true.
   // slotIndexRef tracks which side of HYBRID_PAIR the run is currently on.
@@ -239,6 +250,7 @@ export function useDigitsEntryAutomation({
     baseStakeRef.current = startingStake;
     currentStakeRef.current = startingStake;
     staleProposalId.current = null;
+    elevatedRoundsLeftRef.current = 0;
 
     // Hybrid Mode: lock the starting slot to whichever side (Over/Under)
     // is currently selected, snapping the digit to the fixed pair value
@@ -362,10 +374,6 @@ export function useDigitsEntryAutomation({
     // The stake this round was actually placed at — captured before it's
     // possibly updated below for the next round.
     const roundStake = currentStakeRef.current;
-    // Was the round that just settled already running at the doubled
-    // stake (i.e. not the base stake)? Used below to decide whether a
-    // loss should double again or stop the run.
-    const wasAtDoubledStake = currentStakeRef.current > baseStakeRef.current + 0.01;
 
     const result: DigitEntryResult = {
       contractId,
@@ -407,17 +415,21 @@ export function useDigitsEntryAutomation({
       return;
     }
 
-    if (!won && wasAtDoubledStake) {
-      // Second loss in a row: the doubled-stake round also lost. Stop
-      // instead of doubling to a third level.
-      isRunningRef.current = false;
-      setIsRunning(false);
-      setPhase('idle');
-      setStopReason('Two losses in a row — stopping.');
-      return;
+    // Elevated-stake streak: a loss at the base stake triggers exactly two
+    // rounds at base × multiplier (win or lose, no early exit), then it
+    // automatically resets to the base stake. No stop on consecutive
+    // losses — the streak always completes and resets on its own.
+    let nextStake: number;
+    if (elevatedRoundsLeftRef.current > 0) {
+      elevatedRoundsLeftRef.current -= 1;
+      nextStake =
+        elevatedRoundsLeftRef.current > 0 ? baseStakeRef.current * settings.multiplier : baseStakeRef.current;
+    } else if (!won) {
+      elevatedRoundsLeftRef.current = 2;
+      nextStake = baseStakeRef.current * settings.multiplier;
+    } else {
+      nextStake = baseStakeRef.current;
     }
-
-    const nextStake = won ? baseStakeRef.current : currentStakeRef.current * settings.multiplier;
     currentStakeRef.current = nextStake;
     setStake(String(nextStake));
 
