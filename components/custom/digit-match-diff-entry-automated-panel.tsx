@@ -34,7 +34,7 @@ const MODE_OPTIONS: { value: ContractMode; label: string }[] = [
 ];
 
 /** Preset round counts offered in the Rounds selector, matching the other automated bots in the app. */
-const ROUND_OPTIONS = [3, 5, 10, 20];
+const ROUND_OPTIONS = [3, 5, 10, 20, 50, 100];
 
 /**
  * How the watched digit moves between rounds — see DigitShiftMode in the
@@ -174,13 +174,13 @@ export function DigitMatchDiffEntryAutomatedPanel({
           onValueChange={(value) => {
             if (value) setSettings({ ...settings, maxRounds: Number(value) });
           }}
-          className="w-full gap-1"
+          className="w-full gap-0.5"
         >
           {ROUND_OPTIONS.map((n) => (
             <ToggleGroupItem
               key={n}
               value={String(n)}
-              className="flex-1 h-6 rounded-md border border-border text-[10px] font-medium text-muted-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:font-bold hover:text-foreground"
+              className="flex-1 h-5 rounded-md border border-border text-[9px] font-medium text-muted-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:font-bold hover:text-foreground px-0"
             >
               {n}
             </ToggleGroupItem>
