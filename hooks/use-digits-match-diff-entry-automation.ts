@@ -39,10 +39,12 @@ export type DigitShiftMode = 'fixed' | 'bounce' | 'random';
 export interface MatchDiffAutomationSettings {
   /**
    * Multiplier applied to the BASE stake once a loss happens at the base
-   * stake (e.g. 4 = base stake × 4). That elevated stake is then held for
-   * exactly the next two rounds — win or lose, no early exit — before
-   * automatically dropping back to the base stake. There is no stop on
-   * consecutive losses; the two-round streak always completes and resets.
+   * stake (e.g. 10 = base stake × 10). That elevated stake is then held
+   * flat — not compounding further — for exactly the next THREE rounds
+   * (win or lose, no early exit), before automatically dropping back to
+   * the base stake. There is no stop on consecutive losses; the
+   * three-round streak always completes and resets on its own, and the
+   * run keeps going toward its Rounds / Stop-loss / Profit target.
    */
   multiplier: number;
   /** Hard cap on the number of rounds a single run will place before stopping on its own, win or lose. */
@@ -54,11 +56,14 @@ export interface MatchDiffAutomationSettings {
 }
 
 export const DEFAULT_MATCH_DIFF_ENTRY_SETTINGS: MatchDiffAutomationSettings = {
-  multiplier: 4,
+  multiplier: 10,
   maxRounds: 5,
   lossThreshold: 10,
   digitShiftMode: 'fixed',
 };
+
+/** How many rounds the elevated stake is held for after a loss at the base stake, before auto-resetting to base. */
+const ELEVATED_STAKE_ROUND_COUNT = 3;
 
 interface UseDigitsMatchDiffEntryAutomationParams {
   isConnected: boolean;
@@ -157,9 +162,10 @@ export function useDigitsMatchDiffEntryAutomation({
   const baseStakeRef = useRef(0);
   const currentStakeRef = useRef(0);
   // How many more rounds (after the one just settled) should run at the
-  // elevated (base × multiplier) stake. Set to 2 the instant a loss
-  // happens at the base stake; counts down each settle regardless of
-  // win/loss until it hits 0, at which point the stake drops back to base.
+  // elevated (base × multiplier) stake. Set to ELEVATED_STAKE_ROUND_COUNT
+  // the instant a loss happens at the base stake; counts down each settle
+  // regardless of win/loss until it hits 0, at which point the stake drops
+  // back to base.
   const elevatedRoundsLeftRef = useRef(0);
 
   // Bounce Mode state — only used when settings.bounceMode is true.
@@ -303,17 +309,19 @@ export function useDigitsMatchDiffEntryAutomation({
       return;
     }
 
-    // Elevated-stake streak: a loss at the base stake triggers exactly two
-    // rounds at base × multiplier (win or lose, no early exit), then it
-    // automatically resets to the base stake. No stop on consecutive
-    // losses — the streak always completes and resets on its own.
+    // Elevated-stake streak: a loss at the base stake triggers exactly
+    // ELEVATED_STAKE_ROUND_COUNT (3) rounds at base × multiplier (win or
+    // lose, no early exit, flat — not compounding), then it automatically
+    // resets to the base stake. No stop on consecutive losses — the
+    // streak always completes and resets on its own, and the run
+    // continues toward Rounds / Stop-loss / Profit target.
     let nextStake: number;
     if (elevatedRoundsLeftRef.current > 0) {
       elevatedRoundsLeftRef.current -= 1;
       nextStake =
         elevatedRoundsLeftRef.current > 0 ? baseStakeRef.current * settings.multiplier : baseStakeRef.current;
     } else if (!won) {
-      elevatedRoundsLeftRef.current = 2;
+      elevatedRoundsLeftRef.current = ELEVATED_STAKE_ROUND_COUNT;
       nextStake = baseStakeRef.current * settings.multiplier;
     } else {
       nextStake = baseStakeRef.current;
