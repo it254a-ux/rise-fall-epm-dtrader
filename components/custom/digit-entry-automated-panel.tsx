@@ -35,13 +35,13 @@ const MODE_OPTIONS: { value: ContractMode; label: string }[] = [
 const ROUND_OPTIONS = [3, 5, 10, 20];
 
 /**
- * ADDITIVE — the two entry strategies. Edge Entry (default) is the
- * original behavior: waits for the digit adjacent to the barrier. Direct
- * Entry waits for the barrier digit itself to appear, then fires.
+ * ADDITIVE — the two entry strategies. Edge (default) is the original
+ * behavior: waits for the digit adjacent to the barrier. Direct waits for
+ * the barrier digit itself to appear, then fires.
  */
 const ENTRY_STRATEGY_OPTIONS: { value: EntryStrategy; label: string }[] = [
-  { value: 'edge', label: 'Edge Entry' },
-  { value: 'direct', label: 'Direct Entry' },
+  { value: 'edge', label: 'Edge' },
+  { value: 'direct', label: 'Direct' },
 ];
 
 /**
@@ -54,10 +54,13 @@ const ENTRY_STRATEGY_OPTIONS: { value: EntryStrategy; label: string }[] = [
  *
  * ADDITIVE: two new controls below the Rounds selector, both default-off /
  * default-Edge so behavior is unchanged unless explicitly turned on:
- *  - Entry Strategy — Edge Entry (barrier ± 1, the original behavior) or
- *    Direct Entry (the barrier digit itself).
- *  - Hybrid Mode — alternates every round between Over 1 and Under 8
- *    instead of staying on one barrier. Combinable with Entry Strategy.
+ *  - Entry Strategy — Edge (barrier ± 1, the original behavior) or Direct
+ *    (the barrier digit itself).
+ *  - Hybrid Mode — alternates the barrier automatically each round instead
+ *    of staying on one. Combinable with Entry Strategy. The specific
+ *    barrier pair it alternates between is intentionally not shown on
+ *    screen anywhere in this panel — same policy as the hidden internal
+ *    trigger digit.
  */
 export function DigitEntryAutomatedPanel({
   contractMode,
@@ -195,10 +198,10 @@ export function DigitEntryAutomatedPanel({
         </ToggleGroup>
       </div>
 
-      {/* ADDITIVE — Entry Strategy selector. Edge Entry (default) is the
-          original behavior. Direct Entry waits for the barrier digit
-          itself. Combinable with Hybrid Mode below. Disabled while
-          running, same as Rounds above, since it's a Start-time setting. */}
+      {/* ADDITIVE — Entry Strategy selector. Edge (default) is the
+          original behavior. Direct waits for the barrier digit itself.
+          Combinable with Hybrid Mode below. Disabled while running, same
+          as Rounds above, since it's a Start-time setting. */}
       <div className="space-y-1">
         <p className="text-[10px] text-muted-foreground">Entry Strategy</p>
         <ToggleGroup
@@ -223,13 +226,13 @@ export function DigitEntryAutomatedPanel({
       </div>
 
       {/* Hybrid Mode toggle. Off by default (matches existing behavior
-          exactly). When on, the bot alternates every round between Over 1
-          and Under 8 instead of staying on one barrier. Disabled while
-          running, same as the other Start-time settings above. */}
+          exactly). When on, the bot alternates the barrier automatically
+          each round instead of staying on one. Disabled while running,
+          same as the other Start-time settings above. No subtitle here on
+          purpose — the specific barrier pair is not shown on screen. */}
       <div className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-2 py-1.5">
         <div className="space-y-0.5">
           <p className="text-[10px] font-medium text-foreground">Hybrid Mode</p>
-          <p className="text-[9px] text-muted-foreground">Alternate Over 1 / Under 8 each round</p>
         </div>
         <Switch
           checked={settings.hybridMode}
@@ -286,7 +289,8 @@ export function DigitEntryAutomatedPanel({
 
       {/* Running results ledger for the current (or most recently finished)
           run — total at top, then one row per settled round in order
-          (R1 first). Replaces the old single "last trade" readout. */}
+          (R1 first). Replaces the old single "last trade" readout. No
+          per-round barrier tag here — that would reveal the hybrid pair. */}
       {results.length > 0 && (
         <div className="rounded-md border border-border bg-muted/30 px-2 py-1.5 space-y-1 text-[10px]">
           <div className="flex justify-between items-center border-b border-border pb-1">
@@ -300,9 +304,6 @@ export function DigitEntryAutomatedPanel({
             <div key={result.contractId} className="flex justify-between">
               <span className="text-muted-foreground">
                 R{index + 1} ${result.stake.toFixed(2)}
-                {settings.hybridMode && result.contractMode
-                  ? ` (${result.contractMode === 'DIGITOVER' ? 'O' : 'U'}${result.selectedDigit})`
-                  : ''}
               </span>
               <span className={`tabular-nums font-medium ${result.won ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
                 {result.won ? '+' : ''}
