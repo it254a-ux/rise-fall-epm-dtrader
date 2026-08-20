@@ -23,7 +23,7 @@ export interface DigitEntryResult {
   contractId: number;
   profit: number;
   won: boolean;
-  /** The stake this specific round was placed at (base stake, or doubled after a loss). */
+  /** The stake this specific round was placed at (base stake, or elevated after a loss). */
   stake: number;
   /** The barrier setup this round actually ran at. Only meaningful for readouts — the
    * hook itself always drives off contractMode/selectedDigit at fire time. */
@@ -49,19 +49,18 @@ const HYBRID_PAIR: { contractMode: ContractMode; digit: number }[] = [
  * stake multiplier applied after a loss, a hard cap on how many rounds a
  * single run will place, and a cumulative stop-loss.
  *
- * Stake behavior is intentionally NOT full Martingale: the stake doubles
- * only once after a loss. If that doubled-stake round also loses, the run
- * stops instead of doubling again — it never reaches a third stake level.
- * A win at any point resets to the base stake and the run continues (if
- * still within maxRounds / lossThreshold).
+ * Stake behavior: a loss at the base stake triggers a fixed-length streak
+ * at an elevated stake (base × multiplier), held flat — not compounding —
+ * for a set number of rounds regardless of win/loss, then automatically
+ * resets to base and the run continues.
  */
 export interface EntryAutomationSettings {
   /**
    * Multiplier applied to the BASE stake once a loss happens at the base
-   * stake (e.g. 4 = base stake × 4). That elevated stake is then held for
-   * exactly the next two rounds — win or lose, no early exit — before
+   * stake (e.g. 5 = base stake × 5). That elevated stake is then held for
+   * exactly the next three rounds — win or lose, no early exit — before
    * automatically dropping back to the base stake. There is no stop on
-   * consecutive losses; the two-round streak always completes and resets.
+   * consecutive losses; the three-round streak always completes and resets.
    */
   multiplier: number;
   /** Hard cap on the number of rounds a single run will place before stopping on its own, win or lose. */
@@ -85,12 +84,15 @@ export interface EntryAutomationSettings {
 }
 
 export const DEFAULT_ENTRY_AUTOMATION_SETTINGS: EntryAutomationSettings = {
-  multiplier: 4,
+  multiplier: 5,
   maxRounds: 5,
   lossThreshold: 10,
   hybridMode: false,
   entryStrategy: 'edge',
 };
+
+/** How many rounds the elevated stake is held for after a loss at the base stake, before auto-resetting to base. */
+const ELEVATED_STAKE_ROUND_COUNT = 3;
 
 interface UseDigitsEntryAutomationParams {
   isConnected: boolean;
@@ -108,7 +110,7 @@ interface UseDigitsEntryAutomationParams {
   buyError: string | null;
   clearBuyResult: () => void;
   openPositions: OpenPosition[];
-  /** Stake field (string, matches the rest of the app's controlled inputs) and its setter. Read as the run's starting/base stake at Start, then driven by this hook itself — doubled once on a loss, reset to the start value on a win — as rounds progress. */
+  /** Stake field (string, matches the rest of the app's controlled inputs) and its setter. Read as the run's starting/base stake at Start, then driven by this hook itself as rounds progress. */
   stake: string;
   setStake: (value: string) => void;
   /**
@@ -141,7 +143,7 @@ export interface UseDigitsEntryAutomationReturn {
   roundCount: number;
   /** Cumulative profit/loss across the current (or most recently finished) run. */
   netProfit: number;
-  /** Set when a run ends on its own — max rounds reached, stop-loss hit, or two losses in a row. Null while idle/watching/entered, or after a manual stop. */
+  /** Set when a run ends on its own — max rounds reached or stop-loss hit. Null while idle/watching/entered, or after a manual stop. */
   stopReason: string | null;
 }
 
@@ -216,9 +218,10 @@ export function useDigitsEntryAutomation({
   const baseStakeRef = useRef(0);
   const currentStakeRef = useRef(0);
   // How many more rounds (after the one just settled) should run at the
-  // elevated (base × multiplier) stake. Set to 2 the instant a loss
-  // happens at the base stake; counts down each settle regardless of
-  // win/loss until it hits 0, at which point the stake drops back to base.
+  // elevated (base × multiplier) stake. Set to ELEVATED_STAKE_ROUND_COUNT
+  // the instant a loss happens at the base stake; counts down each settle
+  // regardless of win/loss until it hits 0, at which point the stake drops
+  // back to base.
   const elevatedRoundsLeftRef = useRef(0);
 
   // Hybrid Mode state. Only used when settings.hybridMode is true.
@@ -307,7 +310,7 @@ export function useDigitsEntryAutomation({
   // WATCH — fire the buy the instant the trigger digit lands, but only if a
   // proposal is actually available at that exact moment, and only once its
   // price reflects the stake this round is supposed to use. That second
-  // check matters specifically after a loss doubles the stake — without it,
+  // check matters specifically after a loss raises the stake — without it,
   // a stale-priced proposal from just before the stake changed could get
   // bought at the wrong size.
   //
@@ -353,9 +356,9 @@ export function useDigitsEntryAutomation({
   // Absence from openPositions is never treated as "closed" here, so
   // there's no risk of mistaking subscription lag for settlement. Once
   // settled: record the round, then either stop (max rounds reached,
-  // stop-loss hit, two losses in a row, or a manual stop happened while
-  // this trade was in flight) or continue — doubling the stake once on a
-  // loss, resetting to the run's starting stake on a win.
+  // stop-loss hit, or a manual stop happened while this trade was in
+  // flight) or continue — running a fixed elevated-stake streak after a
+  // loss, resetting to the run's starting stake once that streak completes.
   useEffect(() => {
     if (phase !== 'entered') return;
     const contractId = pendingContractId.current;
@@ -415,17 +418,18 @@ export function useDigitsEntryAutomation({
       return;
     }
 
-    // Elevated-stake streak: a loss at the base stake triggers exactly two
-    // rounds at base × multiplier (win or lose, no early exit), then it
-    // automatically resets to the base stake. No stop on consecutive
-    // losses — the streak always completes and resets on its own.
+    // Elevated-stake streak: a loss at the base stake triggers exactly
+    // ELEVATED_STAKE_ROUND_COUNT (3) rounds at base × multiplier (win or
+    // lose, no early exit, flat — not compounding), then it automatically
+    // resets to the base stake. No stop on consecutive losses — the
+    // streak always completes and resets on its own.
     let nextStake: number;
     if (elevatedRoundsLeftRef.current > 0) {
       elevatedRoundsLeftRef.current -= 1;
       nextStake =
         elevatedRoundsLeftRef.current > 0 ? baseStakeRef.current * settings.multiplier : baseStakeRef.current;
     } else if (!won) {
-      elevatedRoundsLeftRef.current = 2;
+      elevatedRoundsLeftRef.current = ELEVATED_STAKE_ROUND_COUNT;
       nextStake = baseStakeRef.current * settings.multiplier;
     } else {
       nextStake = baseStakeRef.current;
