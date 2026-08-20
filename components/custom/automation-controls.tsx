@@ -54,7 +54,7 @@ export function NumberField({
           onChange(raw === '' ? null : parseFloat(raw));
         }}
         labelRight={suffix}
-        className="h-7 text-xs px-2"
+        className="h-6 text-[10px] px-2"
       />
     </div>
   );
@@ -89,7 +89,7 @@ function StrategySelect({
         type="button"
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center justify-between w-full h-7 rounded-md border border-input bg-background px-2 py-1 text-[10px] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+        className="flex items-center justify-between w-full h-6 rounded-md border border-input bg-background px-2 py-1 text-[10px] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {active.label}
         <span className="text-muted-foreground">›</span>
@@ -105,7 +105,7 @@ function StrategySelect({
                 onChange(s.id);
                 setOpen(false);
               }}
-              className={`w-full text-left px-3 py-1.5 text-[10px] font-medium transition-colors ${
+              className={`w-full text-left px-3 py-1 text-[10px] font-medium transition-colors ${
                 s.id === value ? 'bg-foreground text-background' : 'hover:bg-foreground/5 text-foreground'
               }`}
             >
@@ -151,6 +151,11 @@ function InfoTooltip({ text }: { text: string }) {
  * the Rise/Fall AutomatedPanel and the digit contracts' automated panel.
  * Callers render their own mode-specific toggle (direction / contract mode)
  * and the "Initial stake" field above this component.
+ *
+ * SIZING — thinner boxes / smaller font applied throughout (was h-7/h-8 +
+ * text-xs, now h-6/h-7 + text-[10px]) so this stays consistent everywhere
+ * it's used: Rise/Fall, Even/Odd, and the "Initial stake" field on the
+ * digit contracts panel.
  */
 export function AutomationControls({
   settings,
@@ -207,7 +212,7 @@ export function AutomationControls({
             min={0}
             onChange={(e) => updateSetting('stakeIncrement', parseFloat(e.target.value) || 0)}
             labelRight="unit"
-            className="h-7 text-xs px-2"
+            className="h-6 text-[10px] px-2"
           />
         </div>
       )}
@@ -242,7 +247,7 @@ export function AutomationControls({
       />
 
       {(isRunning || tradeCount > 0) && (
-        <div className="rounded-md border border-border bg-muted/30 px-2 py-1 space-y-0.5 text-[10px]">
+        <div className="rounded-md border border-border bg-muted/30 px-2 py-0.5 space-y-0.5 text-[10px]">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Trades this run</span>
             <span className="font-medium">{tradeCount}</span>
@@ -271,12 +276,12 @@ export function AutomationControls({
 
       <div className="w-full">
         {isRunning ? (
-          <Button className="w-full rounded-full h-8 text-xs" variant="destructive" onClick={() => stop()}>
+          <Button className="w-full rounded-full h-7 text-[10px]" variant="destructive" onClick={() => stop()}>
             Stop
           </Button>
         ) : (
           <Button
-            className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground h-8 text-xs"
+            className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground h-7 text-[10px]"
             disabled={!canStart}
             onClick={start}
           >
