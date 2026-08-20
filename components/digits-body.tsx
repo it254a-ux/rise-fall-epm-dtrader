@@ -130,6 +130,12 @@ export function DigitsBody({
   // lands, then lets the contract settle on its own. Needs stake/setStake
   // itself (not just proposal/buyContract) because it drives the stake
   // between rounds — doubling once on a loss, resetting on a win.
+  //
+  // ADDITIVE: setContractMode/setSelectedDigit are now also passed in so
+  // that, when Hybrid Mode is turned on in the panel, the hook can flip the
+  // barrier itself between rounds. Passing these does not change any
+  // existing behavior — the hook only touches them when settings.hybridMode
+  // is explicitly enabled (off by default).
   const overUnderAutomation = useDigitsEntryAutomation({
     isConnected,
     isAuthenticated,
@@ -145,6 +151,8 @@ export function DigitsBody({
     openPositions,
     stake,
     setStake,
+    setContractMode,
+    setSelectedDigit,
   });
 
   const isOverUnder = tradeType === 'over-under';
