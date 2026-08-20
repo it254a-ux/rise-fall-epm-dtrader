@@ -2,6 +2,7 @@
 
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { NumberField } from '@/components/custom/automation-controls';
 import { DigitStatsBar } from '@/components/custom/digit-stats-bar';
 import type { UseDigitsEntryAutomationReturn } from '@/hooks/use-digits-entry-automation';
@@ -40,6 +41,11 @@ const ROUND_OPTIONS = [3, 5, 10, 20];
  * live digit stream, firing exactly one buy the instant the trigger digit
  * appears (barrier − 1 for Over, barrier + 1 for Under), then lets the
  * contract settle on its own like any other digit contract.
+ *
+ * ADDITIVE: Hybrid Mode toggle below the Rounds selector. When on, the bot
+ * alternates every round between Over 1 and Under 8 instead of staying on
+ * one barrier — the toggle itself is the only new UI here, everything else
+ * is unchanged from before.
  */
 export function DigitEntryAutomatedPanel({
   contractMode,
@@ -102,7 +108,9 @@ export function DigitEntryAutomatedPanel({
           price will be over/under N" readout used elsewhere in the app, so
           the chosen digit is unambiguous at a glance. This does not reveal
           the internal trigger digit (barrier ± 1) — only the barrier the
-          user actually picked. */}
+          user actually picked. While Hybrid Mode is running, this updates
+          on its own each round since contractMode/selectedDigit are driven
+          by the automation hook. */}
       <div className="rounded-md border border-border bg-muted/30 px-2 py-1.5 space-y-1">
         <p className="text-[10px] text-muted-foreground">Prediction</p>
         <div className="flex items-center gap-1.5">
@@ -175,6 +183,23 @@ export function DigitEntryAutomatedPanel({
         </ToggleGroup>
       </div>
 
+      {/* ADDITIVE — Hybrid Mode toggle. Off by default (matches existing
+          behavior exactly). When on, the bot alternates every round between
+          Over 1 and Under 8 instead of staying on one barrier. Disabled
+          while running, same as Rounds above, since it's a Start-time
+          setting. */}
+      <div className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-2 py-1.5">
+        <div className="space-y-0.5">
+          <p className="text-[10px] font-medium text-foreground">Hybrid Mode</p>
+          <p className="text-[9px] text-muted-foreground">Alternate Over 1 / Under 8 each round</p>
+        </div>
+        <Switch
+          checked={settings.hybridMode}
+          disabled={isRunning}
+          onCheckedChange={(checked) => setSettings({ ...settings, hybridMode: checked })}
+        />
+      </div>
+
       {/* Armed-status readout — intentionally does not reveal the internal
           trigger digit (barrier ± 1). That's kept private; only the fact
           that the bot is armed and watching is shown. */}
@@ -237,6 +262,9 @@ export function DigitEntryAutomatedPanel({
             <div key={result.contractId} className="flex justify-between">
               <span className="text-muted-foreground">
                 R{index + 1} ${result.stake.toFixed(2)}
+                {settings.hybridMode && result.contractMode
+                  ? ` (${result.contractMode === 'DIGITOVER' ? 'O' : 'U'}${result.selectedDigit})`
+                  : ''}
               </span>
               <span className={`tabular-nums font-medium ${result.won ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
                 {result.won ? '+' : ''}
