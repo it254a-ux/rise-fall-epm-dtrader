@@ -135,6 +135,8 @@ export default function RiseFallPage() {
           logoSrc={logoSrc}
           activeTradeType={activeTradeType}
           onSelectTradeType={setActiveTradeType}
+          ws={ws}
+          isConnected={isConnected}
         />
         <div style={{ height: headerHeight }} className="shrink-0" />
         <AccumulatorsBody
@@ -195,6 +197,8 @@ export default function RiseFallPage() {
           logoSrc={logoSrc}
           activeTradeType={activeTradeType}
           onSelectTradeType={setActiveTradeType}
+          ws={ws}
+          isConnected={isConnected}
         />
         <div style={{ height: headerHeight }} className="shrink-0" />
         <DigitsBody
@@ -256,6 +260,8 @@ export default function RiseFallPage() {
         logoSrc={logoSrc}
         activeTradeType={activeTradeType}
         onSelectTradeType={setActiveTradeType}
+        ws={ws}
+        isConnected={isConnected}
       />
       <div style={{ height: headerHeight }} className="shrink-0" />
       <RiseFallBody
