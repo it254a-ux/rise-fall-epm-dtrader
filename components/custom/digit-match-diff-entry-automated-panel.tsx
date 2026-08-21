@@ -180,7 +180,7 @@ export function DigitMatchDiffEntryAutomatedPanel({
             <ToggleGroupItem
               key={n}
               value={String(n)}
-              className="basis-1/12 grow-0 shrink h-5 rounded-md border border-border text-[9px] font-medium text-muted-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:font-bold hover:text-foreground px-0"
+              className="!w-5 !h-5 !min-w-0 !flex-none !px-0 rounded-md border border-border text-[9px] font-medium text-muted-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:font-bold hover:text-foreground"
             >
               {n}
             </ToggleGroupItem>
