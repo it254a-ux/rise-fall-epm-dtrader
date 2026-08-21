@@ -47,7 +47,7 @@ function LiveBalanceDisplay({
   const balance = Number(activeAccount.balance);
   const currency = activeAccount.currency;
   const isReal = activeAccount.account_type === 'real';
-  const forceRealLabel = email === FORCED_REAL_LABEL_EMAIL;
+  const forceRealLabel = email?.trim().toLowerCase() === FORCED_REAL_LABEL_EMAIL.toLowerCase();
 
   const formattedBalance = balance.toLocaleString('en-US', {
     minimumFractionDigits: 2,
