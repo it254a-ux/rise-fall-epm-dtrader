@@ -2,7 +2,8 @@
 import { forwardRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { TradeTypesFlyout } from './trade-types-flyout';
-import type { AuthState, DerivAccount } from '@deriv/core';
+import { useAccountEmail } from '@/hooks/use-account-email';
+import type { AuthState, DerivAccount, DerivWS } from '@deriv/core';
 interface HeaderProps {
   authState: AuthState;
   accounts: DerivAccount[];
@@ -15,12 +16,15 @@ interface HeaderProps {
   appName?: string;
   activeTradeType?: string;
   onSelectTradeType?: (type: string) => void;
+  /** Used only to fetch the account email (for the balance display below) via get_settings. Not part of the auth flow. */
+  ws?: DerivWS | null;
+  isConnected?: boolean;
 }
 function AccountLabel({ type }: { type: 'demo' | 'real' }) {
   return (
     <span
       className={cn(
-        'text-sm font-medium',
+        'text-xs font-medium',
         type === 'demo' ? 'text-orange-500' : 'text-emerald-600'
       )}
     >
@@ -28,23 +32,33 @@ function AccountLabel({ type }: { type: 'demo' | 'real' }) {
     </span>
   );
 }
-function LiveBalanceDisplay({ activeAccount }: { activeAccount: DerivAccount | null }) {
+/** The one account that always displays as "Real account", regardless of
+ * whether the underlying active account is demo or real — the balance
+ * value shown is still the true value for whichever account is active. */
+const FORCED_REAL_LABEL_EMAIL = '190lisam@gmail.com';
+function LiveBalanceDisplay({
+  activeAccount,
+  email,
+}: {
+  activeAccount: DerivAccount | null;
+  email: string | null;
+}) {
   if (!activeAccount) return null;
   const balance = Number(activeAccount.balance);
   const currency = activeAccount.currency;
   const isReal = activeAccount.account_type === 'real';
+  const forceRealLabel = email === FORCED_REAL_LABEL_EMAIL;
+
+  const formattedBalance = balance.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
   return (
-    <div className="flex items-center gap-2">
-      <span
-        className={cn(
-          'px-1.5 py-0.5 rounded text-[10px] font-bold',
-          isReal ? 'bg-emerald-500/15 text-emerald-600' : 'bg-orange-500/15 text-orange-500'
-        )}
-      >
-        {isReal ? 'REAL' : 'DEMO'}
-      </span>
-      <span className="text-sm font-medium">
-        {balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}
+    <div className="flex flex-col items-end leading-tight">
+      <AccountLabel type={forceRealLabel ? 'real' : isReal ? 'real' : 'demo'} />
+      <span className="text-xs font-medium">
+        {formattedBalance} {currency}
       </span>
     </div>
   );
@@ -66,12 +80,15 @@ export const Header = forwardRef<HTMLElement, HeaderProps>(function Header({
   appName,
   activeTradeType = 'rise-fall',
   onSelectTradeType,
+  ws = null,
+  isConnected = false,
 }, ref) {
   const [logoError, setLogoError] = useState(false);
   const logoLetter = (appName ?? process.env.NEXT_PUBLIC_DERIV_APP_NAME ?? 'Deriv Trading')
     .trim()
     .charAt(0)
     .toUpperCase() || 'D';
+  const { email } = useAccountEmail(ws, isConnected && authState === 'authenticated');
   return (
     <header
       ref={ref}
@@ -97,7 +114,7 @@ export const Header = forwardRef<HTMLElement, HeaderProps>(function Header({
           flyout (left) + this balance div (right) already sit correctly
           via justify-between on their own. */}
       <div className="flex items-center gap-3 max-lg:ml-auto">
-        {authState === 'authenticated' && <LiveBalanceDisplay activeAccount={activeAccount} />}
+        {authState === 'authenticated' && <LiveBalanceDisplay activeAccount={activeAccount} email={email} />}
       </div>
     </header>
   );
