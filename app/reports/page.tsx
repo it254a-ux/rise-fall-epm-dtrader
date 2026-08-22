@@ -2,7 +2,6 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRiseFallTrading } from '../../hooks/use-rise-fall-trading';
-import { useSymbolTabs } from '@/hooks/use-symbol-tabs';
 import { useDerivWSContext } from '@/components/custom/deriv-ws-provider';
 import { useLogoSrc } from '@/components/custom/logo-src-provider';
 import { Header } from '@/components/custom/header';
@@ -22,40 +21,6 @@ export default function ReportsPage() {
   const { ws, isConnected, isExhausted, auth } = useDerivWSContext();
   const { authState, accounts, activeAccount, login, signUp, logout, switchAccount } = auth;
   const trading = useRiseFallTrading({ ws, isConnected, isExhausted, isAuthenticated: !!auth.wsUrl, onAuthWSFailed: logout });
-
-  // This page only ever deals with the Rise/Fall trade type (its positions
-  // table is filtered to Rise/Fall contract types below), so the symbol
-  // tabs here are simpler than app/page.tsx — one trade type, one family
-  // (`trading`) to keep in sync with the active tab.
-  const { tabs, activeTabId, openTab, closeTab, selectTab, renameTab } = useSymbolTabs({
-    initialTradeType: 'rise-fall',
-    initialSymbol: trading.activeSymbol?.underlying_symbol ?? '',
-    initialDisplayName:
-      trading.activeSymbol?.underlying_symbol_name ??
-      trading.activeSymbol?.underlying_symbol ??
-      'Loading...',
-    onActivate: ({ symbol }) => {
-      trading.selectSymbol(symbol);
-    },
-  });
-
-  // Fixes the tab label once real symbol data loads in, same as on the
-  // main trading page — a tab may be opened optimistically before
-  // active_symbols has resolved the human-readable name.
-  useEffect(() => {
-    const currentActiveSymbol = trading.activeSymbol;
-    if (!currentActiveSymbol) return;
-    renameTab(
-      'rise-fall',
-      currentActiveSymbol.underlying_symbol,
-      currentActiveSymbol.underlying_symbol_name ?? currentActiveSymbol.underlying_symbol
-    );
-  }, [trading.activeSymbol, renameTab]);
-
-  const onPickSymbol = (symbol: string, displayName: string) => {
-    openTab('rise-fall', symbol, displayName);
-  };
-
   useEffect(() => {
     if (authState === 'unauthenticated' || authState === 'error') {
       router.replace('/');
@@ -79,13 +44,6 @@ export default function ReportsPage() {
         onLogout={logout}
         onSwitchAccount={switchAccount}
         logoSrc={logoSrc}
-        symbolTabs={tabs}
-        activeSymbolTabId={activeTabId}
-        onSelectSymbolTab={selectTab}
-        onCloseSymbolTab={closeTab}
-        browsableSymbols={trading.symbols}
-        isBrowsableSymbolsLoading={trading.isLoading}
-        onPickSymbol={onPickSymbol}
       />
       {/* Spacer to push content below fixed header — authenticated users have a taller header */}
       <div className="h-[76px] shrink-0" />
