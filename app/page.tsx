@@ -12,7 +12,6 @@ import { RiseFallBody } from '../components/rise-fall-body';
 import { DigitsBody } from '../components/digits-body';
 import { AccumulatorsBody } from '../components/accumulators-body';
 import { Header } from '@/components/custom/header';
-import { Footer } from '@/components/custom/footer';
 
 export default function RiseFallPage() {
   const logoSrc = useLogoSrc();
@@ -172,9 +171,6 @@ export default function RiseFallPage() {
           activeTradeType={activeTradeType}
           onSelectTradeType={setActiveTradeType}
         />
-        <div className="max-lg:fixed max-lg:bottom-0 max-lg:left-0 max-lg:right-0 py-1 text-center bg-background/80 backdrop-blur-sm lg:bg-transparent lg:static lg:py-0.5 lg:shrink-0">
-          <Footer />
-        </div>
       </main>
     );
   }
@@ -236,9 +232,6 @@ export default function RiseFallPage() {
           activeTradeType={activeTradeType}
           onSelectTradeType={setActiveTradeType}
         />
-        <div className="max-lg:fixed max-lg:bottom-0 max-lg:left-0 max-lg:right-0 py-1 text-center bg-background/80 backdrop-blur-sm lg:bg-transparent lg:static lg:py-0.5 lg:shrink-0">
-          <Footer />
-        </div>
       </main>
     );
   }
@@ -303,9 +296,6 @@ export default function RiseFallPage() {
         activeTradeType={activeTradeType}
         onSelectTradeType={setActiveTradeType}
       />
-      <div className="max-lg:fixed max-lg:bottom-0 max-lg:left-0 max-lg:right-0 py-1 text-center bg-background/80 backdrop-blur-sm lg:bg-transparent lg:static lg:py-0.5 lg:shrink-0">
-        <Footer />
-      </div>
     </main>
   );
 }
