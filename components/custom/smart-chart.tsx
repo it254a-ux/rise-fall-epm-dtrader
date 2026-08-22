@@ -181,31 +181,65 @@ export function SmartChartWrapper({
     return () => observer.disconnect();
   }, []);
 
-  // FIX: trackpad pinch (and ctrl+scroll-wheel) zoom gestures over the chart
-  // were zooming the WHOLE BROWSER PAGE instead of just the chart. Browsers
-  // detect a pinch/zoom gesture as a `wheel` event with `ctrlKey: true` and,
-  // unless something calls preventDefault() on it, treat that as a request
-  // to change the page's native zoom level. Nothing here was doing that, so
-  // the gesture fell straight through to the browser.
+  // FIX (part 1 — page zoom): trackpad pinch and ctrl+scroll-wheel gestures
+  // over the chart were zooming the WHOLE BROWSER PAGE instead of just the
+  // chart. Browsers detect a pinch/zoom gesture as a `wheel` event with
+  // `ctrlKey: true` and, unless something calls preventDefault() on it,
+  // treat that as a request to change the page's native zoom level.
   //
-  // This listener sits on the chart's own wrapper div (not the whole page),
-  // is registered non-passive so preventDefault() is actually allowed to
-  // take effect, and only intercepts the ctrlKey case — a normal two-finger
-  // scroll (no ctrlKey) is left completely alone. Blocking the browser's
-  // default here does not stop the event from reaching the chart itself, so
-  // the chart's own internal zoom handling (SmartCharts / Flutter) still
-  // receives the gesture and zooms just the chart as expected.
+  // FIX (part 2 — trackpad zoom doing nothing / barely anything): the
+  // chart's own zoom-in/out gesture recognizer only listens for real touch
+  // events (phone/tablet pinch). A trackpad "pinch" is never a touch event —
+  // the OS/browser translates it into the same ctrlKey wheel event as above,
+  // which the chart's touch recognizer never sees, so nothing happened. A
+  // plain trackpad two-finger scroll / mouse wheel has the same problem: no
+  // touch event, so no zoom.
+  //
+  // Fix for both: this listener sits on the chart's own wrapper div (not the
+  // whole page), is registered non-passive so preventDefault() actually
+  // takes effect, and drives the chart's documented `zoom` prop directly —
+  // the exact same 1 (zoom in) / -1 (zoom out) full-step action the
+  // toolbar's +/- buttons already use. That gives trackpad pinch, trackpad
+  // two-finger scroll, and mouse wheel all a real, full-size zoom step,
+  // matching how scrolling zooms the chart on Deriv's own dtrader.
+  //
+  // The `zoom` prop is set for one render then cleared back to undefined a
+  // beat later — this guarantees the NEXT scroll tick (even in the same
+  // direction) is always seen as a fresh value change by the chart, rather
+  // than potentially being ignored as "no change" if the same 1/-1 were left
+  // sitting in place.
   const chartWrapperRef = useRef<HTMLDivElement>(null);
+  const [zoomAction, setZoomAction] = useState<1 | -1 | undefined>(undefined);
+  const zoomResetTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastZoomAt = useRef(0);
   useEffect(() => {
     const el = chartWrapperRef.current;
     if (!el) return;
-    const blockPageZoom = (e: WheelEvent) => {
-      if (e.ctrlKey) {
-        e.preventDefault();
-      }
+
+    const handleWheel = (e: WheelEvent) => {
+      // Always stop the browser's own native page-zoom / page-scroll
+      // reaction to this gesture while it's happening over the chart —
+      // whether it's a pinch (ctrlKey) or a plain scroll.
+      e.preventDefault();
+
+      // Throttle so a single fast pinch/scroll doesn't fire dozens of
+      // full zoom steps at once — one step per ~120ms feels responsive
+      // without being jumpy.
+      const now = Date.now();
+      if (now - lastZoomAt.current < 120) return;
+      lastZoomAt.current = now;
+
+      const direction: 1 | -1 = e.deltaY < 0 ? 1 : -1;
+      if (zoomResetTimeout.current) clearTimeout(zoomResetTimeout.current);
+      setZoomAction(direction);
+      zoomResetTimeout.current = setTimeout(() => setZoomAction(undefined), 60);
     };
-    el.addEventListener('wheel', blockPageZoom, { passive: false });
-    return () => el.removeEventListener('wheel', blockPageZoom);
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', handleWheel);
+      if (zoomResetTimeout.current) clearTimeout(zoomResetTimeout.current);
+    };
   }, []);
 
   const { resolvedTheme } = useTheme();
@@ -283,6 +317,7 @@ export function SmartChartWrapper({
         unsubscribeQuotes={unsubscribeQuotes}
         {...(barriers && barriers.length > 0 && { barriers })}
         contracts_array={contractsArray ?? []}
+        {...(zoomAction !== undefined && { zoom: zoomAction })}
       />}
     </div>
   );
