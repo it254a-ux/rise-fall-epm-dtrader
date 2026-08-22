@@ -2,10 +2,7 @@
 import { forwardRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { TradeTypesFlyout } from './trade-types-flyout';
-import { SymbolTabsBar } from './symbol-tabs-bar';
-import { MarketBrowserModal } from './market-browser-modal';
-import type { AuthState, DerivAccount, DerivWS, ActiveSymbol } from '@deriv/core';
-import type { OpenSymbolTab } from '@/hooks/use-symbol-tabs';
+import type { AuthState, DerivAccount, DerivWS } from '@deriv/core';
 interface HeaderProps {
   authState: AuthState;
   accounts: DerivAccount[];
@@ -23,13 +20,6 @@ interface HeaderProps {
    * through don't need to be touched again. */
   ws?: DerivWS | null;
   isConnected?: boolean;
-  symbolTabs: OpenSymbolTab[];
-  activeSymbolTabId: string;
-  onSelectSymbolTab: (id: string) => void;
-  onCloseSymbolTab: (id: string) => void;
-  browsableSymbols: ActiveSymbol[];
-  isBrowsableSymbolsLoading?: boolean;
-  onPickSymbol: (symbol: string, displayName: string) => void;
 }
 function AccountLabel({ type }: { type: 'demo' | 'real' }) {
   return (
@@ -92,65 +82,39 @@ export const Header = forwardRef<HTMLElement, HeaderProps>(function Header({
   appName,
   activeTradeType = 'rise-fall',
   onSelectTradeType,
-  symbolTabs,
-  activeSymbolTabId,
-  onSelectSymbolTab,
-  onCloseSymbolTab,
-  browsableSymbols,
-  isBrowsableSymbolsLoading,
-  onPickSymbol,
 }, ref) {
   const [logoError, setLogoError] = useState(false);
-  const [isBrowserOpen, setIsBrowserOpen] = useState(false);
   const logoLetter = (appName ?? process.env.NEXT_PUBLIC_DERIV_APP_NAME ?? 'Deriv Trading')
     .trim()
     .charAt(0)
     .toUpperCase() || 'D';
   return (
-    <>
-      <header
-        ref={ref}
-        className="fixed top-0 left-0 lg:left-[72px] right-0 z-50 flex items-center justify-between px-4 pt-3 pb-1 border-b bg-background/80 backdrop-blur-sm"
-      >
-        {/* FIX (mobile only): the top TradeTypesFlyout tab row was overlapping
-            the chart on mobile, and now duplicates the "Market contracts"
-            menu in the trade panel below the chart. Hidden on mobile with
-            max-lg:hidden per explicit confirmation; desktop is unchanged and
-            still shows the tab row exactly as before. */}
-        <div className="flex items-center gap-3 max-lg:hidden">
-          <div className="flex-shrink-0">
-            <SymbolTabsBar
-              tabs={symbolTabs}
-              activeTabId={activeSymbolTabId}
-              onSelectTab={onSelectSymbolTab}
-              onCloseTab={onCloseSymbolTab}
-              onAddClick={() => setIsBrowserOpen(true)}
-            />
-          </div>
-          <TradeTypesFlyout
-            activeTradeType={activeTradeType}
-            onSelectTradeType={onSelectTradeType ?? (() => {})}
-          />
-        </div>
-        {/* FIX (mobile only): with the flyout hidden on mobile, this balance
-            display becomes the only child in the justify-between header —
-            and a lone flex child sits at the main-start (left) regardless of
-            justify-between. max-lg:ml-auto pushes it back to the end (right)
-            on mobile, which is where it belongs. Desktop is untouched: that
-            class only applies below the lg breakpoint, and on desktop the
-            flyout (left) + this balance div (right) already sit correctly
-            via justify-between on their own. */}
-        <div className="flex items-center gap-3 max-lg:ml-auto">
-          {authState === 'authenticated' && <LiveBalanceDisplay activeAccount={activeAccount} />}
-        </div>
-      </header>
-      <MarketBrowserModal
-        open={isBrowserOpen}
-        onClose={() => setIsBrowserOpen(false)}
-        symbols={browsableSymbols}
-        isLoading={isBrowsableSymbolsLoading}
-        onSelectSymbol={onPickSymbol}
-      />
-    </>
+    <header
+      ref={ref}
+      className="fixed top-0 left-0 lg:left-[72px] right-0 z-50 flex items-center justify-between px-4 pt-3 pb-1 border-b bg-background/80 backdrop-blur-sm"
+    >
+      {/* FIX (mobile only): the top TradeTypesFlyout tab row was overlapping
+          the chart on mobile, and now duplicates the "Market contracts"
+          menu in the trade panel below the chart. Hidden on mobile with
+          max-lg:hidden per explicit confirmation; desktop is unchanged and
+          still shows the tab row exactly as before. */}
+      <div className="flex items-center gap-3 max-lg:hidden">
+        <TradeTypesFlyout
+          activeTradeType={activeTradeType}
+          onSelectTradeType={onSelectTradeType ?? (() => {})}
+        />
+      </div>
+      {/* FIX (mobile only): with the flyout hidden on mobile, this balance
+          display becomes the only child in the justify-between header —
+          and a lone flex child sits at the main-start (left) regardless of
+          justify-between. max-lg:ml-auto pushes it back to the end (right)
+          on mobile, which is where it belongs. Desktop is untouched: that
+          class only applies below the lg breakpoint, and on desktop the
+          flyout (left) + this balance div (right) already sit correctly
+          via justify-between on their own. */}
+      <div className="flex items-center gap-3 max-lg:ml-auto">
+        {authState === 'authenticated' && <LiveBalanceDisplay activeAccount={activeAccount} />}
+      </div>
+    </header>
   );
 });
