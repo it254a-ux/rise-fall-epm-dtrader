@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTheme } from 'next-themes';
 import {
   ChartMode,
@@ -181,6 +181,33 @@ export function SmartChartWrapper({
     return () => observer.disconnect();
   }, []);
 
+  // FIX: trackpad pinch (and ctrl+scroll-wheel) zoom gestures over the chart
+  // were zooming the WHOLE BROWSER PAGE instead of just the chart. Browsers
+  // detect a pinch/zoom gesture as a `wheel` event with `ctrlKey: true` and,
+  // unless something calls preventDefault() on it, treat that as a request
+  // to change the page's native zoom level. Nothing here was doing that, so
+  // the gesture fell straight through to the browser.
+  //
+  // This listener sits on the chart's own wrapper div (not the whole page),
+  // is registered non-passive so preventDefault() is actually allowed to
+  // take effect, and only intercepts the ctrlKey case — a normal two-finger
+  // scroll (no ctrlKey) is left completely alone. Blocking the browser's
+  // default here does not stop the event from reaching the chart itself, so
+  // the chart's own internal zoom handling (SmartCharts / Flutter) still
+  // receives the gesture and zooms just the chart as expected.
+  const chartWrapperRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = chartWrapperRef.current;
+    if (!el) return;
+    const blockPageZoom = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+      }
+    };
+    el.addEventListener('wheel', blockPageZoom, { passive: false });
+    return () => el.removeEventListener('wheel', blockPageZoom);
+  }, []);
+
   const { resolvedTheme } = useTheme();
   const chartTheme =
     (resolvedTheme ?? (document.documentElement.classList.contains('dark') ? 'dark' : 'light')) === 'dark'
@@ -216,6 +243,7 @@ export function SmartChartWrapper({
 
   return (
     <div
+      ref={chartWrapperRef}
       className="relative h-full min-h-0 w-full overflow-clip rounded-md border border-border/50 dark:border-white/[0.08] bg-muted/30"
       style={{ pointerEvents: isChartReady ? 'auto' : 'none' }}
     >
