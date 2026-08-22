@@ -7,7 +7,7 @@ export interface TradeTypesFlyoutProps {
 
 const TRADE_TYPES = [
   { label: 'Accumulators', value: 'accumulators', fire: true, comingSoon: false },
-  { label: 'Directional Rise/Fall', value: 'rise-fall', fire: true, comingSoon: false },
+  { label: 'Rise/Fall', value: 'rise-fall', fire: true, comingSoon: false },
   { label: 'Matches/Differs', value: 'matches-differs', fire: false, comingSoon: false },
   { label: 'Over/Under', value: 'over-under', fire: false, comingSoon: false },
   { label: 'Even/Odd', value: 'even-odd', fire: false, comingSoon: false },
