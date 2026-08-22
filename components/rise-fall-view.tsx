@@ -29,7 +29,6 @@ import type { Direction, DurationSelectUnit, DurationOption } from '../lib/types
 import type { UseSmartChartsApiReturn } from '@/hooks/use-smartcharts-api';
 import type { SmartChartChartData } from '@/hooks/use-smartchart-chart-data';
 import type { OpenPosition } from '../lib/types';
-import type { OpenSymbolTab } from '@/hooks/use-symbol-tabs';
 
 const RiseFallChart = dynamic(() => import('./rise-fall-chart').then(m => m.RiseFallChart), {
   ssr: false,
@@ -86,16 +85,6 @@ export interface RiseFallViewProps {
   appName?: string;
   activeTradeType?: string;
   onSelectTradeType?: (type: string) => void;
-  // Forwarded straight through to <Header> — this component holds no
-  // symbol-tab state of its own; whoever renders <RiseFallView> owns the
-  // useSymbolTabs() call and supplies these, same as every other prop here.
-  symbolTabs: OpenSymbolTab[];
-  activeSymbolTabId: string;
-  onSelectSymbolTab: (id: string) => void;
-  onCloseSymbolTab: (id: string) => void;
-  browsableSymbols: ActiveSymbol[];
-  isBrowsableSymbolsLoading?: boolean;
-  onPickSymbol: (symbol: string, displayName: string) => void;
 }
 
 export function RiseFallView({
@@ -144,13 +133,6 @@ export function RiseFallView({
   appName,
   activeTradeType,
   onSelectTradeType,
-  symbolTabs,
-  activeSymbolTabId,
-  onSelectSymbolTab,
-  onCloseSymbolTab,
-  browsableSymbols,
-  isBrowsableSymbolsLoading,
-  onPickSymbol,
 }: RiseFallViewProps) {
   const isMobile = useIsMobile();
   const contractMarkers = useContractMarkers(openPositions, activeSymbol?.underlying_symbol, isMobile);
@@ -252,13 +234,6 @@ export function RiseFallView({
           appName={appName}
           activeTradeType={activeTradeType}
           onSelectTradeType={onSelectTradeType}
-          symbolTabs={symbolTabs}
-          activeSymbolTabId={activeSymbolTabId}
-          onSelectSymbolTab={onSelectSymbolTab}
-          onCloseSymbolTab={onCloseSymbolTab}
-          browsableSymbols={browsableSymbols}
-          isBrowsableSymbolsLoading={isBrowsableSymbolsLoading}
-          onPickSymbol={onPickSymbol}
         />
         <div className={authState === 'authenticated' ? 'h-[40px] shrink-0' : 'h-[36px] shrink-0'} />
 
