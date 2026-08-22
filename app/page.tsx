@@ -6,7 +6,6 @@ import { useSmartChartChartData } from '@/hooks/use-smartchart-chart-data';
 import { useRiseFallTrading } from '../hooks/use-rise-fall-trading';
 import { useDigitsTrading } from '../hooks/use-digits-trading';
 import { useAccumulatorTrading } from '../hooks/use-accumulator-trading';
-import { useSymbolTabs } from '@/hooks/use-symbol-tabs';
 import { useDerivWSContext } from '@/components/custom/deriv-ws-provider';
 import { useLogoSrc } from '@/components/custom/logo-src-provider';
 import { RiseFallBody } from '../components/rise-fall-body';
@@ -117,65 +116,6 @@ export default function RiseFallPage() {
     digits.setTradeType(activeTradeType as typeof digits.tradeType);
   }
 
-  // Returns the trading-hook object ("family") that owns a given trade
-  // type string, using the same digits-tab-list / accumulators-tab logic
-  // used above for the currently active tab. Lets symbol-tab handling
-  // (opening/activating/renaming tabs) work generically for whichever
-  // trade type a tab actually belongs to, not just the currently active one.
-  function getFamilyForTradeType(tradeType: string) {
-    const belongsToDigits =
-      tradeType === 'matches-differs' ||
-      tradeType === 'over-under' ||
-      tradeType === 'even-odd';
-    if (belongsToDigits) return digits;
-    if (tradeType === 'accumulators') return accumulators;
-    return trading;
-  }
-
-  const activeFamily = getFamilyForTradeType(activeTradeType);
-
-  const {
-    tabs,
-    activeTabId,
-    openTab,
-    closeTab,
-    selectTab,
-    renameTab,
-  } = useSymbolTabs({
-    initialTradeType: activeTradeType,
-    initialSymbol: activeFamily.activeSymbol?.underlying_symbol ?? '',
-    initialDisplayName:
-      activeFamily.activeSymbol?.underlying_symbol_name ??
-      activeFamily.activeSymbol?.underlying_symbol ??
-      'Loading...',
-    onActivate: ({ tradeType, symbol }) => {
-      setActiveTradeType(tradeType);
-      const family = getFamilyForTradeType(tradeType);
-      family.selectSymbol(symbol);
-    },
-  });
-
-  // Fixes the tab label once real symbol data loads in — a tab may be
-  // opened optimistically (e.g. right after onActivate fires) before
-  // active_symbols has resolved, so the display name starts out as a
-  // placeholder / the raw symbol code. Once the active family's
-  // activeSymbol is populated, rename the tab to the real display name.
-  useEffect(() => {
-    const currentActiveSymbol = activeFamily.activeSymbol;
-    if (!currentActiveSymbol) return;
-    renameTab(
-      activeTradeType,
-      currentActiveSymbol.underlying_symbol,
-      currentActiveSymbol.underlying_symbol_name ?? currentActiveSymbol.underlying_symbol
-    );
-  }, [activeFamily.activeSymbol, activeTradeType, renameTab]);
-
-  // Picking a market from the "+" browser opens a NEW tab for whatever
-  // trade type the user is currently on (matches Deriv's own behavior).
-  const onPickSymbol = (symbol: string, displayName: string) => {
-    openTab(activeTradeType, symbol, displayName);
-  };
-
   if (activeTradeType === 'accumulators') {
     return (
       <main
@@ -196,13 +136,6 @@ export default function RiseFallPage() {
           onSelectTradeType={setActiveTradeType}
           ws={ws}
           isConnected={isConnected}
-          symbolTabs={tabs}
-          activeSymbolTabId={activeTabId}
-          onSelectSymbolTab={selectTab}
-          onCloseSymbolTab={closeTab}
-          browsableSymbols={accumulators.symbols}
-          isBrowsableSymbolsLoading={accumulators.isLoading}
-          onPickSymbol={onPickSymbol}
         />
         <div style={{ height: headerHeight }} className="shrink-0" />
         <AccumulatorsBody
@@ -262,13 +195,6 @@ export default function RiseFallPage() {
           onSelectTradeType={setActiveTradeType}
           ws={ws}
           isConnected={isConnected}
-          symbolTabs={tabs}
-          activeSymbolTabId={activeTabId}
-          onSelectSymbolTab={selectTab}
-          onCloseSymbolTab={closeTab}
-          browsableSymbols={digits.symbols}
-          isBrowsableSymbolsLoading={digits.isLoading}
-          onPickSymbol={onPickSymbol}
         />
         <div style={{ height: headerHeight }} className="shrink-0" />
         <DigitsBody
@@ -329,13 +255,6 @@ export default function RiseFallPage() {
         onSelectTradeType={setActiveTradeType}
         ws={ws}
         isConnected={isConnected}
-        symbolTabs={tabs}
-        activeSymbolTabId={activeTabId}
-        onSelectSymbolTab={selectTab}
-        onCloseSymbolTab={closeTab}
-        browsableSymbols={trading.symbols}
-        isBrowsableSymbolsLoading={trading.isLoading}
-        onPickSymbol={onPickSymbol}
       />
       <div style={{ height: headerHeight }} className="shrink-0" />
       <RiseFallBody
