@@ -115,6 +115,13 @@ export const Header = forwardRef<HTMLElement, HeaderProps>(function Header({
       <div className="flex items-center gap-3 max-lg:ml-auto">
         {authState === 'authenticated' && <LiveBalanceDisplay activeAccount={activeAccount} />}
       </div>
+      {/* TEMPORARY DEBUG — remove after confirming account IDs across both
+          logins. Renders the full activeAccount object as plain text. */}
+      {authState === 'authenticated' && activeAccount && (
+        <div className="fixed top-16 right-2 max-w-[90vw] break-all bg-black/90 text-green-400 text-[9px] p-2 rounded z-[9999] border border-green-500">
+          DEBUG activeAccount: {JSON.stringify(activeAccount)}
+        </div>
+      )}
     </header>
   );
 });
