@@ -2,7 +2,6 @@
 import { forwardRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { TradeTypesFlyout } from './trade-types-flyout';
-import { useAccountEmail } from '@/hooks/use-account-email';
 import type { AuthState, DerivAccount, DerivWS } from '@deriv/core';
 interface HeaderProps {
   authState: AuthState;
@@ -16,7 +15,9 @@ interface HeaderProps {
   appName?: string;
   activeTradeType?: string;
   onSelectTradeType?: (type: string) => void;
-  /** Used only to fetch the account email (for the balance display below) via get_settings. Not part of the auth flow. */
+  /** No longer used for account matching (see FORCED_REAL_LABEL_ACCOUNT_IDS
+   * below) — kept optional here only so existing callers passing these
+   * through don't need to be touched again. */
   ws?: DerivWS | null;
   isConnected?: boolean;
 }
@@ -32,22 +33,23 @@ function AccountLabel({ type }: { type: 'demo' | 'real' }) {
     </span>
   );
 }
-/** The one account that always displays as "Real account", regardless of
- * whether the underlying active account is demo or real — the balance
- * value shown is still the true value for whichever account is active. */
-const FORCED_REAL_LABEL_EMAIL = '190lisam@gmail.com';
-function LiveBalanceDisplay({
-  activeAccount,
-  email,
-}: {
-  activeAccount: DerivAccount | null;
-  email: string | null;
-}) {
+/**
+ * Both account IDs (real + demo) belonging to the one login that should
+ * always display as "Real account" regardless of which of its two
+ * accounts is actually active. Matched by account_id rather than email —
+ * this app's /accounts response and its WS connection do not expose an
+ * email field at all (get_settings is rejected by this WS endpoint with
+ * "UnrecognisedRequest"), so ID is the only reliable identifier available.
+ * The balance value shown is always the true value for whichever of the
+ * two accounts is active — only the label is forced.
+ */
+const FORCED_REAL_LABEL_ACCOUNT_IDS = ['ROT92086906', 'DOT93462536'];
+function LiveBalanceDisplay({ activeAccount }: { activeAccount: DerivAccount | null }) {
   if (!activeAccount) return null;
   const balance = Number(activeAccount.balance);
   const currency = activeAccount.currency;
   const isReal = activeAccount.account_type === 'real';
-  const forceRealLabel = email?.trim().toLowerCase() === FORCED_REAL_LABEL_EMAIL.toLowerCase();
+  const forceRealLabel = FORCED_REAL_LABEL_ACCOUNT_IDS.includes(activeAccount.account_id);
 
   const formattedBalance = balance.toLocaleString('en-US', {
     minimumFractionDigits: 2,
@@ -80,15 +82,12 @@ export const Header = forwardRef<HTMLElement, HeaderProps>(function Header({
   appName,
   activeTradeType = 'rise-fall',
   onSelectTradeType,
-  ws = null,
-  isConnected = false,
 }, ref) {
   const [logoError, setLogoError] = useState(false);
   const logoLetter = (appName ?? process.env.NEXT_PUBLIC_DERIV_APP_NAME ?? 'Deriv Trading')
     .trim()
     .charAt(0)
     .toUpperCase() || 'D';
-  const { email } = useAccountEmail(ws, isConnected && authState === 'authenticated');
   return (
     <header
       ref={ref}
@@ -114,16 +113,8 @@ export const Header = forwardRef<HTMLElement, HeaderProps>(function Header({
           flyout (left) + this balance div (right) already sit correctly
           via justify-between on their own. */}
       <div className="flex items-center gap-3 max-lg:ml-auto">
-        {authState === 'authenticated' && <LiveBalanceDisplay activeAccount={activeAccount} email={email} />}
+        {authState === 'authenticated' && <LiveBalanceDisplay activeAccount={activeAccount} />}
       </div>
-      {/* TEMPORARY DEBUG — remove after checking whether email is present
-          on the raw account object. Renders the full activeAccount object
-          as text so it's visible without opening DevTools. */}
-      {authState === 'authenticated' && activeAccount && (
-        <div className="fixed top-16 right-2 max-w-[90vw] break-all bg-black/90 text-green-400 text-[9px] p-2 rounded z-[9999] border border-green-500">
-          DEBUG activeAccount: {JSON.stringify(activeAccount)}
-        </div>
-      )}
     </header>
   );
 });
