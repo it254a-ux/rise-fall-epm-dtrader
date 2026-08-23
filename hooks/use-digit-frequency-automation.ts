@@ -21,16 +21,24 @@ export interface FrequencyResult {
  * NEW — second automation option for Matches/Differs, separate from the
  * entry-watcher bot in use-digits-match-diff-entry-automation.ts (untouched
  * by this file). Ported from the uploaded Deriv Bot (DBot) XML strategy
- * ("digit_matches_differs_overlap5_strategy"):
+ * ("digit_matches_differs_overlap5_strategy"), then refined against a set
+ * of worked examples to match the intended behavior exactly:
  *
- * - Watches a variable-length window of ticks, tallying how often each
- *   digit 0-9 appears as the last digit, and predicts the digit with the
- *   highest count (ties keep the first/lowest digit reached, same as the
- *   XML's chain of ">" comparisons). The window fires as soon as a
- *   digit's live share of ticks-so-far crosses minConfidencePct —
- *   anywhere from 2 ticks up to maxWindow (default 5, acting purely as a
- *   safety cap so a round is never held open indefinitely).
- * - Fires a trade on that predicted digit as DIGITMATCH or DIGITDIFF
+ * - Watches an UNBOUNDED window of ticks, tallying how often each digit
+ *   0-9 appears as the last digit. After every tick, checks whether one
+ *   digit is BOTH (a) strictly alone in the lead — no tie with any other
+ *   digit's count — and (b) has reached at least `minLeadCount`
+ *   occurrences. Only when both hold does it fire; otherwise it keeps
+ *   collecting, however many ticks that takes. There is no upper cap —
+ *   a run of evenly-spread ticks can extend the window indefinitely until
+ *   a genuine, un-tied leader emerges.
+ *   Examples this was verified against:
+ *     3,3,3             -> fires on 3 right after the 3rd tick (unique + count 3)
+ *     7,4,6,7,7          -> fires on 7 on the 5th tick (unique + count 3)
+ *     7,4,6,7,1          -> does NOT fire (7 leads with only count 2 -> waits)
+ *     1,1,3,5,3,7,7,5,5  -> does NOT fire until the 9th tick (5 finally
+ *                           reaches a unique lead with count 3)
+ * - Fires a trade on the predicted digit as DIGITMATCH or DIGITDIFF
  *   depending on contractMode (passed down from the shared Matches/Differs
  *   toggle, replacing the XML's separate Mode variable).
  * - After a loss at the base stake, elevates the stake to
@@ -42,6 +50,8 @@ export interface FrequencyResult {
  *   cumulative loss ≥ lossThreshold, or cumulative profit ≥
  *   profitThreshold (matching the XML's RoundCount/SLThreshold/TakeProfit
  *   checks in after_purchase).
+ * - The instant a trade fires, the window resets to empty and starts
+ *   collecting fresh ticks again for the next round (same as before).
  *
  * Architecture note: the original DBot script runs tick-by-tick inside the
  * platform's own trade engine and can fire a purchase instantly the moment
@@ -54,14 +64,11 @@ export interface FrequencyResult {
  * while a contract is live.
  */
 export interface FrequencyAutomationSettings {
-  /** Safety cap — the window fires no later than this many ticks even if
-   * no digit has reached minConfidencePct yet. XML default: 5. */
-  maxWindow: number;
-  /** Minimum live percentage (leading digit's count ÷ ticks-so-far) needed
-   * to fire early, before maxWindow is reached. Lower = fires sooner /
-   * more often on thinner evidence. Higher = waits longer for a clearer
-   * signal, up to maxWindow. */
-  minConfidencePct: number;
+  /** Minimum occurrences the leading digit must reach, while also being
+   * the sole leader (no tie), before it's trusted enough to fire. Lower =
+   * fires sooner on thinner evidence. Higher = waits for a clearer signal.
+   * Confirmed default: 3. */
+  minLeadCount: number;
   /** Hard cap on rounds placed before the run stops on its own. XML default: 5. */
   maxRounds: number;
   /** Stake multiplier applied for boostRounds after a loss at the base stake. XML default: 4. */
@@ -75,8 +82,7 @@ export interface FrequencyAutomationSettings {
 }
 
 export const DEFAULT_FREQUENCY_SETTINGS: FrequencyAutomationSettings = {
-  maxWindow: 5,
-  minConfidencePct: 30,
+  minLeadCount: 3,
   maxRounds: 5,
   boostMultiplier: 4,
   boostRounds: 2,
@@ -250,12 +256,12 @@ export function useDigitFrequencyAutomation({
   // COLLECT — tallies every incoming tick's last digit into the current
   // window regardless of phase (matches the XML's before_purchase /
   // during_purchase both counting), so stats keep building even while a
-  // round is in flight. The window length is NOT fixed: after every tick,
-  // checks whether the leading digit's live percentage (its count ÷ ticks
-  // collected so far) has crossed minConfidencePct — if so, fires right
-  // there, however few or many ticks that took. If no digit has crossed
-  // the threshold yet, maxWindow acts as a safety cap that forces a
-  // decision anyway once reached, using whatever's currently leading.
+  // round is in flight. The window is UNBOUNDED: after every tick, this
+  // checks whether exactly one digit is strictly ahead of every other
+  // digit (no tie at the top) AND that digit's count has reached
+  // settings.minLeadCount. Only then does it fire — however many ticks
+  // that takes. If the top spot is tied, or the leader hasn't reached
+  // minLeadCount yet, it keeps collecting and waits for the next tick.
   useEffect(() => {
     if (!isRunningRef.current) return;
     if (lastDigit === null) return;
@@ -267,19 +273,24 @@ export function useDigitFrequencyAutomation({
     setFreqCounts(counts);
     setTicksCollected(tickCountRef.current);
 
+    // Find the leading digit and detect ties at the top in one pass.
     let bestDigit = 0;
     let bestCount = counts[0];
+    let tieCount = 1;
     for (let d = 1; d < 10; d++) {
       if (counts[d] > bestCount) {
         bestDigit = d;
         bestCount = counts[d];
+        tieCount = 1;
+      } else if (counts[d] === bestCount) {
+        tieCount += 1;
       }
     }
-    const leadingPct = (bestCount / tickCountRef.current) * 100;
-    const confidenceReached = leadingPct >= settingsRef.current.minConfidencePct;
-    const capReached = tickCountRef.current >= settingsRef.current.maxWindow;
 
-    if (confidenceReached || capReached) {
+    const hasSingleLeader = tieCount === 1;
+    const leaderReachedThreshold = bestCount >= settingsRef.current.minLeadCount;
+
+    if (hasSingleLeader && leaderReachedThreshold) {
       freqCountsRef.current = emptyCounts();
       tickCountRef.current = 0;
       setFreqCounts(emptyCounts());
@@ -427,7 +438,7 @@ export function useDigitFrequencyAutomation({
   const statusMessage = !isValidSetup
     ? 'This bot only supports Matches/Differs.'
     : phase === 'collecting'
-    ? `Working — ${ticksCollected}/${settings.maxWindow}, round ${Math.min(roundCount + 1, settings.maxRounds)} of ${settings.maxRounds}.`
+    ? `Working — ${ticksCollected} tick${ticksCollected === 1 ? '' : 's'} collected, round ${Math.min(roundCount + 1, settings.maxRounds)} of ${settings.maxRounds}.`
     : phase === 'ready'
     ? `Ready — round ${Math.min(roundCount + 1, settings.maxRounds)} of ${settings.maxRounds}.`
     : phase === 'entered'
