@@ -117,21 +117,31 @@ export function DigitFrequencyAutomatedPanel({
         <div className="flex items-center justify-between">
           <p className="text-[9px] text-muted-foreground">Status</p>
           <p className="text-[9px] tabular-nums text-muted-foreground">
-            {ticksCollected}/{settings.statsPeriod}
+            {ticksCollected}/{settings.maxWindow}
           </p>
         </div>
         <div className="grid grid-cols-10 gap-0.5">
-          {freqCounts.map((count, digit) => (
-            <div key={digit} className="flex flex-col items-center gap-0">
-              <div className="h-3 w-full flex items-end rounded-sm bg-muted overflow-hidden">
-                <div
-                  className={`w-full ${digit === predictedDigit ? 'bg-primary' : 'bg-foreground/30'}`}
-                  style={{ height: `${(count / maxCount) * 100}%` }}
-                />
+          {freqCounts.map((count, digit) => {
+            const pct = ticksCollected > 0 ? Math.round((count / ticksCollected) * 100) : 0;
+            return (
+              <div key={digit} className="flex flex-col items-center gap-0">
+                <div className="h-3 w-full flex items-end rounded-sm bg-muted overflow-hidden">
+                  <div
+                    className={`w-full ${digit === predictedDigit ? 'bg-primary' : 'bg-foreground/30'}`}
+                    style={{ height: `${(count / maxCount) * 100}%` }}
+                  />
+                </div>
+                <span
+                  className={`text-[7px] tabular-nums leading-none ${
+                    digit === predictedDigit ? 'text-primary font-bold' : 'text-muted-foreground'
+                  }`}
+                >
+                  {pct}%
+                </span>
+                <span className="text-[7px] text-muted-foreground leading-none">{digit}</span>
               </div>
-              <span className="text-[7px] text-muted-foreground">{digit}</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -152,12 +162,20 @@ export function DigitFrequencyAutomatedPanel({
         step={1}
       />
       <NumberField
-        label="Stats window"
-        value={settings.statsPeriod}
-        onChange={(value) => setSettings({ ...settings, statsPeriod: Math.max(2, Math.round(value ?? 5)) })}
+        label="Max window"
+        value={settings.maxWindow}
+        onChange={(value) => setSettings({ ...settings, maxWindow: Math.max(2, Math.round(value ?? 5)) })}
         suffix="ticks"
         disabled={isRunning}
         step={1}
+      />
+      <NumberField
+        label="Confidence to fire early"
+        value={settings.minConfidencePct}
+        onChange={(value) => setSettings({ ...settings, minConfidencePct: Math.min(100, Math.max(1, Math.round(value ?? 30))) })}
+        suffix="%"
+        disabled={isRunning}
+        step={5}
       />
 
       <div className="space-y-0.5">
