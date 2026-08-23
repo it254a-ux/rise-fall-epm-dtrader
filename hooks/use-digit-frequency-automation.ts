@@ -23,10 +23,13 @@ export interface FrequencyResult {
  * by this file). Ported from the uploaded Deriv Bot (DBot) XML strategy
  * ("digit_matches_differs_overlap5_strategy"):
  *
- * - Watches a rolling window of `statsPeriod` ticks (default 5), tallies
- *   how often each digit 0-9 appears as the last digit, and predicts the
- *   digit with the highest count (ties keep the first/lowest digit
- *   reached, same as the XML's chain of ">" comparisons).
+ * - Watches a variable-length window of ticks, tallying how often each
+ *   digit 0-9 appears as the last digit, and predicts the digit with the
+ *   highest count (ties keep the first/lowest digit reached, same as the
+ *   XML's chain of ">" comparisons). The window fires as soon as a
+ *   digit's live share of ticks-so-far crosses minConfidencePct —
+ *   anywhere from 2 ticks up to maxWindow (default 5, acting purely as a
+ *   safety cap so a round is never held open indefinitely).
  * - Fires a trade on that predicted digit as DIGITMATCH or DIGITDIFF
  *   depending on contractMode (passed down from the shared Matches/Differs
  *   toggle, replacing the XML's separate Mode variable).
@@ -51,8 +54,14 @@ export interface FrequencyResult {
  * while a contract is live.
  */
 export interface FrequencyAutomationSettings {
-  /** Number of ticks analyzed per prediction window. XML default: 5. */
-  statsPeriod: number;
+  /** Safety cap — the window fires no later than this many ticks even if
+   * no digit has reached minConfidencePct yet. XML default: 5. */
+  maxWindow: number;
+  /** Minimum live percentage (leading digit's count ÷ ticks-so-far) needed
+   * to fire early, before maxWindow is reached. Lower = fires sooner /
+   * more often on thinner evidence. Higher = waits longer for a clearer
+   * signal, up to maxWindow. */
+  minConfidencePct: number;
   /** Hard cap on rounds placed before the run stops on its own. XML default: 5. */
   maxRounds: number;
   /** Stake multiplier applied for boostRounds after a loss at the base stake. XML default: 4. */
@@ -66,7 +75,8 @@ export interface FrequencyAutomationSettings {
 }
 
 export const DEFAULT_FREQUENCY_SETTINGS: FrequencyAutomationSettings = {
-  statsPeriod: 5,
+  maxWindow: 5,
+  minConfidencePct: 30,
   maxRounds: 5,
   boostMultiplier: 4,
   boostRounds: 2,
@@ -240,11 +250,12 @@ export function useDigitFrequencyAutomation({
   // COLLECT — tallies every incoming tick's last digit into the current
   // window regardless of phase (matches the XML's before_purchase /
   // during_purchase both counting), so stats keep building even while a
-  // round is in flight. Once the window is full, computes the predicted
-  // digit (first digit with the strictly-highest count, same tie-break as
-  // the XML's ">" comparison chain), resets the window for the next batch,
-  // and — if the digit changed — flags the current proposal stale so the
-  // buy effect waits for a fresh quote before firing.
+  // round is in flight. The window length is NOT fixed: after every tick,
+  // checks whether the leading digit's live percentage (its count ÷ ticks
+  // collected so far) has crossed minConfidencePct — if so, fires right
+  // there, however few or many ticks that took. If no digit has crossed
+  // the threshold yet, maxWindow acts as a safety cap that forces a
+  // decision anyway once reached, using whatever's currently leading.
   useEffect(() => {
     if (!isRunningRef.current) return;
     if (lastDigit === null) return;
@@ -256,16 +267,19 @@ export function useDigitFrequencyAutomation({
     setFreqCounts(counts);
     setTicksCollected(tickCountRef.current);
 
-    if (tickCountRef.current >= settingsRef.current.statsPeriod) {
-      let bestDigit = 0;
-      let bestCount = counts[0];
-      for (let d = 1; d < 10; d++) {
-        if (counts[d] > bestCount) {
-          bestDigit = d;
-          bestCount = counts[d];
-        }
+    let bestDigit = 0;
+    let bestCount = counts[0];
+    for (let d = 1; d < 10; d++) {
+      if (counts[d] > bestCount) {
+        bestDigit = d;
+        bestCount = counts[d];
       }
+    }
+    const leadingPct = (bestCount / tickCountRef.current) * 100;
+    const confidenceReached = leadingPct >= settingsRef.current.minConfidencePct;
+    const capReached = tickCountRef.current >= settingsRef.current.maxWindow;
 
+    if (confidenceReached || capReached) {
       freqCountsRef.current = emptyCounts();
       tickCountRef.current = 0;
       setFreqCounts(emptyCounts());
@@ -413,7 +427,7 @@ export function useDigitFrequencyAutomation({
   const statusMessage = !isValidSetup
     ? 'This bot only supports Matches/Differs.'
     : phase === 'collecting'
-    ? `Working — ${ticksCollected}/${settings.statsPeriod}, round ${Math.min(roundCount + 1, settings.maxRounds)} of ${settings.maxRounds}.`
+    ? `Working — ${ticksCollected}/${settings.maxWindow}, round ${Math.min(roundCount + 1, settings.maxRounds)} of ${settings.maxRounds}.`
     : phase === 'ready'
     ? `Ready — round ${Math.min(roundCount + 1, settings.maxRounds)} of ${settings.maxRounds}.`
     : phase === 'entered'
