@@ -1,0 +1,289 @@
+'use client';
+
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Button } from '@/components/ui/button';
+import { NumberField } from '@/components/custom/automation-controls';
+import type {
+  UseDigitFrequencyAutomationReturn,
+} from '@/hooks/use-digit-frequency-automation';
+import type { ContractMode } from '@/lib/digit-types';
+
+interface DigitFrequencyAutomatedPanelProps {
+  contractMode: ContractMode;
+  onContractModeChange: (mode: ContractMode) => void;
+  stake: string;
+  onStakeChange: (value: string) => void;
+  duration: number;
+  onDurationChange: (value: number) => void;
+  isConnected: boolean;
+  isAuthenticated: boolean;
+  automation: UseDigitFrequencyAutomationReturn;
+}
+
+const MODE_OPTIONS: { value: ContractMode; label: string }[] = [
+  { value: 'DIGITMATCH', label: 'Matches' },
+  { value: 'DIGITDIFF', label: 'Differs' },
+];
+
+const ROUND_OPTIONS = [3, 5, 10, 20, 50, 100];
+
+/**
+ * NEW — second automation option for Matches/Differs, ported from the
+ * uploaded DBot XML strategy (5-tick digit-frequency prediction +
+ * boost-after-loss stake). Separate from, and does not alter,
+ * DigitMatchDiffEntryAutomatedPanel (the "Watcher" bot) — see
+ * hooks/use-digit-frequency-automation.ts for the full logic mapping back
+ * to the original XML.
+ */
+export function DigitFrequencyAutomatedPanel({
+  contractMode,
+  onContractModeChange,
+  stake,
+  onStakeChange,
+  duration,
+  onDurationChange,
+  isConnected,
+  isAuthenticated,
+  automation,
+}: DigitFrequencyAutomatedPanelProps) {
+  const {
+    isRunning,
+    phase,
+    isValidSetup,
+    start,
+    stop,
+    activePosition,
+    results,
+    netProfit,
+    lastError,
+    statusMessage,
+    settings,
+    setSettings,
+    freqCounts,
+    ticksCollected,
+    predictedDigit,
+  } = automation;
+
+  const stakeNum = parseFloat(stake);
+  const canStart =
+    isConnected && isAuthenticated && !isRunning && isValidSetup && !!stakeNum && stakeNum > 0;
+  const isMatch = contractMode === 'DIGITMATCH';
+  const maxCount = Math.max(1, ...freqCounts);
+
+  return (
+    <div className="w-full space-y-1.5 lg:max-w-[240px] lg:space-y-2">
+      <ToggleGroup
+        type="single"
+        value={contractMode}
+        disabled={isRunning}
+        onValueChange={(value) => {
+          if (value) onContractModeChange(value as ContractMode);
+        }}
+        className="w-full gap-0 rounded-full bg-muted p-0.5"
+      >
+        {MODE_OPTIONS.map((opt) => (
+          <ToggleGroupItem
+            key={opt.value}
+            value={opt.value}
+            className="flex-1 h-6 rounded-full text-[10px] font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-primary data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
+          >
+            {opt.label}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
+
+      <div className="rounded-md border border-border bg-muted/30 px-2 py-1 space-y-0.5">
+        <p className="text-[10px] text-muted-foreground">Predicted digit (most frequent)</p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-xs font-medium text-foreground">
+            Last digit of the price will{' '}
+            <span className={isMatch ? 'font-bold text-green-600 dark:text-green-400' : 'font-bold text-red-500'}>
+              {isMatch ? 'match' : 'differ from'}
+            </span>
+          </p>
+          <span
+            className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${
+              isMatch ? 'bg-green-600' : 'bg-red-500'
+            }`}
+          >
+            {predictedDigit ?? '–'}
+          </span>
+        </div>
+      </div>
+
+      {/* Live frequency tally for the in-progress stats window. */}
+      <div className="rounded-md border border-border bg-muted/30 px-2 py-1 space-y-1">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] text-muted-foreground">Collecting ticks</p>
+          <p className="text-[10px] tabular-nums text-muted-foreground">
+            {ticksCollected}/{settings.statsPeriod}
+          </p>
+        </div>
+        <div className="grid grid-cols-10 gap-0.5">
+          {freqCounts.map((count, digit) => (
+            <div key={digit} className="flex flex-col items-center gap-0.5">
+              <div className="h-6 w-full flex items-end rounded-sm bg-muted overflow-hidden">
+                <div
+                  className={`w-full ${digit === predictedDigit ? 'bg-primary' : 'bg-foreground/30'}`}
+                  style={{ height: `${(count / maxCount) * 100}%` }}
+                />
+              </div>
+              <span className="text-[8px] text-muted-foreground">{digit}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <NumberField
+        label="Stake"
+        value={stakeNum || 0}
+        onChange={(value) => onStakeChange(String(value ?? 0))}
+        suffix="USD"
+        disabled={isRunning}
+        step={0.01}
+      />
+      <NumberField
+        label="Duration"
+        value={duration}
+        onChange={(value) => onDurationChange(Math.max(1, Math.round(value ?? 1)))}
+        suffix="ticks"
+        disabled={isRunning}
+        step={1}
+      />
+      <NumberField
+        label="Stats window"
+        value={settings.statsPeriod}
+        onChange={(value) => setSettings({ ...settings, statsPeriod: Math.max(2, Math.round(value ?? 5)) })}
+        suffix="ticks"
+        disabled={isRunning}
+        step={1}
+      />
+
+      <div className="space-y-1">
+        <p className="text-[10px] text-muted-foreground">Rounds</p>
+        <ToggleGroup
+          type="single"
+          value={String(settings.maxRounds)}
+          disabled={isRunning}
+          onValueChange={(value) => {
+            if (value) setSettings({ ...settings, maxRounds: Number(value) });
+          }}
+          className="w-full gap-0.5"
+        >
+          {ROUND_OPTIONS.map((n) => (
+            <ToggleGroupItem
+              key={n}
+              value={String(n)}
+              className="!w-5 !h-5 !min-w-0 !flex-none !px-0 rounded-md border border-border text-[9px] font-medium text-muted-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:font-bold hover:text-foreground"
+            >
+              {n}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      </div>
+
+      <NumberField
+        label="Boost multiplier (after a loss)"
+        value={settings.boostMultiplier}
+        onChange={(value) => setSettings({ ...settings, boostMultiplier: Math.max(1, value ?? 4) })}
+        suffix="×"
+        disabled={isRunning}
+        step={0.5}
+      />
+      <NumberField
+        label="Boost rounds"
+        value={settings.boostRounds}
+        onChange={(value) => setSettings({ ...settings, boostRounds: Math.max(1, Math.round(value ?? 2)) })}
+        disabled={isRunning}
+        step={1}
+      />
+      <NumberField
+        label="Stop-loss"
+        value={settings.lossThreshold ?? 0}
+        onChange={(value) => setSettings({ ...settings, lossThreshold: value && value > 0 ? value : null })}
+        suffix="USD"
+        disabled={isRunning}
+        step={1}
+      />
+      <NumberField
+        label="Take-profit"
+        value={settings.profitThreshold ?? 0}
+        onChange={(value) => setSettings({ ...settings, profitThreshold: value && value > 0 ? value : null })}
+        suffix="USD"
+        disabled={isRunning}
+        step={1}
+      />
+
+      <div className="rounded-md border border-border bg-muted/30 px-2 py-0.5 text-[10px]">
+        {isValidSetup ? (
+          <span className="text-muted-foreground">{statusMessage}</span>
+        ) : (
+          <span className="text-amber-600 dark:text-amber-400">{statusMessage}</span>
+        )}
+      </div>
+
+      <div className="pt-0.5">
+        {isRunning || phase === 'entered' ? (
+          <Button variant="destructive" className="w-full h-7 text-[10px]" onClick={() => stop('Stopped manually')}>
+            Stop
+          </Button>
+        ) : (
+          <Button className="w-full h-7 text-[10px]" disabled={!canStart} onClick={start}>
+            {!isAuthenticated
+              ? 'Log in to trade'
+              : !isConnected
+              ? 'Connecting…'
+              : !isValidSetup
+              ? 'Pick a valid mode'
+              : `Start Bot (${settings.maxRounds} rounds)`}
+          </Button>
+        )}
+      </div>
+
+      {(isRunning || phase === 'entered') && (
+        <div className="rounded-md border border-blue-500/30 bg-blue-500/5 px-2 py-0.5 space-y-0.5 text-[10px]">
+          <p className="text-[10px] font-medium text-blue-500 dark:text-blue-400">
+            {phase === 'entered' ? 'Trade placed — waiting to settle…' : 'Analyzing tick stream…'}
+          </p>
+          {activePosition && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Current value</span>
+              <span className="tabular-nums font-medium">
+                {parseFloat(activePosition.bid_price).toFixed(2)} USD
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {results.length > 0 && (
+        <div className="rounded-md border border-border bg-muted/30 px-2 py-1 space-y-0.5 text-[10px]">
+          <div className="flex justify-between items-center border-b border-border pb-1">
+            <span className="text-muted-foreground">RESULTS</span>
+            <span className={`tabular-nums font-bold ${netProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+              {netProfit >= 0 ? '+' : ''}
+              {netProfit.toFixed(2)} USD
+            </span>
+          </div>
+          {results.map((result, index) => (
+            <div key={result.contractId} className="flex justify-between">
+              <span className="text-muted-foreground">
+                R{index + 1} ${result.stake.toFixed(2)} (digit {result.predictedDigit})
+              </span>
+              <span className={`tabular-nums font-medium ${result.won ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+                {result.won ? '+' : ''}
+                {result.profit.toFixed(2)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {lastError && !isRunning && phase !== 'entered' && (
+        <p className="text-[10px] text-muted-foreground rounded-md border border-border bg-muted/20 px-2 py-1">
+          {lastError}
+        </p>
+      )}
+    </div>
+  );
+}
