@@ -71,7 +71,7 @@ export function DigitFrequencyAutomatedPanel({
   const maxCount = Math.max(1, ...freqCounts);
 
   return (
-    <div className="w-full space-y-1.5 lg:max-w-[240px] lg:space-y-2">
+    <div className="w-full space-y-1 lg:max-w-[240px] lg:space-y-1">
       <ToggleGroup
         type="single"
         value={contractMode}
@@ -92,17 +92,17 @@ export function DigitFrequencyAutomatedPanel({
         ))}
       </ToggleGroup>
 
-      <div className="rounded-md border border-border bg-muted/30 px-2 py-1 space-y-0.5">
-        <p className="text-[10px] text-muted-foreground">Predicted digit (most frequent)</p>
+      <div className="rounded-md border border-border bg-muted/30 px-2 py-0.5 space-y-0">
+        <p className="text-[9px] text-muted-foreground">Prediction</p>
         <div className="flex items-center gap-1.5">
-          <p className="text-xs font-medium text-foreground">
+          <p className="text-[11px] font-medium text-foreground">
             Last digit of the price will{' '}
             <span className={isMatch ? 'font-bold text-green-600 dark:text-green-400' : 'font-bold text-red-500'}>
               {isMatch ? 'match' : 'differ from'}
             </span>
           </p>
           <span
-            className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${
+            className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${
               isMatch ? 'bg-green-600' : 'bg-red-500'
             }`}
           >
@@ -111,24 +111,25 @@ export function DigitFrequencyAutomatedPanel({
         </div>
       </div>
 
-      {/* Live frequency tally for the in-progress stats window. */}
-      <div className="rounded-md border border-border bg-muted/30 px-2 py-1 space-y-1">
+      {/* Live progress readout. Label intentionally generic — deliberately
+          doesn't describe the underlying tick-frequency mechanism. */}
+      <div className="rounded-md border border-border bg-muted/30 px-2 py-0.5 space-y-0.5">
         <div className="flex items-center justify-between">
-          <p className="text-[10px] text-muted-foreground">Collecting ticks</p>
-          <p className="text-[10px] tabular-nums text-muted-foreground">
+          <p className="text-[9px] text-muted-foreground">Status</p>
+          <p className="text-[9px] tabular-nums text-muted-foreground">
             {ticksCollected}/{settings.statsPeriod}
           </p>
         </div>
         <div className="grid grid-cols-10 gap-0.5">
           {freqCounts.map((count, digit) => (
-            <div key={digit} className="flex flex-col items-center gap-0.5">
-              <div className="h-6 w-full flex items-end rounded-sm bg-muted overflow-hidden">
+            <div key={digit} className="flex flex-col items-center gap-0">
+              <div className="h-3 w-full flex items-end rounded-sm bg-muted overflow-hidden">
                 <div
                   className={`w-full ${digit === predictedDigit ? 'bg-primary' : 'bg-foreground/30'}`}
                   style={{ height: `${(count / maxCount) * 100}%` }}
                 />
               </div>
-              <span className="text-[8px] text-muted-foreground">{digit}</span>
+              <span className="text-[7px] text-muted-foreground">{digit}</span>
             </div>
           ))}
         </div>
@@ -159,8 +160,8 @@ export function DigitFrequencyAutomatedPanel({
         step={1}
       />
 
-      <div className="space-y-1">
-        <p className="text-[10px] text-muted-foreground">Rounds</p>
+      <div className="space-y-0.5">
+        <p className="text-[9px] text-muted-foreground">Rounds</p>
         <ToggleGroup
           type="single"
           value={String(settings.maxRounds)}
@@ -174,7 +175,7 @@ export function DigitFrequencyAutomatedPanel({
             <ToggleGroupItem
               key={n}
               value={String(n)}
-              className="!w-5 !h-5 !min-w-0 !flex-none !px-0 rounded-md border border-border text-[9px] font-medium text-muted-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:font-bold hover:text-foreground"
+              className="!w-5 !h-4 !min-w-0 !flex-none !px-0 rounded-md border border-border text-[9px] font-medium text-muted-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:font-bold hover:text-foreground"
             >
               {n}
             </ToggleGroupItem>
@@ -214,7 +215,7 @@ export function DigitFrequencyAutomatedPanel({
         step={1}
       />
 
-      <div className="rounded-md border border-border bg-muted/30 px-2 py-0.5 text-[10px]">
+      <div className="rounded-md border border-border bg-muted/30 px-2 py-0.5 text-[9px]">
         {isValidSetup ? (
           <span className="text-muted-foreground">{statusMessage}</span>
         ) : (
@@ -222,13 +223,13 @@ export function DigitFrequencyAutomatedPanel({
         )}
       </div>
 
-      <div className="pt-0.5">
+      <div>
         {isRunning || phase === 'entered' ? (
-          <Button variant="destructive" className="w-full h-7 text-[10px]" onClick={() => stop('Stopped manually')}>
+          <Button variant="destructive" className="w-full h-6 text-[10px]" onClick={() => stop('Stopped manually')}>
             Stop
           </Button>
         ) : (
-          <Button className="w-full h-7 text-[10px]" disabled={!canStart} onClick={start}>
+          <Button className="w-full h-6 text-[10px]" disabled={!canStart} onClick={start}>
             {!isAuthenticated
               ? 'Log in to trade'
               : !isConnected
@@ -241,9 +242,9 @@ export function DigitFrequencyAutomatedPanel({
       </div>
 
       {(isRunning || phase === 'entered') && (
-        <div className="rounded-md border border-blue-500/30 bg-blue-500/5 px-2 py-0.5 space-y-0.5 text-[10px]">
-          <p className="text-[10px] font-medium text-blue-500 dark:text-blue-400">
-            {phase === 'entered' ? 'Trade placed — waiting to settle…' : 'Analyzing tick stream…'}
+        <div className="rounded-md border border-blue-500/30 bg-blue-500/5 px-2 py-0.5 space-y-0 text-[9px]">
+          <p className="text-[9px] font-medium text-blue-500 dark:text-blue-400">
+            {phase === 'entered' ? 'Trade placed — waiting to settle…' : 'Working…'}
           </p>
           {activePosition && (
             <div className="flex justify-between">
@@ -257,8 +258,8 @@ export function DigitFrequencyAutomatedPanel({
       )}
 
       {results.length > 0 && (
-        <div className="rounded-md border border-border bg-muted/30 px-2 py-1 space-y-0.5 text-[10px]">
-          <div className="flex justify-between items-center border-b border-border pb-1">
+        <div className="rounded-md border border-border bg-muted/30 px-2 py-0.5 space-y-0 text-[9px] max-h-24 overflow-y-auto">
+          <div className="flex justify-between items-center border-b border-border pb-0.5 sticky top-0 bg-muted/30">
             <span className="text-muted-foreground">RESULTS</span>
             <span className={`tabular-nums font-bold ${netProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
               {netProfit >= 0 ? '+' : ''}
@@ -266,7 +267,7 @@ export function DigitFrequencyAutomatedPanel({
             </span>
           </div>
           {results.map((result, index) => (
-            <div key={result.contractId} className="flex justify-between">
+            <div key={result.contractId} className="flex justify-between leading-tight">
               <span className="text-muted-foreground">
                 R{index + 1} ${result.stake.toFixed(2)} (digit {result.predictedDigit})
               </span>
@@ -280,7 +281,7 @@ export function DigitFrequencyAutomatedPanel({
       )}
 
       {lastError && !isRunning && phase !== 'entered' && (
-        <p className="text-[10px] text-muted-foreground rounded-md border border-border bg-muted/20 px-2 py-1">
+        <p className="text-[9px] text-muted-foreground rounded-md border border-border bg-muted/20 px-2 py-0.5">
           {lastError}
         </p>
       )}
