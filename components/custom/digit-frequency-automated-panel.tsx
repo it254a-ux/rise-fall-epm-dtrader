@@ -29,11 +29,13 @@ const ROUND_OPTIONS = [3, 5, 10, 20, 50, 100];
 
 /**
  * NEW — second automation option for Matches/Differs, ported from the
- * uploaded DBot XML strategy (5-tick digit-frequency prediction +
- * boost-after-loss stake). Separate from, and does not alter,
- * DigitMatchDiffEntryAutomatedPanel (the "Watcher" bot) — see
- * hooks/use-digit-frequency-automation.ts for the full logic mapping back
- * to the original XML.
+ * uploaded DBot XML strategy (digit-frequency prediction + boost-after-loss
+ * stake), then refined to fire only once one digit is BOTH strictly alone
+ * in the lead (no tie) AND has reached "Minimum lead count" occurrences —
+ * with no cap on how long the window can run while it waits for that.
+ * Separate from, and does not alter, DigitMatchDiffEntryAutomatedPanel
+ * (the "Watcher" bot) — see hooks/use-digit-frequency-automation.ts for the
+ * full logic mapping back to the original XML and worked examples.
  */
 export function DigitFrequencyAutomatedPanel({
   contractMode,
@@ -112,12 +114,14 @@ export function DigitFrequencyAutomatedPanel({
       </div>
 
       {/* Live progress readout. Label intentionally generic — deliberately
-          doesn't describe the underlying tick-frequency mechanism. */}
+          doesn't describe the underlying tick-frequency mechanism. Window
+          is unbounded, so this shows a running tick count, not a
+          count-toward-a-cap. */}
       <div className="rounded-md border border-border bg-muted/30 px-2 py-0.5 space-y-0.5">
         <div className="flex items-center justify-between">
           <p className="text-[9px] text-muted-foreground">Status</p>
           <p className="text-[9px] tabular-nums text-muted-foreground">
-            {ticksCollected}/{settings.maxWindow}
+            {ticksCollected} tick{ticksCollected === 1 ? '' : 's'}
           </p>
         </div>
         <div className="grid grid-cols-10 gap-0.5">
@@ -162,20 +166,12 @@ export function DigitFrequencyAutomatedPanel({
         step={1}
       />
       <NumberField
-        label="Max window"
-        value={settings.maxWindow}
-        onChange={(value) => setSettings({ ...settings, maxWindow: Math.max(2, Math.round(value ?? 5)) })}
+        label="Minimum lead count"
+        value={settings.minLeadCount}
+        onChange={(value) => setSettings({ ...settings, minLeadCount: Math.max(2, Math.round(value ?? 3)) })}
         suffix="ticks"
         disabled={isRunning}
         step={1}
-      />
-      <NumberField
-        label="Confidence to fire early"
-        value={settings.minConfidencePct}
-        onChange={(value) => setSettings({ ...settings, minConfidencePct: Math.min(100, Math.max(1, Math.round(value ?? 30))) })}
-        suffix="%"
-        disabled={isRunning}
-        step={5}
       />
 
       <div className="space-y-0.5">
