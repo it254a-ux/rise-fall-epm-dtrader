@@ -4,7 +4,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { DigitStatsBar } from '@/components/custom/digit-stats-bar';
 import type { DurationLimits, ProposalInfo } from '@deriv/core';
 import type { ContractMode, TradeType, DigitStats } from '@/lib/digit-types';
 
@@ -57,10 +56,6 @@ function getPredictionText(contractMode: ContractMode): string {
   }
 }
 
-function showDigitGrid(tradeType: TradeType): boolean {
-  return true;
-}
-
 function showDigitInPrediction(contractMode: ContractMode): boolean {
   return contractMode !== 'DIGITEVEN' && contractMode !== 'DIGITODD';
 }
@@ -69,10 +64,6 @@ export function DigitTradePanel({
   tradeType,
   contractMode,
   onContractModeChange,
-  digitStats,
-  lastDigit,
-  selectedDigit,
-  onSelectedDigitChange,
   stake,
   onStakeChange,
   duration,
@@ -80,6 +71,7 @@ export function DigitTradePanel({
   durationLimits,
   proposal,
   isProposalLoading,
+  selectedDigit,
 }: DigitTradePanelProps) {
   const modeOptions = CONTRACT_MODE_OPTIONS[tradeType];
 
@@ -103,17 +95,6 @@ export function DigitTradePanel({
           </ToggleGroupItem>
         ))}
       </ToggleGroup>
-
-      {showDigitGrid(tradeType) && (
-        <div>
-          <DigitStatsBar
-            digitStats={digitStats}
-            selectedDigit={selectedDigit}
-            onDigitSelect={onSelectedDigitChange}
-            lastDigit={lastDigit}
-          />
-        </div>
-      )}
 
       <div className="grid grid-cols-1 gap-1.5">
         <div className="space-y-0.5">
