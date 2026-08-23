@@ -54,7 +54,7 @@ export function NumberField({
           onChange(raw === '' ? null : parseFloat(raw));
         }}
         labelRight={suffix}
-        className="h-6 text-[10px] px-2"
+        className="h-6 md:h-6 py-1 md:py-1 text-[10px] md:text-[10px] px-2"
       />
     </div>
   );
@@ -156,6 +156,21 @@ function InfoTooltip({ text }: { text: string }) {
  * text-xs, now h-6/h-7 + text-[10px]) so this stays consistent everywhere
  * it's used: Rise/Fall, Even/Odd, and the "Initial stake" field on the
  * digit contracts panel.
+ *
+ * FIX: NumberField's Input previously only overrode the base (mobile)
+ * text size and height. The shared Input component (components/ui/input.tsx)
+ * hardcodes "md:text-sm" and "h-10 py-2" as part of its own default
+ * classes, and those don't get replaced by a bare "text-[10px]"/"h-6"
+ * override once the viewport hits the md breakpoint — a responsive variant
+ * only gets overridden by the same variant, not by the base-level class.
+ * That's why these fields rendered noticeably larger on desktop widths
+ * than on mobile, even though the intended compact size was already coded
+ * here. NumberField's className now explicitly repeats the compact size
+ * under md: as well, so it stays compact at every screen width. This is
+ * scoped to NumberField only (not components/ui/input.tsx itself), so no
+ * other input in the app is affected — every panel that already uses
+ * NumberField (Rise/Fall, Even/Odd, and both Matches/Differs bots) simply
+ * now renders at the compact size it was always meant to have.
  */
 export function AutomationControls({
   settings,
@@ -212,7 +227,7 @@ export function AutomationControls({
             min={0}
             onChange={(e) => updateSetting('stakeIncrement', parseFloat(e.target.value) || 0)}
             labelRight="unit"
-            className="h-6 text-[10px] px-2"
+            className="h-6 md:h-6 py-1 md:py-1 text-[10px] md:text-[10px] px-2"
           />
         </div>
       )}
