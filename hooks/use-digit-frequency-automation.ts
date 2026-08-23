@@ -411,11 +411,11 @@ export function useDigitFrequencyAutomation({
       : null;
 
   const statusMessage = !isValidSetup
-    ? 'Frequency automation only supports Matches/Differs.'
+    ? 'This bot only supports Matches/Differs.'
     : phase === 'collecting'
-    ? `Collecting ticks — ${ticksCollected}/${settings.statsPeriod} for round ${Math.min(roundCount + 1, settings.maxRounds)} of ${settings.maxRounds}.`
+    ? `Working — ${ticksCollected}/${settings.statsPeriod}, round ${Math.min(roundCount + 1, settings.maxRounds)} of ${settings.maxRounds}.`
     : phase === 'ready'
-    ? `Predicted digit ${predictedDigit ?? selectedDigit} — waiting for a fresh quote…`
+    ? `Ready — round ${Math.min(roundCount + 1, settings.maxRounds)} of ${settings.maxRounds}.`
     : phase === 'entered'
     ? 'Trade placed — waiting for it to settle.'
     : 'Idle';
