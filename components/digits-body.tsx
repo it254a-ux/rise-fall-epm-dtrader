@@ -12,6 +12,7 @@ import { DigitAutomatedPanel } from '@/components/custom/digit-automated-panel';
 import { DigitEntryAutomatedPanel } from '@/components/custom/digit-entry-automated-panel';
 import { DigitMatchDiffEntryAutomatedPanel } from '@/components/custom/digit-match-diff-entry-automated-panel';
 import { DigitFrequencyAutomatedPanel } from '@/components/custom/digit-frequency-automated-panel';
+import { DigitStatsBar } from '@/components/custom/digit-stats-bar';
 import { TradeBody } from '@/components/trade-body';
 import { useMartingaleAutomation } from '@/hooks/use-martingale-automation';
 import { useDigitsEntryAutomation } from '@/hooks/use-digits-entry-automation';
@@ -340,99 +341,115 @@ export function DigitsBody({
   );
 
   return (
-    <TradeBody
-      chart={chart}
-      isLoading={isLoading}
-      tradeMode={tradeMode}
-      onModeChange={handleModeChange}
-      onOpenBotLibrary={handleOpenBotLibrary}
-      label={TRADE_TYPE_LABELS[tradeType]}
-      activeTradeType={activeTradeType}
-      onSelectTradeType={onSelectTradeType}
-      buyButton={buyButton}
-    >
-      {tradeMode === 'manual' ? (
-        <DigitTradePanel
-          tradeType={tradeType}
-          contractMode={contractMode}
-          onContractModeChange={setContractMode}
-          digitStats={digitStats}
-          lastDigit={lastDigit}
-          selectedDigit={selectedDigit}
-          onSelectedDigitChange={setSelectedDigit}
-          stake={stake}
-          onStakeChange={setStake}
-          duration={duration}
-          onDurationChange={setDuration}
-          durationLimits={durationLimits}
-          proposal={proposal}
-          isProposalLoading={isProposalLoading}
-        />
-      ) : isOverUnder ? (
-        <DigitEntryAutomatedPanel
-          contractMode={contractMode}
-          onContractModeChange={setContractMode}
-          digitStats={digitStats}
-          lastDigit={lastDigit}
-          selectedDigit={selectedDigit}
-          onSelectedDigitChange={setSelectedDigit}
-          stake={stake}
-          onStakeChange={setStake}
-          duration={duration}
-          onDurationChange={setDuration}
-          durationLimits={durationLimits}
-          isConnected={isConnected}
-          isAuthenticated={isAuthenticated}
-          automation={overUnderAutomation}
-        />
-      ) : isMatchesDiffers ? (
-        <div className="w-full space-y-1.5 lg:max-w-[240px] lg:space-y-2">
-          {matchDiffBotToggle}
-          {matchDiffBotType === 'watcher' ? (
-            <DigitMatchDiffEntryAutomatedPanel
-              contractMode={contractMode}
-              onContractModeChange={setContractMode}
-              digitStats={digitStats}
-              lastDigit={lastDigit}
-              selectedDigit={selectedDigit}
-              onSelectedDigitChange={setSelectedDigit}
-              stake={stake}
-              onStakeChange={setStake}
-              duration={duration}
-              onDurationChange={setDuration}
-              durationLimits={durationLimits}
-              isConnected={isConnected}
-              isAuthenticated={isAuthenticated}
-              automation={matchDiffAutomation}
-            />
-          ) : (
-            <DigitFrequencyAutomatedPanel
-              contractMode={contractMode}
-              onContractModeChange={setContractMode}
-              stake={stake}
-              onStakeChange={setStake}
-              duration={duration}
-              onDurationChange={setDuration}
-              isConnected={isConnected}
-              isAuthenticated={isAuthenticated}
-              automation={frequencyAutomation}
-            />
-          )}
-        </div>
-      ) : (
-        <DigitAutomatedPanel
-          tradeType={tradeType}
-          contractMode={contractMode}
-          onContractModeChange={setContractMode}
-          digitStats={digitStats}
-          lastDigit={lastDigit}
-          selectedDigit={selectedDigit}
-          onSelectedDigitChange={setSelectedDigit}
-          isConnected={isConnected}
-          isAuthenticated={isAuthenticated}
-          automation={martingaleAutomation}
-        />
-      )}
-    </TradeBody>
+    <>
+      {/* Rendered here — a sibling of TradeBody, outside the manual/automated
+          switch below — so it stays mounted across every mode and every bot
+          (Watcher, Frequency, Over/Under automation, Even/Odd automation).
+          It's a `position: fixed` overlay internally, so its place in the
+          tree doesn't affect where it appears on screen; only whether it's
+          mounted at all. Previously it lived inside DigitTradePanel, which
+          only rendered in manual mode — that's why it used to vanish the
+          moment you switched to an automated bot. */}
+      <DigitStatsBar
+        digitStats={digitStats}
+        selectedDigit={selectedDigit}
+        onDigitSelect={setSelectedDigit}
+        lastDigit={lastDigit}
+      />
+      <TradeBody
+        chart={chart}
+        isLoading={isLoading}
+        tradeMode={tradeMode}
+        onModeChange={handleModeChange}
+        onOpenBotLibrary={handleOpenBotLibrary}
+        label={TRADE_TYPE_LABELS[tradeType]}
+        activeTradeType={activeTradeType}
+        onSelectTradeType={onSelectTradeType}
+        buyButton={buyButton}
+      >
+        {tradeMode === 'manual' ? (
+          <DigitTradePanel
+            tradeType={tradeType}
+            contractMode={contractMode}
+            onContractModeChange={setContractMode}
+            digitStats={digitStats}
+            lastDigit={lastDigit}
+            selectedDigit={selectedDigit}
+            onSelectedDigitChange={setSelectedDigit}
+            stake={stake}
+            onStakeChange={setStake}
+            duration={duration}
+            onDurationChange={setDuration}
+            durationLimits={durationLimits}
+            proposal={proposal}
+            isProposalLoading={isProposalLoading}
+          />
+        ) : isOverUnder ? (
+          <DigitEntryAutomatedPanel
+            contractMode={contractMode}
+            onContractModeChange={setContractMode}
+            digitStats={digitStats}
+            lastDigit={lastDigit}
+            selectedDigit={selectedDigit}
+            onSelectedDigitChange={setSelectedDigit}
+            stake={stake}
+            onStakeChange={setStake}
+            duration={duration}
+            onDurationChange={setDuration}
+            durationLimits={durationLimits}
+            isConnected={isConnected}
+            isAuthenticated={isAuthenticated}
+            automation={overUnderAutomation}
+          />
+        ) : isMatchesDiffers ? (
+          <div className="w-full space-y-1.5 lg:max-w-[240px] lg:space-y-2">
+            {matchDiffBotToggle}
+            {matchDiffBotType === 'watcher' ? (
+              <DigitMatchDiffEntryAutomatedPanel
+                contractMode={contractMode}
+                onContractModeChange={setContractMode}
+                digitStats={digitStats}
+                lastDigit={lastDigit}
+                selectedDigit={selectedDigit}
+                onSelectedDigitChange={setSelectedDigit}
+                stake={stake}
+                onStakeChange={setStake}
+                duration={duration}
+                onDurationChange={setDuration}
+                durationLimits={durationLimits}
+                isConnected={isConnected}
+                isAuthenticated={isAuthenticated}
+                automation={matchDiffAutomation}
+              />
+            ) : (
+              <DigitFrequencyAutomatedPanel
+                contractMode={contractMode}
+                onContractModeChange={setContractMode}
+                stake={stake}
+                onStakeChange={setStake}
+                duration={duration}
+                onDurationChange={setDuration}
+                isConnected={isConnected}
+                isAuthenticated={isAuthenticated}
+                automation={frequencyAutomation}
+              />
+            )}
+          </div>
+        ) : (
+          <DigitAutomatedPanel
+            tradeType={tradeType}
+            contractMode={contractMode}
+            onContractModeChange={setContractMode}
+            digitStats={digitStats}
+            lastDigit={lastDigit}
+            selectedDigit={selectedDigit}
+            onSelectedDigitChange={setSelectedDigit}
+            isConnected={isConnected}
+            isAuthenticated={isAuthenticated}
+            automation={martingaleAutomation}
+          />
+        )}
+      </TradeBody>
+    </>
   );
 }
