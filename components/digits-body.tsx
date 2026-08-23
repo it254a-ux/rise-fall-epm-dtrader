@@ -6,14 +6,17 @@ import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { DigitTradePanel } from '@/components/custom/digit-trade-panel';
 import { DigitAutomatedPanel } from '@/components/custom/digit-automated-panel';
 import { DigitEntryAutomatedPanel } from '@/components/custom/digit-entry-automated-panel';
 import { DigitMatchDiffEntryAutomatedPanel } from '@/components/custom/digit-match-diff-entry-automated-panel';
+import { DigitFrequencyAutomatedPanel } from '@/components/custom/digit-frequency-automated-panel';
 import { TradeBody } from '@/components/trade-body';
 import { useMartingaleAutomation } from '@/hooks/use-martingale-automation';
 import { useDigitsEntryAutomation } from '@/hooks/use-digits-entry-automation';
 import { useDigitsMatchDiffEntryAutomation } from '@/hooks/use-digits-match-diff-entry-automation';
+import { useDigitFrequencyAutomation } from '@/hooks/use-digit-frequency-automation';
 import type { AuthState, ActiveSymbol, ProposalInfo, DurationLimits, BuyResult, DerivWS } from '@deriv/core';
 import type { ContractMode, TradeType, DigitStats } from '@/lib/digit-types';
 import type { UseSmartChartsApiReturn } from '@/hooks/use-smartcharts-api';
@@ -32,6 +35,19 @@ const TRADE_TYPE_LABELS: Record<TradeType, string> = {
   'over-under': 'Over/Under',
   'even-odd': 'Even/Odd',
 };
+
+/** Which Matches/Differs automated bot is active. Watcher = original
+ * entry-watcher bot (fires instantly the moment the selected digit lands).
+ * Frequency = NEW, ported from the uploaded DBot XML strategy (predicts
+ * the digit off a rolling 5-tick frequency window, boosts stake after a
+ * loss). Defaults to Watcher — no change to existing behavior unless the
+ * user explicitly switches. */
+type MatchDiffBotType = 'watcher' | 'frequency';
+
+const MATCH_DIFF_BOT_OPTIONS: { value: MatchDiffBotType; label: string }[] = [
+  { value: 'watcher', label: 'Watcher' },
+  { value: 'frequency', label: 'Frequency' },
+];
 
 export interface DigitsBodyProps {
   authState: AuthState;
@@ -109,6 +125,7 @@ export function DigitsBody({
   onSelectTradeType,
 }: DigitsBodyProps) {
   const [tradeMode, setTradeMode] = useState<'manual' | 'automated'>('manual');
+  const [matchDiffBotType, setMatchDiffBotType] = useState<MatchDiffBotType>('watcher');
   const isAuthenticated = authState === 'authenticated';
   const isMobile = useIsMobile();
 
@@ -156,10 +173,11 @@ export function DigitsBody({
     setSelectedDigit,
   });
 
-  // NEW — entry-watcher automation for Matches/Differs, completely separate
-  // hook from the Over/Under one above (which is untouched). Watches for
-  // the selected digit itself (no offset), with an optional Bounce Mode
-  // that steps the digit 0→9→0 each round instead of staying fixed.
+  // Entry-watcher automation for Matches/Differs ("Watcher" bot), completely
+  // separate hook from the Over/Under one above (which is untouched).
+  // Watches for the selected digit itself (no offset), with an optional
+  // Bounce/Random Mode that moves the digit each round instead of staying
+  // fixed.
   const matchDiffAutomation = useDigitsMatchDiffEntryAutomation({
     isConnected,
     isAuthenticated,
@@ -178,25 +196,65 @@ export function DigitsBody({
     setSelectedDigit,
   });
 
+  // NEW — "Frequency" bot for Matches/Differs, ported from the uploaded
+  // DBot XML strategy. Predicts the digit off a rolling stats window
+  // instead of waiting for a specific digit to land, and boosts stake for
+  // a fixed number of rounds after a loss. Selectable alongside the
+  // Watcher bot via the toggle rendered below; Watcher remains the default
+  // so nothing changes unless this is explicitly picked.
+  const frequencyAutomation = useDigitFrequencyAutomation({
+    isConnected,
+    isAuthenticated,
+    contractMode,
+    lastDigit,
+    proposal,
+    buyContract,
+    isBuying,
+    buyResult,
+    buyError,
+    clearBuyResult,
+    openPositions,
+    stake,
+    setStake,
+    selectedDigit,
+    setSelectedDigit,
+  });
+
   const isOverUnder = tradeType === 'over-under';
   const isMatchesDiffers = tradeType === 'matches-differs';
+  const isMatchDiffWatcher = isMatchesDiffers && matchDiffBotType === 'watcher';
+  const isMatchDiffFrequency = isMatchesDiffers && matchDiffBotType === 'frequency';
+
   const activeIsRunning = isOverUnder
     ? overUnderAutomation.isRunning
-    : isMatchesDiffers
+    : isMatchDiffWatcher
     ? matchDiffAutomation.isRunning
+    : isMatchDiffFrequency
+    ? frequencyAutomation.isRunning
     : martingaleAutomation.isRunning;
 
   const handleModeChange = (mode: 'manual' | 'automated') => {
     if (mode === 'manual' && activeIsRunning) {
       if (isOverUnder) {
         overUnderAutomation.stop('Stopped manually');
-      } else if (isMatchesDiffers) {
+      } else if (isMatchDiffWatcher) {
         matchDiffAutomation.stop('Stopped manually');
+      } else if (isMatchDiffFrequency) {
+        frequencyAutomation.stop('Stopped manually');
       } else {
         martingaleAutomation.stop();
       }
     }
     setTradeMode(mode);
+  };
+
+  // Switching bot type mid-run would leave the previous bot's automation
+  // dangling in a running state with no visible controls, so stop it first.
+  const handleMatchDiffBotTypeChange = (next: MatchDiffBotType) => {
+    if (next === matchDiffBotType) return;
+    if (matchDiffAutomation.isRunning) matchDiffAutomation.stop('Switched bot');
+    if (frequencyAutomation.isRunning) frequencyAutomation.stop('Switched bot');
+    setMatchDiffBotType(next);
   };
 
   // TODO(D6): BOT_LIBRARY currently only contains Rise/Fall-shaped programs
@@ -258,6 +316,29 @@ export function DigitsBody({
     </div>
   );
 
+  // Bot-type toggle — only shown for Matches/Differs while in automated
+  // mode, so Over/Under, Even/Odd, and manual trading are all unaffected.
+  const matchDiffBotToggle = isMatchesDiffers && tradeMode === 'automated' && (
+    <ToggleGroup
+      type="single"
+      value={matchDiffBotType}
+      onValueChange={(value) => {
+        if (value) handleMatchDiffBotTypeChange(value as MatchDiffBotType);
+      }}
+      className="w-full gap-0 rounded-full bg-muted p-0.5 lg:max-w-[240px]"
+    >
+      {MATCH_DIFF_BOT_OPTIONS.map((opt) => (
+        <ToggleGroupItem
+          key={opt.value}
+          value={opt.value}
+          className="flex-1 h-6 rounded-full text-[10px] font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-primary data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
+        >
+          {opt.label}
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
+  );
+
   return (
     <TradeBody
       chart={chart}
@@ -305,22 +386,39 @@ export function DigitsBody({
           automation={overUnderAutomation}
         />
       ) : isMatchesDiffers ? (
-        <DigitMatchDiffEntryAutomatedPanel
-          contractMode={contractMode}
-          onContractModeChange={setContractMode}
-          digitStats={digitStats}
-          lastDigit={lastDigit}
-          selectedDigit={selectedDigit}
-          onSelectedDigitChange={setSelectedDigit}
-          stake={stake}
-          onStakeChange={setStake}
-          duration={duration}
-          onDurationChange={setDuration}
-          durationLimits={durationLimits}
-          isConnected={isConnected}
-          isAuthenticated={isAuthenticated}
-          automation={matchDiffAutomation}
-        />
+        <div className="w-full space-y-1.5 lg:max-w-[240px] lg:space-y-2">
+          {matchDiffBotToggle}
+          {matchDiffBotType === 'watcher' ? (
+            <DigitMatchDiffEntryAutomatedPanel
+              contractMode={contractMode}
+              onContractModeChange={setContractMode}
+              digitStats={digitStats}
+              lastDigit={lastDigit}
+              selectedDigit={selectedDigit}
+              onSelectedDigitChange={setSelectedDigit}
+              stake={stake}
+              onStakeChange={setStake}
+              duration={duration}
+              onDurationChange={setDuration}
+              durationLimits={durationLimits}
+              isConnected={isConnected}
+              isAuthenticated={isAuthenticated}
+              automation={matchDiffAutomation}
+            />
+          ) : (
+            <DigitFrequencyAutomatedPanel
+              contractMode={contractMode}
+              onContractModeChange={setContractMode}
+              stake={stake}
+              onStakeChange={setStake}
+              duration={duration}
+              onDurationChange={setDuration}
+              isConnected={isConnected}
+              isAuthenticated={isAuthenticated}
+              automation={frequencyAutomation}
+            />
+          )}
+        </div>
       ) : (
         <DigitAutomatedPanel
           tradeType={tradeType}
