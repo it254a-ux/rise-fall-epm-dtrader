@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import type { DigitStats } from '@/lib/digit-types';
 
 interface DigitStatsBarProps {
@@ -71,6 +72,20 @@ function ScanningIndicator() {
         }}
       />
     </span>
+  );
+}
+
+/** Small grip icon — visual affordance that the header row is a drag handle. */
+function GripIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, opacity: 0.6 }}>
+      <circle cx="5" cy="3.5" r="1.2" fill="currentColor" />
+      <circle cx="11" cy="3.5" r="1.2" fill="currentColor" />
+      <circle cx="5" cy="8" r="1.2" fill="currentColor" />
+      <circle cx="11" cy="8" r="1.2" fill="currentColor" />
+      <circle cx="5" cy="12.5" r="1.2" fill="currentColor" />
+      <circle cx="11" cy="12.5" r="1.2" fill="currentColor" />
+    </svg>
   );
 }
 
@@ -253,39 +268,119 @@ export function DigitStatsBar({
   const minPct = Math.min(...digitStats.percentages);
   const hasData = digitStats.totalTicks > 0;
 
+  // FLOATING / DRAGGABLE — this bar now renders as a fixed overlay instead
+  // of inline in the trade panel's column, so it floats on top of the
+  // chart. Defaults to centered, near the bottom of the screen. Dragging
+  // the header row (title + scanning indicator, marked with a grip icon)
+  // repositions it anywhere on screen; position is kept in state only
+  // (not persisted), so it resets to the default spot on reload — same as
+  // every other panel control, none of which persist across reloads either.
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const dragState = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+
+  const handlePointerMove = (e: PointerEvent) => {
+    if (!dragState.current || !containerRef.current) return;
+    const dx = e.clientX - dragState.current.startX;
+    const dy = e.clientY - dragState.current.startY;
+    let newX = dragState.current.origX + dx;
+    let newY = dragState.current.origY + dy;
+    const w = containerRef.current.offsetWidth;
+    const h = containerRef.current.offsetHeight;
+    newX = Math.min(Math.max(0, newX), window.innerWidth - w);
+    newY = Math.min(Math.max(0, newY), window.innerHeight - h);
+    setPos({ x: newX, y: newY });
+  };
+
+  const handlePointerUp = () => {
+    dragState.current = null;
+    window.removeEventListener('pointermove', handlePointerMove);
+    window.removeEventListener('pointerup', handlePointerUp);
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (!containerRef.current) return;
+    e.preventDefault();
+    const rect = containerRef.current.getBoundingClientRect();
+    dragState.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      origX: rect.left,
+      origY: rect.top,
+    };
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+  };
+
+  useEffect(() => {
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <div className="h-full flex flex-col min-h-0">
+    <div
+      ref={containerRef}
+      style={{
+        position: 'fixed',
+        zIndex: 9999,
+        ...(pos
+          ? { left: pos.x, top: pos.y }
+          : { left: '50%', bottom: '88px', transform: 'translateX(-50%)' }),
+        width: 'min(92vw, 260px)',
+        background: 'rgba(17,24,39,0.92)',
+        backdropFilter: 'blur(6px)',
+        WebkitBackdropFilter: 'blur(6px)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: '12px',
+        padding: '8px 10px',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.45)',
+      }}
+    >
       <ScanStyles />
-      <div className="flex items-center gap-1.5 mb-1">
-        <span className="text-[10px] text-muted-foreground">
-          Last digit prediction
-        </span>
-        <ScanningIndicator />
-      </div>
-      <div className="flex-1 flex items-start min-h-0">
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(5, minmax(32px, 1fr))',
-            gap: '6px 6px',
-            placeItems: 'center',
-            width: '100%',
-          }}
-        >
-          {digitStats.percentages.map((pct, digit) => (
-            <DigitCircle
-              key={digit}
-              digit={digit}
-              pct={pct}
-              isSelected={digit === selectedDigit}
-              isLast={digit === lastDigit}
-              isHighest={hasData && pct === maxPct}
-              isLowest={hasData && pct === minPct}
-              hasData={hasData}
-              onClick={() => onDigitSelect(digit)}
-            />
-          ))}
+      <div
+        onPointerDown={handlePointerDown}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '6px',
+          marginBottom: '6px',
+          cursor: 'grab',
+          touchAction: 'none',
+          color: '#9ca3af',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span className="text-[10px] text-muted-foreground">Last digit prediction</span>
+          <ScanningIndicator />
         </div>
+        <GripIcon />
+      </div>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(5, minmax(32px, 1fr))',
+          gap: '6px 6px',
+          placeItems: 'center',
+          width: '100%',
+        }}
+      >
+        {digitStats.percentages.map((pct, digit) => (
+          <DigitCircle
+            key={digit}
+            digit={digit}
+            pct={pct}
+            isSelected={digit === selectedDigit}
+            isLast={digit === lastDigit}
+            isHighest={hasData && pct === maxPct}
+            isLowest={hasData && pct === minPct}
+            hasData={hasData}
+            onClick={() => onDigitSelect(digit)}
+          />
+        ))}
       </div>
     </div>
   );
