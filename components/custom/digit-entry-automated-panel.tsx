@@ -4,7 +4,6 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { NumberField } from '@/components/custom/automation-controls';
-import { DigitStatsBar } from '@/components/custom/digit-stats-bar';
 import type { UseDigitsEntryAutomationReturn, EntryStrategy } from '@/hooks/use-digits-entry-automation';
 import type { ContractMode, DigitStats } from '@/lib/digit-types';
 import type { DurationLimits } from '@deriv/core';
@@ -143,15 +142,6 @@ export function DigitEntryAutomatedPanel({
             {selectedDigit}
           </span>
         </div>
-      </div>
-
-      <div>
-        <DigitStatsBar
-          digitStats={digitStats}
-          selectedDigit={selectedDigit}
-          onDigitSelect={onSelectedDigitChange}
-          lastDigit={lastDigit}
-        />
       </div>
 
       <NumberField
