@@ -3,7 +3,6 @@
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Button } from '@/components/ui/button';
 import { NumberField } from '@/components/custom/automation-controls';
-import { DigitStatsBar } from '@/components/custom/digit-stats-bar';
 import type {
   UseDigitsMatchDiffEntryAutomationReturn,
   DigitShiftMode,
@@ -60,14 +59,23 @@ const SHIFT_MODE_OPTIONS: { value: DigitShiftMode; label: string }[] = [
  * (predictable 0→9→0 step) or Flex (fresh random digit each round, no
  * detectable pattern). Results ledger intentionally does not show which
  * digit each round watched, same privacy policy as the Over/Under panel.
+ *
+ * FIX: this panel previously rendered its own <DigitStatsBar> inline,
+ * duplicating the single global instance that digits-body.tsx now renders
+ * as a fixed overlay for every mode/bot. Having two mounted at once (one
+ * from here, one global) was causing the overlapping "double floating
+ * container" bug that only showed up in Watcher mode — the Frequency
+ * panel never had its own copy, which is why it always looked correct.
+ * Removed here; digitStats/lastDigit/selectedDigit/onSelectedDigitChange
+ * props are still accepted (still used elsewhere in this panel and still
+ * passed down from digits-body.tsx) but are no longer forwarded into a
+ * second DigitStatsBar.
  */
 export function DigitMatchDiffEntryAutomatedPanel({
   contractMode,
   onContractModeChange,
-  digitStats,
   lastDigit,
   selectedDigit,
-  onSelectedDigitChange,
   stake,
   onStakeChange,
   duration,
@@ -137,15 +145,6 @@ export function DigitMatchDiffEntryAutomatedPanel({
             {selectedDigit}
           </span>
         </div>
-      </div>
-
-      <div>
-        <DigitStatsBar
-          digitStats={digitStats}
-          selectedDigit={selectedDigit}
-          onDigitSelect={onSelectedDigitChange}
-          lastDigit={lastDigit}
-        />
       </div>
 
       <NumberField
