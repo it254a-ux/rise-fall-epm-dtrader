@@ -43,7 +43,7 @@ const TRADE_TYPE_LABELS: Record<TradeType, string> = {
  * entry-watcher bot (fires instantly the moment the selected digit lands).
  * Frequency = predicts the digit off a rolling stats window (unique
  * leader + minimum lead count), boosts stake after a loss. Consecutive =
- * NEW — fires the instant any digit lands twice in a row, no window/lead
+ * fires the instant any digit lands twice in a row, no window/lead
  * logic, flat stake, same feature set as Watcher otherwise. Defaults to
  * Watcher — no change to existing behavior unless the user explicitly
  * switches. */
@@ -223,7 +223,7 @@ export function DigitsBody({
     setSelectedDigit,
   });
 
-  // NEW — "Consecutive" bot for Matches/Differs. Fires the instant any
+  // "Consecutive" bot for Matches/Differs. Fires the instant any
   // digit lands twice in a row; otherwise identical feature set to
   // Watcher (flat stake, Rounds cap, no boost/SL/TP). Selectable alongside
   // Watcher and Frequency via the toggle rendered below.
@@ -362,7 +362,7 @@ export function DigitsBody({
         <ToggleGroupItem
           key={opt.value}
           value={opt.value}
-          className="flex-1 h-6 rounded-full text-[10px] font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-primary data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
+          className="flex-1 h-6 rounded-full text-[8px] font-medium text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-primary data-[state=on]:font-bold data-[state=on]:shadow-sm hover:text-foreground"
         >
           {opt.label}
         </ToggleGroupItem>
