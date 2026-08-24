@@ -28,18 +28,21 @@ const MODE_OPTIONS: { value: ContractMode; label: string }[] = [
 const ROUND_OPTIONS = [3, 5, 10, 20, 50, 100];
 
 /**
- * NEW — third automation option for Matches/Differs (alongside Watcher and
+ * Third automation option for Matches/Differs (alongside Watcher and
  * Frequency). Carries the same feature set as the Watcher panel — Matches/
- * Differs toggle, Prediction box, Stake, Duration, Rounds, Start/Stop,
- * results ledger — with no boost/stop-loss/take-profit settings, matching
- * what Watcher's own panel exposes. No digit-selection Mode selector
- * either (Watcher's Hold/Swing/Flex), since this bot never pre-selects a
- * digit to watch — see hooks/use-digit-consecutive-automation.ts for the
- * consecutive-match entrance strategy this bot uses instead.
+ * Differs toggle, Prediction box, Stake/Duration fields, Rounds,
+ * Start/Stop, results ledger — plus the same risk-management fields as
+ * the Frequency panel: Boost multiplier, Boost rounds, Stop-loss,
+ * Take-profit. No digit-selection Mode selector (Watcher's Hold/Swing/
+ * Flex), since this bot never pre-selects a digit to watch — see
+ * hooks/use-digit-consecutive-automation.ts for the consecutive-match
+ * entrance strategy this bot uses instead. No "Minimum lead count" field
+ * either — that one is specific to Frequency's window/tie-break logic and
+ * has no equivalent in Consecutive's "two-in-a-row" rule.
  *
- * Adds one thing Watcher doesn't have: a live 2-slot percentage display,
- * same visual style as the Frequency bot's internal Status grid — shows
- * the currently pending digit at 50% (seen once, waiting for a repeat),
+ * Adds one thing Watcher doesn't have: a live 10-slot percentage display,
+ * same visual style as the Frequency bot's Status grid — shows the
+ * currently pending digit at 50% (seen once, waiting for a repeat),
  * jumping to 100% the instant it repeats and fires.
  */
 export function DigitConsecutiveAutomatedPanel({
@@ -75,7 +78,6 @@ export function DigitConsecutiveAutomatedPanel({
   const canStart =
     isConnected && isAuthenticated && !isRunning && isValidSetup && !!stakeNum && stakeNum > 0;
   const isMatch = contractMode === 'DIGITMATCH';
-  const maxCount = Math.max(1, ...freqCounts);
 
   return (
     <div className="w-full space-y-1 lg:max-w-[240px] lg:space-y-1">
@@ -119,8 +121,11 @@ export function DigitConsecutiveAutomatedPanel({
       </div>
 
       {/* Live 2-slot percentage readout — pending digit at 50%, jumps to
-          100% on a repeat, then resets. Same visual pattern as the
-          Frequency bot's internal Status grid. */}
+          100% on a repeat, then resets. Each column's container fills
+          from empty toward full exactly as its percentage grows (half
+          full at 50%, completely full at 100%), with the percentage
+          shown inside the container itself and the digit number below
+          it. */}
       <div className="rounded-md border border-border bg-muted/30 px-2 py-0.5 space-y-0.5">
         <div className="flex items-center justify-between">
           <p className="text-[9px] text-muted-foreground">Status</p>
@@ -132,20 +137,24 @@ export function DigitConsecutiveAutomatedPanel({
           {freqCounts.map((count, digit) => {
             const pct = ticksCollected > 0 ? Math.round((count / ticksCollected) * 100) : 0;
             return (
-              <div key={digit} className="flex flex-col items-center gap-0">
-                <div className="h-3 w-full flex items-end rounded-sm bg-muted overflow-hidden">
+              <div key={digit} className="flex flex-col items-center gap-0.5">
+                <div className="relative h-8 w-full rounded-sm bg-muted overflow-hidden">
                   <div
-                    className={`w-full ${digit === predictedDigit ? 'bg-primary' : 'bg-foreground/30'}`}
-                    style={{ height: `${(count / maxCount) * 100}%` }}
+                    className={`absolute bottom-0 left-0 w-full transition-all duration-300 ${
+                      digit === predictedDigit ? 'bg-primary' : 'bg-foreground/30'
+                    }`}
+                    style={{ height: `${pct}%` }}
                   />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span
+                      className={`text-[7px] font-bold tabular-nums ${
+                        digit === predictedDigit ? 'text-primary-foreground' : 'text-foreground'
+                      }`}
+                    >
+                      {pct}%
+                    </span>
+                  </div>
                 </div>
-                <span
-                  className={`text-[7px] tabular-nums leading-none ${
-                    digit === predictedDigit ? 'text-primary font-bold' : 'text-muted-foreground'
-                  }`}
-                >
-                  {pct}%
-                </span>
                 <span className="text-[7px] text-muted-foreground leading-none">{digit}</span>
               </div>
             );
@@ -192,6 +201,38 @@ export function DigitConsecutiveAutomatedPanel({
           ))}
         </ToggleGroup>
       </div>
+
+      <NumberField
+        label="Boost multiplier (after a loss)"
+        value={settings.boostMultiplier}
+        onChange={(value) => setSettings({ ...settings, boostMultiplier: Math.max(1, value ?? 1) })}
+        suffix="×"
+        disabled={isRunning}
+        step={0.5}
+      />
+      <NumberField
+        label="Boost rounds"
+        value={settings.boostRounds}
+        onChange={(value) => setSettings({ ...settings, boostRounds: Math.max(0, Math.round(value ?? 0)) })}
+        disabled={isRunning}
+        step={1}
+      />
+      <NumberField
+        label="Stop-loss"
+        value={settings.stopLoss}
+        onChange={(value) => setSettings({ ...settings, stopLoss: Math.max(0, value ?? 0) })}
+        suffix="USD"
+        disabled={isRunning}
+        step={0.5}
+      />
+      <NumberField
+        label="Take-profit"
+        value={settings.takeProfit}
+        onChange={(value) => setSettings({ ...settings, takeProfit: Math.max(0, value ?? 0) })}
+        suffix="USD"
+        disabled={isRunning}
+        step={0.5}
+      />
 
       <div className="rounded-md border border-border bg-muted/30 px-2 py-0.5 text-[9px]">
         {isValidSetup ? (
