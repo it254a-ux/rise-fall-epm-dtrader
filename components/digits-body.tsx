@@ -12,12 +12,14 @@ import { DigitAutomatedPanel } from '@/components/custom/digit-automated-panel';
 import { DigitEntryAutomatedPanel } from '@/components/custom/digit-entry-automated-panel';
 import { DigitMatchDiffEntryAutomatedPanel } from '@/components/custom/digit-match-diff-entry-automated-panel';
 import { DigitFrequencyAutomatedPanel } from '@/components/custom/digit-frequency-automated-panel';
+import { DigitConsecutiveAutomatedPanel } from '@/components/custom/digit-consecutive-automated-panel';
 import { DigitStatsBar } from '@/components/custom/digit-stats-bar';
 import { TradeBody } from '@/components/trade-body';
 import { useMartingaleAutomation } from '@/hooks/use-martingale-automation';
 import { useDigitsEntryAutomation } from '@/hooks/use-digits-entry-automation';
 import { useDigitsMatchDiffEntryAutomation } from '@/hooks/use-digits-match-diff-entry-automation';
 import { useDigitFrequencyAutomation } from '@/hooks/use-digit-frequency-automation';
+import { useDigitConsecutiveAutomation } from '@/hooks/use-digit-consecutive-automation';
 import type { AuthState, ActiveSymbol, ProposalInfo, DurationLimits, BuyResult, DerivWS } from '@deriv/core';
 import type { ContractMode, TradeType, DigitStats } from '@/lib/digit-types';
 import type { UseSmartChartsApiReturn } from '@/hooks/use-smartcharts-api';
@@ -39,15 +41,18 @@ const TRADE_TYPE_LABELS: Record<TradeType, string> = {
 
 /** Which Matches/Differs automated bot is active. Watcher = original
  * entry-watcher bot (fires instantly the moment the selected digit lands).
- * Frequency = NEW, ported from the uploaded DBot XML strategy (predicts
- * the digit off a rolling 5-tick frequency window, boosts stake after a
- * loss). Defaults to Watcher — no change to existing behavior unless the
- * user explicitly switches. */
-type MatchDiffBotType = 'watcher' | 'frequency';
+ * Frequency = predicts the digit off a rolling stats window (unique
+ * leader + minimum lead count), boosts stake after a loss. Consecutive =
+ * NEW — fires the instant any digit lands twice in a row, no window/lead
+ * logic, flat stake, same feature set as Watcher otherwise. Defaults to
+ * Watcher — no change to existing behavior unless the user explicitly
+ * switches. */
+type MatchDiffBotType = 'watcher' | 'frequency' | 'consecutive';
 
 const MATCH_DIFF_BOT_OPTIONS: { value: MatchDiffBotType; label: string }[] = [
   { value: 'watcher', label: 'Watcher' },
   { value: 'frequency', label: 'Frequency' },
+  { value: 'consecutive', label: 'Consecutive' },
 ];
 
 export interface DigitsBodyProps {
@@ -197,13 +202,32 @@ export function DigitsBody({
     setSelectedDigit,
   });
 
-  // NEW — "Frequency" bot for Matches/Differs, ported from the uploaded
-  // DBot XML strategy. Predicts the digit off a rolling stats window
-  // instead of waiting for a specific digit to land, and boosts stake for
-  // a fixed number of rounds after a loss. Selectable alongside the
-  // Watcher bot via the toggle rendered below; Watcher remains the default
-  // so nothing changes unless this is explicitly picked.
+  // "Frequency" bot for Matches/Differs. Predicts the digit off a rolling
+  // stats window instead of waiting for a specific digit to land, and
+  // boosts stake for a fixed number of rounds after a loss.
   const frequencyAutomation = useDigitFrequencyAutomation({
+    isConnected,
+    isAuthenticated,
+    contractMode,
+    lastDigit,
+    proposal,
+    buyContract,
+    isBuying,
+    buyResult,
+    buyError,
+    clearBuyResult,
+    openPositions,
+    stake,
+    setStake,
+    selectedDigit,
+    setSelectedDigit,
+  });
+
+  // NEW — "Consecutive" bot for Matches/Differs. Fires the instant any
+  // digit lands twice in a row; otherwise identical feature set to
+  // Watcher (flat stake, Rounds cap, no boost/SL/TP). Selectable alongside
+  // Watcher and Frequency via the toggle rendered below.
+  const consecutiveAutomation = useDigitConsecutiveAutomation({
     isConnected,
     isAuthenticated,
     contractMode,
@@ -225,6 +249,7 @@ export function DigitsBody({
   const isMatchesDiffers = tradeType === 'matches-differs';
   const isMatchDiffWatcher = isMatchesDiffers && matchDiffBotType === 'watcher';
   const isMatchDiffFrequency = isMatchesDiffers && matchDiffBotType === 'frequency';
+  const isMatchDiffConsecutive = isMatchesDiffers && matchDiffBotType === 'consecutive';
 
   const activeIsRunning = isOverUnder
     ? overUnderAutomation.isRunning
@@ -232,6 +257,8 @@ export function DigitsBody({
     ? matchDiffAutomation.isRunning
     : isMatchDiffFrequency
     ? frequencyAutomation.isRunning
+    : isMatchDiffConsecutive
+    ? consecutiveAutomation.isRunning
     : martingaleAutomation.isRunning;
 
   const handleModeChange = (mode: 'manual' | 'automated') => {
@@ -242,6 +269,8 @@ export function DigitsBody({
         matchDiffAutomation.stop('Stopped manually');
       } else if (isMatchDiffFrequency) {
         frequencyAutomation.stop('Stopped manually');
+      } else if (isMatchDiffConsecutive) {
+        consecutiveAutomation.stop('Stopped manually');
       } else {
         martingaleAutomation.stop();
       }
@@ -255,6 +284,7 @@ export function DigitsBody({
     if (next === matchDiffBotType) return;
     if (matchDiffAutomation.isRunning) matchDiffAutomation.stop('Switched bot');
     if (frequencyAutomation.isRunning) frequencyAutomation.stop('Switched bot');
+    if (consecutiveAutomation.isRunning) consecutiveAutomation.stop('Switched bot');
     setMatchDiffBotType(next);
   };
 
@@ -344,12 +374,10 @@ export function DigitsBody({
     <>
       {/* Rendered here — a sibling of TradeBody, outside the manual/automated
           switch below — so it stays mounted across every mode and every bot
-          (Watcher, Frequency, Over/Under automation, Even/Odd automation).
-          It's a `position: fixed` overlay internally, so its place in the
-          tree doesn't affect where it appears on screen; only whether it's
-          mounted at all. Previously it lived inside DigitTradePanel, which
-          only rendered in manual mode — that's why it used to vanish the
-          moment you switched to an automated bot. */}
+          (Watcher, Frequency, Consecutive, Over/Under automation, Even/Odd
+          automation). It's a `position: fixed` overlay internally, so its
+          place in the tree doesn't affect where it appears on screen; only
+          whether it's mounted at all. */}
       <DigitStatsBar
         digitStats={digitStats}
         selectedDigit={selectedDigit}
@@ -421,7 +449,7 @@ export function DigitsBody({
                 isAuthenticated={isAuthenticated}
                 automation={matchDiffAutomation}
               />
-            ) : (
+            ) : matchDiffBotType === 'frequency' ? (
               <DigitFrequencyAutomatedPanel
                 contractMode={contractMode}
                 onContractModeChange={setContractMode}
@@ -432,6 +460,18 @@ export function DigitsBody({
                 isConnected={isConnected}
                 isAuthenticated={isAuthenticated}
                 automation={frequencyAutomation}
+              />
+            ) : (
+              <DigitConsecutiveAutomatedPanel
+                contractMode={contractMode}
+                onContractModeChange={setContractMode}
+                stake={stake}
+                onStakeChange={setStake}
+                duration={duration}
+                onDurationChange={setDuration}
+                isConnected={isConnected}
+                isAuthenticated={isAuthenticated}
+                automation={consecutiveAutomation}
               />
             )}
           </div>
