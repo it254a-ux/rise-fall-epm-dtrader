@@ -64,6 +64,14 @@ export interface DigitsBodyProps {
   selectSymbol: (symbol: string) => void;
   digitStats: DigitStats;
   lastDigit: number | null;
+  /**
+   * BUGFIX — the current tick's epoch (unix timestamp). Passed straight
+   * through to the Consecutive bot so it can tell two back-to-back ticks
+   * with the SAME digit apart (lastDigit alone doesn't change in that
+   * case, so React would otherwise skip re-running the detection effect).
+   * Optional — every other bot on this page is unaffected either way.
+   */
+  lastTickEpoch?: number | null;
   tradeType: TradeType;
   setTradeType: (type: TradeType) => void;
   contractMode: ContractMode;
@@ -105,6 +113,7 @@ export function DigitsBody({
   selectSymbol,
   digitStats,
   lastDigit,
+  lastTickEpoch,
   tradeType,
   contractMode,
   setContractMode,
@@ -227,11 +236,16 @@ export function DigitsBody({
   // digit lands twice in a row; otherwise identical feature set to
   // Watcher (flat stake, Rounds cap, no boost/SL/TP). Selectable alongside
   // Watcher and Frequency via the toggle rendered below.
+  //
+  // BUGFIX: lastTickEpoch is now passed through so the hook can detect
+  // back-to-back ticks landing on the same digit — see the prop's doc
+  // comment above and the hook's own file header for why this was needed.
   const consecutiveAutomation = useDigitConsecutiveAutomation({
     isConnected,
     isAuthenticated,
     contractMode,
     lastDigit,
+    tickEpoch: lastTickEpoch,
     proposal,
     buyContract,
     isBuying,
