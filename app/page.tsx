@@ -206,6 +206,7 @@ export default function RiseFallPage() {
           selectSymbol={digits.selectSymbol}
           digitStats={digits.digitStats}
           lastDigit={digits.lastDigit}
+          lastTickEpoch={digits.currentTick?.epoch ?? null}
           tradeType={digits.tradeType}
           setTradeType={digits.setTradeType}
           contractMode={digits.contractMode}
