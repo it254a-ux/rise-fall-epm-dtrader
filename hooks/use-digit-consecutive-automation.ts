@@ -16,7 +16,7 @@ export interface ConsecutiveResult {
 }
 
 /**
- * NEW — third automation option for Matches/Differs, alongside Watcher
+ * Third automation option for Matches/Differs, alongside Watcher
  * (use-digits-match-diff-entry-automation.ts) and Frequency
  * (use-digit-frequency-automation.ts), neither of which this file touches.
  *
@@ -34,12 +34,12 @@ export interface ConsecutiveResult {
  * repeats it jumps to 100% and the trade fires; then it resets to empty
  * and starts waiting for the next candidate digit.
  *
- * Otherwise carries the same feature set as the Watcher bot (Stake,
- * Duration, Rounds, Start/Stop, results ledger) — no boost-after-loss,
- * stop-loss, or take-profit settings, matching what Watcher's own panel
- * exposes. No "which digit to watch" setting either (Watcher's Hold/
- * Swing/Flex), since this bot never pre-selects a digit — it's decided
- * entirely by which digit repeats.
+ * Risk management: same boost-after-loss / stop-loss / take-profit rule
+ * as the Frequency bot. A loss at the base stake boosts the stake by
+ * `boostMultiplier` for the next `boostRounds` rounds, regardless of
+ * whether those rounds win or lose, then automatically reverts to base.
+ * `stopLoss` and `takeProfit` (both 0 = disabled) independently end the
+ * run early based on cumulative profit, on top of the `maxRounds` cap.
  *
  * Architecture note: same async proposal/buyContract purchase flow as the
  * other two Matches/Differs bots — once a repeat is detected, this hook
@@ -48,10 +48,26 @@ export interface ConsecutiveResult {
 export interface ConsecutiveAutomationSettings {
   /** Hard cap on rounds placed before the run stops on its own. */
   maxRounds: number;
+  /** Stake multiplier applied for `boostRounds` rounds after a loss at
+   *  the base stake (e.g. 4 means 4x base stake). */
+  boostMultiplier: number;
+  /** How many rounds stay boosted after a base-stake loss, regardless of
+   *  whether those boosted rounds win or lose. */
+  boostRounds: number;
+  /** Cumulative loss (positive number, USD) at which the run stops
+   *  itself early. 0 disables this check. */
+  stopLoss: number;
+  /** Cumulative profit (positive number, USD) at which the run stops
+   *  itself early. 0 disables this check. */
+  takeProfit: number;
 }
 
 export const DEFAULT_CONSECUTIVE_SETTINGS: ConsecutiveAutomationSettings = {
   maxRounds: 5,
+  boostMultiplier: 4,
+  boostRounds: 2,
+  stopLoss: 0,
+  takeProfit: 0,
 };
 
 interface UseDigitConsecutiveAutomationParams {
@@ -139,6 +155,13 @@ export function useDigitConsecutiveAutomation({
   const hasFired = useRef(false);
   const pendingContractId = useRef<number | null>(null);
   const currentStakeRef = useRef(0);
+  // Base stake for the run (what the trader configured) — boosted rounds
+  // are computed as a multiple of this, not of whatever currentStakeRef
+  // happens to be, so boosts never compound on top of each other.
+  const baseStakeRef = useRef(0);
+  // How many upcoming rounds (including the one about to be placed) still
+  // owe a boosted stake. Sits at 0 when at base stake.
+  const boostRoundsLeftRef = useRef(0);
   // The digit currently "pending" — seen on the previous tick, waiting to
   // see whether the next tick repeats it. Null = nothing pending yet.
   const pendingDigitRef = useRef<number | null>(null);
@@ -172,6 +195,8 @@ export function useDigitConsecutiveAutomation({
     pendingContractId.current = null;
     isRunningRef.current = true;
     currentStakeRef.current = startingStake;
+    baseStakeRef.current = startingStake;
+    boostRoundsLeftRef.current = 0;
     pendingDigitRef.current = null;
     staleProposalId.current = null;
 
@@ -283,9 +308,9 @@ export function useDigitConsecutiveAutomation({
     clearBuyResult();
   }, [buyError, phase, clearBuyResult]);
 
-  // SETTLE — round count, then the single stop check (max rounds). No
-  // boost/stop-loss/take-profit — this bot keeps a flat stake, matching
-  // what Watcher's panel exposes.
+  // SETTLE — round count, boost-after-loss stake sizing, then the three
+  // stop checks (max rounds, stop-loss, take-profit), same pattern as the
+  // Frequency bot.
   useEffect(() => {
     if (phase !== 'entered') return;
     const contractId = pendingContractId.current;
@@ -324,11 +349,44 @@ export function useDigitConsecutiveAutomation({
       return;
     }
 
-    if (nextRoundCount >= settings.maxRounds) {
+    // Boost-after-loss stake sizing for the NEXT round. A loss at the
+    // base stake starts a boosted streak of `boostRounds` rounds at
+    // base * boostMultiplier, regardless of whether those boosted rounds
+    // win or lose; once the streak completes, it reverts to base.
+    const { boostMultiplier, boostRounds, stopLoss, takeProfit, maxRounds } = settingsRef.current;
+    if (boostRoundsLeftRef.current > 0) {
+      boostRoundsLeftRef.current -= 1;
+      currentStakeRef.current =
+        boostRoundsLeftRef.current > 0 ? baseStakeRef.current * boostMultiplier : baseStakeRef.current;
+    } else if (!won) {
+      boostRoundsLeftRef.current = boostRounds;
+      currentStakeRef.current = baseStakeRef.current * boostMultiplier;
+    } else {
+      currentStakeRef.current = baseStakeRef.current;
+    }
+    setStake(String(currentStakeRef.current));
+
+    if (nextRoundCount >= maxRounds) {
       isRunningRef.current = false;
       setIsRunning(false);
       setPhaseBoth('idle');
-      setStopReason(`Reached max rounds (${settings.maxRounds}).`);
+      setStopReason(`Reached max rounds (${maxRounds}).`);
+      return;
+    }
+
+    if (stopLoss > 0 && nextNet <= -stopLoss) {
+      isRunningRef.current = false;
+      setIsRunning(false);
+      setPhaseBoth('idle');
+      setStopReason(`Stop-loss reached (down ${Math.abs(nextNet).toFixed(2)} USD).`);
+      return;
+    }
+
+    if (takeProfit > 0 && nextNet >= takeProfit) {
+      isRunningRef.current = false;
+      setIsRunning(false);
+      setPhaseBoth('idle');
+      setStopReason(`Take-profit reached (up ${nextNet.toFixed(2)} USD).`);
       return;
     }
 
@@ -342,7 +400,7 @@ export function useDigitConsecutiveAutomation({
       setPhaseBoth('collecting');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openPositions, phase, roundCount, netProfit, settings, selectedDigit]);
+  }, [openPositions, phase, roundCount, netProfit, selectedDigit, setStake]);
 
   const activePosition =
     activeContractId !== null
