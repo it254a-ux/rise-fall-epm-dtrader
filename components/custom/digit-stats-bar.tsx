@@ -308,7 +308,7 @@ export function DigitStatsBar({
         zIndex: 9999,
         ...(pos
           ? { left: pos.x, top: pos.y }
-          : { left: 'calc(50% + 130px)', top: '54px' }),
+          : { left: 'calc(50% + 10px)', top: '54px' }),
         width: 'min(92vw, 260px)',
         background: 'transparent',
         border: 'none',
