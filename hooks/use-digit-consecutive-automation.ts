@@ -44,6 +44,15 @@ export interface ConsecutiveResult {
  * Architecture note: same async proposal/buyContract purchase flow as the
  * other two Matches/Differs bots — once a repeat is detected, this hook
  * waits for a fresh proposal priced for that digit + stake before firing.
+ *
+ * BUGFIX (double-tick / same-digit-in-a-row not detected): the COLLECT
+ * effect below used to depend only on `lastDigit`, a plain number. React
+ * skips re-running an effect when a dependency's value is unchanged
+ * (Object.is) — so two consecutive ticks that happen to land on the SAME
+ * digit (e.g. 6 then 6) never re-triggered this effect at all, meaning
+ * the exact "two in a row" case this bot is built around could silently
+ * fail to fire. Fixed by also depending on `tickEpoch`, which changes on
+ * every tick even when the digit repeats, so no tick is ever skipped.
  */
 export interface ConsecutiveAutomationSettings {
   /** Hard cap on rounds placed before the run stops on its own. */
@@ -75,6 +84,15 @@ interface UseDigitConsecutiveAutomationParams {
   isAuthenticated: boolean;
   contractMode: ContractMode;
   lastDigit: number | null;
+  /**
+   * BUGFIX — the current tick's epoch (unix timestamp), used purely as a
+   * change-detection signal alongside lastDigit. See the file header note
+   * above for why this is necessary. Optional so any other caller of this
+   * hook that hasn't been updated yet doesn't break — if omitted, the
+   * hook falls back to the old (buggy) behavior of only watching
+   * lastDigit.
+   */
+  tickEpoch?: number | null;
   proposal: ProposalInfo | null;
   buyContract: () => Promise<void>;
   isBuying: boolean;
@@ -123,6 +141,7 @@ export function useDigitConsecutiveAutomation({
   isAuthenticated,
   contractMode,
   lastDigit,
+  tickEpoch,
   proposal,
   buyContract,
   isBuying,
@@ -237,6 +256,14 @@ export function useDigitConsecutiveAutomation({
   // repeat of the pending digit (fire) or becomes the new pending digit
   // (keep waiting). No window, no tally across many digits — only the
   // immediately preceding tick ever matters.
+  //
+  // BUGFIX: depends on both lastDigit AND tickEpoch. lastDigit alone is
+  // not enough — React's Object.is dependency check means an effect does
+  // not re-run when a dependency's value is identical to last time, so
+  // back-to-back ticks landing on the same digit (e.g. 6 then 6) would
+  // never re-trigger this effect if it only watched lastDigit. tickEpoch
+  // changes on literally every tick regardless of digit, so it forces the
+  // effect to run every time, closing that gap.
   useEffect(() => {
     if (!isRunningRef.current) return;
     if (lastDigit === null) return;
@@ -277,7 +304,7 @@ export function useDigitConsecutiveAutomation({
       setTicksCollected(2);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastDigit]);
+  }, [lastDigit, tickEpoch]);
 
   // BUY — fires once a live proposal reflects the predicted digit + intended stake.
   useEffect(() => {
