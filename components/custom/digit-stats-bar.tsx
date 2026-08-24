@@ -21,9 +21,6 @@ interface DigitCircleProps {
   onClick: () => void;
 }
 
-/** Keyframes for the small "scanning" indicator next to the prediction
- *  label, and for the selected-digit pulse ring. Injected once via a
- *  <style> tag so no separate CSS file needs to be touched. */
 const SCAN_STYLE_ID = 'digit-stats-scan-styles';
 function ScanStyles() {
   return (
@@ -41,9 +38,6 @@ function ScanStyles() {
   );
 }
 
-/** Small rectangle with a sweeping line inside — signals that the digit
- *  stats bar is actively watching the live tick stream (independent of
- *  whether an automated bot is armed/running). */
 function ScanningIndicator() {
   return (
     <span
@@ -75,7 +69,6 @@ function ScanningIndicator() {
   );
 }
 
-/** Small grip icon — visual affordance that the header row is a drag handle. */
 function GripIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, opacity: 0.6 }}>
@@ -107,9 +100,6 @@ function DigitCircle({
   const dashOffset = circumference * (1 - fillRatio);
   const insetPct = ((strokeWidth + 2) / viewBoxSize) * 100;
 
-  // Selected uses its own colour (amber) so it never gets visually confused
-  // with the highest/lowest-probability highlighting, which used to share
-  // the same cyan as "selected" and made the actual pick hard to spot.
   const arcColor = isSelected
     ? '#f59e0b'
     : isLowest
@@ -188,9 +178,6 @@ function DigitCircle({
             overflow: 'hidden',
           }}
         >
-          {/* Fixed px sizes, not vw — vw sizes off the full viewport width,
-              not this circle, which is what caused the numbers to overflow
-              and overlap when the panel column is narrow. */}
           <span
             style={{
               color: '#ffffff',
@@ -268,13 +255,6 @@ export function DigitStatsBar({
   const minPct = Math.min(...digitStats.percentages);
   const hasData = digitStats.totalTicks > 0;
 
-  // FLOATING / DRAGGABLE — this bar renders as a fixed overlay instead of
-  // inline in the trade panel's column, so it floats on top of the chart.
-  // Defaults to the bottom-right corner. Dragging the header row (title +
-  // scanning indicator, marked with a grip icon) repositions it anywhere
-  // on screen; position is kept in state only (not persisted), so it
-  // resets to the default spot on reload — same as every other panel
-  // control, none of which persist across reloads either.
   const containerRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const dragState = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
@@ -328,7 +308,7 @@ export function DigitStatsBar({
         zIndex: 9999,
         ...(pos
           ? { left: pos.x, top: pos.y }
-          : { right: '16px', bottom: '16px' }),
+          : { left: '50%', top: '54px', transform: 'translateX(-50%)' }),
         width: 'min(92vw, 260px)',
         background: 'transparent',
         border: 'none',
