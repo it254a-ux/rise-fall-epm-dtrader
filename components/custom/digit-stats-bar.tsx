@@ -268,13 +268,13 @@ export function DigitStatsBar({
   const minPct = Math.min(...digitStats.percentages);
   const hasData = digitStats.totalTicks > 0;
 
-  // FLOATING / DRAGGABLE — this bar now renders as a fixed overlay instead
-  // of inline in the trade panel's column, so it floats on top of the
-  // chart. Defaults to centered, near the bottom of the screen. Dragging
-  // the header row (title + scanning indicator, marked with a grip icon)
-  // repositions it anywhere on screen; position is kept in state only
-  // (not persisted), so it resets to the default spot on reload — same as
-  // every other panel control, none of which persist across reloads either.
+  // FLOATING / DRAGGABLE — this bar renders as a fixed overlay instead of
+  // inline in the trade panel's column, so it floats on top of the chart.
+  // Defaults to the bottom-right corner. Dragging the header row (title +
+  // scanning indicator, marked with a grip icon) repositions it anywhere
+  // on screen; position is kept in state only (not persisted), so it
+  // resets to the default spot on reload — same as every other panel
+  // control, none of which persist across reloads either.
   const containerRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const dragState = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
@@ -330,13 +330,11 @@ export function DigitStatsBar({
           ? { left: pos.x, top: pos.y }
           : { right: '16px', bottom: '16px' }),
         width: 'min(92vw, 260px)',
-        background: 'rgba(17,24,39,0.92)',
-        backdropFilter: 'blur(6px)',
-        WebkitBackdropFilter: 'blur(6px)',
-        border: '1px solid rgba(255,255,255,0.08)',
+        background: 'transparent',
+        border: 'none',
         borderRadius: '12px',
         padding: '8px 10px',
-        boxShadow: '0 8px 24px rgba(0,0,0,0.45)',
+        boxShadow: 'none',
       }}
     >
       <ScanStyles />
