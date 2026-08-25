@@ -147,38 +147,73 @@ export function SmartChartWrapper({
     };
   }, []);
 
-  // Belt-and-suspenders JS companion to the CSS rule in custom.css.
+  // ── MOBILE FIX: Glass-pane tap blocker ────────────────────────────────────
+  // Flutter web injects an <flt-glass-pane> element that covers the entire
+  // viewport during initialization. It captures ALL pointer events at the
+  // browser engine level — including taps on buttons and toggles outside the
+  // chart — before CSS pointer-events rules on parent React elements can act.
   //
-  // Flutter web injects an <flt-glass-pane> element that captures ALL pointer
-  // input at the browser engine level — including vertical scroll — regardless
-  // of any CSS pointer-events rules set on parent React elements. The CSS fix
-  // (flt-glass-pane { touch-action: pan-y }) handles this at parse time, but
-  // some Android WebViews apply inline element styles lazily, creating a brief
-  // gap where the glass pane still blocks scroll. This MutationObserver fires
-  // the instant Flutter injects the element and immediately applies touchAction
-  // via JS, closing that gap and guaranteeing smooth scroll from the first touch.
+  // The existing CSS fix (touch-action: pan-y) only allows scroll gestures
+  // through; it does NOT let taps reach DOM elements underneath. That's why
+  // the automation panel (buttons, toggles, inputs) is dead for ~2 minutes
+  // after page load: the glass pane eats every tap.
+  //
+  // This effect watches for the glass pane, measures whether it is still
+  // full-screen (≥95% of viewport), and temporarily sets pointer-events: none
+  // on it while it covers the whole page. When Flutter shrinks the pane to
+  // only the chart canvas area, the observer removes pointer-events: none so
+  // the chart itself can receive touches normally. Old/removed panes are
+  // cleaned up automatically.
   useEffect(() => {
-    const applyScrollFix = (el: HTMLElement) => {
-      el.style.touchAction = 'pan-y';
+    const managedPanes = new WeakSet<HTMLElement>();
+    const observers: ResizeObserver[] = [];
+
+    const isFullScreen = (el: HTMLElement) => {
+      const rect = el.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      return rect.width >= vw * 0.95 && rect.height >= vh * 0.95;
     };
 
-    // Glass pane may already exist if Flutter initialized very quickly
-    const existing = document.querySelector('flt-glass-pane') as HTMLElement | null;
-    if (existing) {
-      applyScrollFix(existing);
-      return;
-    }
+    const applyFix = (pane: HTMLElement) => {
+      if (managedPanes.has(pane)) return;
+      managedPanes.add(pane);
 
-    // Watch for Flutter to inject the glass pane into the DOM
-    const observer = new MutationObserver(() => {
-      const pane = document.querySelector('flt-glass-pane') as HTMLElement | null;
-      if (pane) {
-        applyScrollFix(pane);
-        observer.disconnect();
+      // Start with pointer-events: none if the pane is full-screen
+      if (isFullScreen(pane)) {
+        pane.style.pointerEvents = 'none';
+      }
+
+      const ro = new ResizeObserver(() => {
+        if (isFullScreen(pane)) {
+          pane.style.pointerEvents = 'none';
+        } else {
+          pane.style.pointerEvents = '';
+        }
+      });
+      ro.observe(pane);
+      observers.push(ro);
+    };
+
+    // Handle already-existing panes
+    document.querySelectorAll('flt-glass-pane').forEach(p => applyFix(p as HTMLElement));
+
+    // Watch for new panes
+    const mo = new MutationObserver(mutations => {
+      for (const m of mutations) {
+        for (const node of m.addedNodes) {
+          if (node instanceof HTMLElement && node.tagName.toLowerCase() === 'flt-glass-pane') {
+            applyFix(node);
+          }
+        }
       }
     });
-    observer.observe(document.documentElement, { childList: true, subtree: true });
-    return () => observer.disconnect();
+    mo.observe(document.documentElement, { childList: true, subtree: true });
+
+    return () => {
+      mo.disconnect();
+      observers.forEach(o => o.disconnect());
+    };
   }, []);
 
   // FIX (part 1 — page zoom): trackpad pinch and ctrl+scroll-wheel gestures
