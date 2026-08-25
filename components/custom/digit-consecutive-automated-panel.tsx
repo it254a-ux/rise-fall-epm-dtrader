@@ -308,7 +308,7 @@ export function DigitConsecutiveAutomatedPanel({
           {results.map((result, index) => (
             <div key={result.contractId} className="flex justify-between leading-tight">
               <span className="text-muted-foreground">
-                Digit {result.predictedDigit}
+                R{index + 1}
               </span>
               <span className={`tabular-nums font-medium ${result.won ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
                 {result.won ? '+' : ''}
