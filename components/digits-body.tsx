@@ -5,9 +5,7 @@ import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { DigitTradePanel } from '@/components/custom/digit-trade-panel';
 import { DigitAutomatedPanel } from '@/components/custom/digit-automated-panel';
 import { DigitEntryAutomatedPanel } from '@/components/custom/digit-entry-automated-panel';
 import { DigitMatchDiffEntryAutomatedPanel } from '@/components/custom/digit-match-diff-entry-automated-panel';
@@ -105,8 +103,17 @@ export interface DigitsBodyProps {
   onSelectTradeType?: (type: string) => void;
 }
 
+/**
+ * Manual trading (DigitTradePanel) and the Bot library have been removed
+ * — Automated trading is now the only mode, so tradeMode/handleModeChange
+ * and the manual branch below are gone. duration/setDuration/
+ * durationLimits are still used here — the automated Over/Under and
+ * Matches/Differs panels rely on them for the contract's expiry setting,
+ * same as before. isProposalLoading remains in this component's props for
+ * interface compatibility with page.tsx, but isn't consumed here (it was
+ * only ever used by the now-removed manual panel).
+ */
 export function DigitsBody({
-  authState,
   isConnected,
   isLoading,
   activeSymbol,
@@ -125,7 +132,6 @@ export function DigitsBody({
   setDuration,
   durationLimits,
   proposal,
-  isProposalLoading,
   buyContract,
   isBuying,
   buyResult,
@@ -138,8 +144,8 @@ export function DigitsBody({
   unsubscribeQuotes,
   activeTradeType,
   onSelectTradeType,
+  authState,
 }: DigitsBodyProps) {
-  const [tradeMode, setTradeMode] = useState<'manual' | 'automated'>('manual');
   const [matchDiffBotType, setMatchDiffBotType] = useState<MatchDiffBotType>('watcher');
   const isAuthenticated = authState === 'authenticated';
   const isMobile = useIsMobile();
@@ -261,36 +267,6 @@ export function DigitsBody({
 
   const isOverUnder = tradeType === 'over-under';
   const isMatchesDiffers = tradeType === 'matches-differs';
-  const isMatchDiffWatcher = isMatchesDiffers && matchDiffBotType === 'watcher';
-  const isMatchDiffFrequency = isMatchesDiffers && matchDiffBotType === 'frequency';
-  const isMatchDiffConsecutive = isMatchesDiffers && matchDiffBotType === 'consecutive';
-
-  const activeIsRunning = isOverUnder
-    ? overUnderAutomation.isRunning
-    : isMatchDiffWatcher
-    ? matchDiffAutomation.isRunning
-    : isMatchDiffFrequency
-    ? frequencyAutomation.isRunning
-    : isMatchDiffConsecutive
-    ? consecutiveAutomation.isRunning
-    : martingaleAutomation.isRunning;
-
-  const handleModeChange = (mode: 'manual' | 'automated') => {
-    if (mode === 'manual' && activeIsRunning) {
-      if (isOverUnder) {
-        overUnderAutomation.stop('Stopped manually');
-      } else if (isMatchDiffWatcher) {
-        matchDiffAutomation.stop('Stopped manually');
-      } else if (isMatchDiffFrequency) {
-        frequencyAutomation.stop('Stopped manually');
-      } else if (isMatchDiffConsecutive) {
-        consecutiveAutomation.stop('Stopped manually');
-      } else {
-        martingaleAutomation.stop();
-      }
-    }
-    setTradeMode(mode);
-  };
 
   // Switching bot type mid-run would leave the previous bot's automation
   // dangling in a running state with no visible controls, so stop it first.
@@ -300,14 +276,6 @@ export function DigitsBody({
     if (frequencyAutomation.isRunning) frequencyAutomation.stop('Switched bot');
     if (consecutiveAutomation.isRunning) consecutiveAutomation.stop('Switched bot');
     setMatchDiffBotType(next);
-  };
-
-  // TODO(D6): BOT_LIBRARY currently only contains Rise/Fall-shaped programs
-  // (direction/duration/durationUnit, no contractMode/digit fields), so
-  // there's nothing safe to apply to digit contracts yet. Wire this once
-  // digit bots exist in lib/bots-library.ts.
-  const handleOpenBotLibrary = () => {
-    // no-op for now — see TODO above
   };
 
   // Buy purchase-result toasts — previously lived inside DigitTradePanel
@@ -345,25 +313,9 @@ export function DigitsBody({
     <Skeleton className="h-full w-full rounded-md" />
   );
 
-  const buyButton = (
-    <div className="w-full mb-3 max-lg:relative max-lg:z-[9999]">
-      <Button
-        className="w-full h-8 rounded-full px-4 text-xs"
-        disabled={!isConnected || !proposal || isBuying}
-        onClick={buyContract}
-      >
-        {isBuying
-          ? 'Purchasing...'
-          : proposal
-            ? `Buy @ ${proposal.askPrice.toFixed(2)} USD`
-            : 'Buy Contract'}
-      </Button>
-    </div>
-  );
-
-  // Bot-type toggle — only shown for Matches/Differs while in automated
-  // mode, so Over/Under, Even/Odd, and manual trading are all unaffected.
-  const matchDiffBotToggle = isMatchesDiffers && tradeMode === 'automated' && (
+  // Bot-type toggle — only shown for Matches/Differs, so Over/Under and
+  // Even/Odd are unaffected.
+  const matchDiffBotToggle = isMatchesDiffers && (
     <ToggleGroup
       type="single"
       value={matchDiffBotType}
@@ -386,12 +338,11 @@ export function DigitsBody({
 
   return (
     <>
-      {/* Rendered here — a sibling of TradeBody, outside the manual/automated
-          switch below — so it stays mounted across every mode and every bot
-          (Watcher, Frequency, Consecutive, Over/Under automation, Even/Odd
-          automation). It's a `position: fixed` overlay internally, so its
-          place in the tree doesn't affect where it appears on screen; only
-          whether it's mounted at all. */}
+      {/* Rendered here — a sibling of TradeBody — so it stays mounted
+          across every bot (Watcher, Frequency, Consecutive, Over/Under
+          automation, Even/Odd automation). It's a `position: fixed`
+          overlay internally, so its place in the tree doesn't affect
+          where it appears on screen; only whether it's mounted at all. */}
       <DigitStatsBar
         digitStats={digitStats}
         selectedDigit={selectedDigit}
@@ -401,32 +352,11 @@ export function DigitsBody({
       <TradeBody
         chart={chart}
         isLoading={isLoading}
-        tradeMode={tradeMode}
-        onModeChange={handleModeChange}
-        onOpenBotLibrary={handleOpenBotLibrary}
         label={TRADE_TYPE_LABELS[tradeType]}
         activeTradeType={activeTradeType}
         onSelectTradeType={onSelectTradeType}
-        buyButton={buyButton}
       >
-        {tradeMode === 'manual' ? (
-          <DigitTradePanel
-            tradeType={tradeType}
-            contractMode={contractMode}
-            onContractModeChange={setContractMode}
-            digitStats={digitStats}
-            lastDigit={lastDigit}
-            selectedDigit={selectedDigit}
-            onSelectedDigitChange={setSelectedDigit}
-            stake={stake}
-            onStakeChange={setStake}
-            duration={duration}
-            onDurationChange={setDuration}
-            durationLimits={durationLimits}
-            proposal={proposal}
-            isProposalLoading={isProposalLoading}
-          />
-        ) : isOverUnder ? (
+        {isOverUnder ? (
           <DigitEntryAutomatedPanel
             contractMode={contractMode}
             onContractModeChange={setContractMode}
