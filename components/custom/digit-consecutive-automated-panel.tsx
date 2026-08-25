@@ -44,6 +44,15 @@ const ROUND_OPTIONS = [3, 5, 10, 20, 50, 100];
  * same visual style as the Frequency bot's Status grid — shows the
  * currently pending digit at 50% (seen once, waiting for a repeat),
  * jumping to 100% the instant it repeats and fires.
+ *
+ * LAYOUT: number-input settings paired two-per-row (Stake+Duration,
+ * Boost multiplier+Boost rounds, Stop-loss+Take-profit) — 6 fields, 3
+ * even pairs. Grid is unconditional (no breakpoint prefix), so it's the
+ * same on mobile and desktop — mobile already has the full device width
+ * here since this panel sits below the chart, not beside it. Rounds moved
+ * to sit immediately above the idle/watching status readout, as the last
+ * setting before Start/Stop. No trading logic, validation, or chart
+ * behavior changed.
  */
 export function DigitConsecutiveAutomatedPanel({
   contractMode,
@@ -162,23 +171,66 @@ export function DigitConsecutiveAutomatedPanel({
         </div>
       </div>
 
-      <NumberField
-        label="Stake"
-        value={stakeNum || 0}
-        onChange={(value) => onStakeChange(String(value ?? 0))}
-        suffix="USD"
-        disabled={isRunning}
-        step={0.01}
-      />
-      <NumberField
-        label="Duration"
-        value={duration}
-        onChange={(value) => onDurationChange(Math.max(1, Math.round(value ?? 1)))}
-        suffix="ticks"
-        disabled={isRunning}
-        step={1}
-      />
+      {/* Number-input settings, paired two-per-row. Unconditional grid —
+          same on mobile and desktop. */}
+      <div className="grid grid-cols-2 gap-1.5">
+        <NumberField
+          label="Stake"
+          value={stakeNum || 0}
+          onChange={(value) => onStakeChange(String(value ?? 0))}
+          suffix="USD"
+          disabled={isRunning}
+          step={0.01}
+        />
+        <NumberField
+          label="Duration"
+          value={duration}
+          onChange={(value) => onDurationChange(Math.max(1, Math.round(value ?? 1)))}
+          suffix="ticks"
+          disabled={isRunning}
+          step={1}
+        />
+      </div>
 
+      <div className="grid grid-cols-2 gap-1.5">
+        <NumberField
+          label="Boost multiplier (after a loss)"
+          value={settings.boostMultiplier}
+          onChange={(value) => setSettings({ ...settings, boostMultiplier: Math.max(1, value ?? 1) })}
+          suffix="×"
+          disabled={isRunning}
+          step={0.5}
+        />
+        <NumberField
+          label="Boost rounds"
+          value={settings.boostRounds}
+          onChange={(value) => setSettings({ ...settings, boostRounds: Math.max(0, Math.round(value ?? 0)) })}
+          disabled={isRunning}
+          step={1}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-1.5">
+        <NumberField
+          label="Stop-loss"
+          value={settings.stopLoss}
+          onChange={(value) => setSettings({ ...settings, stopLoss: Math.max(0, value ?? 0) })}
+          suffix="USD"
+          disabled={isRunning}
+          step={0.5}
+        />
+        <NumberField
+          label="Take-profit"
+          value={settings.takeProfit}
+          onChange={(value) => setSettings({ ...settings, takeProfit: Math.max(0, value ?? 0) })}
+          suffix="USD"
+          disabled={isRunning}
+          step={0.5}
+        />
+      </div>
+
+      {/* Rounds — moved here, immediately above the status readout, as the
+          last setting before Start/Stop. */}
       <div className="space-y-0.5">
         <p className="text-[9px] text-muted-foreground">Rounds</p>
         <ToggleGroup
@@ -201,38 +253,6 @@ export function DigitConsecutiveAutomatedPanel({
           ))}
         </ToggleGroup>
       </div>
-
-      <NumberField
-        label="Boost multiplier (after a loss)"
-        value={settings.boostMultiplier}
-        onChange={(value) => setSettings({ ...settings, boostMultiplier: Math.max(1, value ?? 1) })}
-        suffix="×"
-        disabled={isRunning}
-        step={0.5}
-      />
-      <NumberField
-        label="Boost rounds"
-        value={settings.boostRounds}
-        onChange={(value) => setSettings({ ...settings, boostRounds: Math.max(0, Math.round(value ?? 0)) })}
-        disabled={isRunning}
-        step={1}
-      />
-      <NumberField
-        label="Stop-loss"
-        value={settings.stopLoss}
-        onChange={(value) => setSettings({ ...settings, stopLoss: Math.max(0, value ?? 0) })}
-        suffix="USD"
-        disabled={isRunning}
-        step={0.5}
-      />
-      <NumberField
-        label="Take-profit"
-        value={settings.takeProfit}
-        onChange={(value) => setSettings({ ...settings, takeProfit: Math.max(0, value ?? 0) })}
-        suffix="USD"
-        disabled={isRunning}
-        step={0.5}
-      />
 
       <div className="rounded-md border border-border bg-muted/30 px-2 py-0.5 text-[9px]">
         {isValidSetup ? (
