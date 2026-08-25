@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-is-mobile';
@@ -296,22 +296,38 @@ export function DigitsBody({
     }
   }, [buyResult, clearBuyResult]);
 
-  const chart = chartData ? (
-    <RiseFallChart
-      symbolKey="digits-chart"
-      symbol={activeSymbol?.underlying_symbol}
-      isConnectionOpened={isConnected}
-      isMobile={isMobile}
-      chartData={chartData}
-      getQuotes={getQuotes}
-      subscribeQuotes={subscribeQuotes}
-      unsubscribeQuotes={unsubscribeQuotes}
-      onSymbolChange={selectSymbol}
-      contractsArray={[]}
-    />
-  ) : (
-    <Skeleton className="h-full w-full rounded-md" />
-  );
+  /* MOBILE FIX: wrap chart in useMemo so it is NOT recreated on every tick.
+     Previously the <RiseFallChart> JSX was rebuilt on every render (every
+     150-300 ms on fast symbols), causing React to diff/remount the heavy
+     SmartCharts canvas unnecessarily. useMemo keeps the exact same element
+     reference until a real prop (symbol, chartData, isMobile) changes. */
+  const chart = useMemo(() => {
+    return chartData ? (
+      <RiseFallChart
+        symbolKey="digits-chart"
+        symbol={activeSymbol?.underlying_symbol}
+        isConnectionOpened={isConnected}
+        isMobile={isMobile}
+        chartData={chartData}
+        getQuotes={getQuotes}
+        subscribeQuotes={subscribeQuotes}
+        unsubscribeQuotes={unsubscribeQuotes}
+        onSymbolChange={selectSymbol}
+        contractsArray={[]}
+      />
+    ) : (
+      <Skeleton className="h-full w-full rounded-md" />
+    );
+  }, [
+    chartData,
+    activeSymbol?.underlying_symbol,
+    isConnected,
+    isMobile,
+    getQuotes,
+    subscribeQuotes,
+    unsubscribeQuotes,
+    selectSymbol,
+  ]);
 
   // Bot-type toggle — only shown for Matches/Differs, so Over/Under and
   // Even/Odd are unaffected.
