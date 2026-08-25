@@ -5,7 +5,7 @@
 @layer base {
   :root {
     --radius: 0.5rem;
-    
+
     /* Light mode colors from Figma tokens */
     --primary: 3 221 58;
     --accent: 246 247 248;
@@ -172,4 +172,53 @@
 
 .thin-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: rgb(var(--muted-foreground) / 0.6);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOBILE PERFORMANCE & TOUCH FIXES
+   Added to resolve: scroll lock, touch delay, iOS input zoom, and
+   SmartCharts Flutter glass-pane intercepting all gestures.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  /* iOS Safari zoom-guard: any input with font-size < 16px triggers a page
+     zoom on focus that locks the viewport and breaks layout. Force 16px on
+     every interactive element so focus never zooms. */
+  input, select, textarea, button {
+    font-size: 16px !important;
+    touch-action: manipulation;
+  }
+
+  /* Ensure the document root allows touch manipulation (prevents double-tap
+     delays on buttons and makes tap response instant). */
+  html {
+    touch-action: manipulation;
+  }
+}
+
+/* SmartCharts Flutter glass pane — this element is injected at the viewport
+   level and captures ALL pointer events before CSS on parent elements can act.
+   touch-action: pan-y pan-x tells the browser compositor to let scroll and
+   pan gestures pass through natively, restoring immediate response. */
+flt-glass-pane {
+  touch-action: pan-y pan-x !important;
+  pointer-events: auto !important;
+}
+
+/* Chart canvases should never trap document-level vertical scroll. */
+canvas {
+  touch-action: pan-y pan-x !important;
+}
+
+/* Mobile-only: isolate heavy chart sections with CSS containment so layout
+   and paint changes inside the chart do not force the browser to recalculate
+   the entire page. This dramatically reduces scroll jank on low-end phones. */
+@media (max-width: 1023px) {
+  body {
+    overscroll-behavior-y: none;
+  }
+
+  [class*="chart"], [class*="smartchart"], .cq-chart-container {
+    contain: layout paint;
+  }
 }
