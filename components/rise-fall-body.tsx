@@ -1,26 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { BotLibraryPanel } from '@/components/custom/bot-library-panel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-is-mobile';
 import { useContractMarkers } from '@/hooks/use-contract-markers';
-import { TradeControls } from './trade-controls';
 import { AutomatedPanel } from '@/components/custom/automated-panel';
 import { TradeBody } from './trade-body';
 import { useMartingaleAutomation } from '../hooks/use-martingale-automation';
-import type { MartingaleSettings, StrategyId } from '../hooks/use-martingale-automation';
-import type { StrategyProgram } from '@deriv/core';
-import type {
-  ActiveSymbol,
-  ProposalInfo,
-  BuyResult,
-  DerivWS,
-} from '@deriv/core';
+import type { ActiveSymbol, ProposalInfo, BuyResult, DerivWS } from '@deriv/core';
 import type { Direction, DurationSelectUnit, DurationOption } from '../lib/types';
 import type { UseSmartChartsApiReturn } from '@/hooks/use-smartcharts-api';
 import type { SmartChartChartData } from '@/hooks/use-smartchart-chart-data';
@@ -75,8 +65,19 @@ export interface RiseFallBodyProps {
   onSelectTradeType?: (type: string) => void;
 }
 
+/**
+ * Manual trading and the Bot library have been removed — Automated
+ * trading is now the only mode, so this always renders AutomatedPanel.
+ *
+ * NOTE: ws, duration, durationOptions, durationUnit, setDurationUnit,
+ * endDate, setEndDate, endTime, setEndTime, sellContract, and sellingId
+ * remain in this component's props for interface compatibility with its
+ * parent (page.tsx) — they were only ever consumed by the now-removed
+ * Manual trading panel (TradeControls) and Bot library, and are unused
+ * here now. Flagging this in case you'd like the related state cleaned
+ * up in page.tsx too, as a follow-up.
+ */
 export function RiseFallBody({
-  ws,
   isConnected,
   isLoading,
   error,
@@ -88,15 +89,6 @@ export function RiseFallBody({
   setAllowEquals,
   stake,
   onStakeChange,
-  duration,
-  setDuration,
-  durationOptions,
-  durationUnit,
-  setDurationUnit,
-  endDate,
-  setEndDate,
-  endTime,
-  setEndTime,
   proposal,
   buyContract,
   isBuying,
@@ -104,8 +96,6 @@ export function RiseFallBody({
   buyError,
   clearBuyResult,
   openPositions,
-  sellContract,
-  sellingId,
   chartData,
   getQuotes,
   subscribeQuotes,
@@ -118,8 +108,6 @@ export function RiseFallBody({
 }: RiseFallBodyProps) {
   const isMobile = useIsMobile();
   const contractMarkers = useContractMarkers(openPositions, activeSymbol?.underlying_symbol, isMobile);
-  const [tradeMode, setTradeMode] = useState<'manual' | 'automated'>('manual');
-  const [isBotLibraryOpen, setIsBotLibraryOpen] = useState(false);
 
   const automation = useMartingaleAutomation({
     isConnected,
@@ -134,30 +122,6 @@ export function RiseFallBody({
     clearBuyResult,
     openPositions,
   });
-
-  const handleModeChange = (mode: 'manual' | 'automated') => {
-    if (mode === 'manual' && automation.isRunning) automation.stop();
-    setTradeMode(mode);
-  };
-
-  const handleSelectBot = (program: StrategyProgram) => {
-    if (automation.isRunning) automation.stop();
-    const strategyId: StrategyId = program.stakeRule.type === 'dalembert' ? 'dalembert' : 'martingale';
-    const nextSettings: MartingaleSettings = {
-      strategyId,
-      baseStake: program.baseStake,
-      multiplier: program.stakeRule.type === 'martingale' ? program.stakeRule.multiplier : 2,
-      stakeIncrement: program.stakeRule.type === 'dalembert' ? program.stakeRule.increment : 2,
-      maxStake: program.stakeRule.type !== 'fixed' ? program.stakeRule.maxStake ?? null : null,
-      profitThreshold: program.profitThreshold,
-      lossThreshold: program.lossThreshold,
-    };
-    automation.setSettings(nextSettings);
-    setDirection(program.direction);
-    setAllowEquals(program.allowEquals ?? allowEquals);
-    setTradeMode('automated');
-    setIsBotLibraryOpen(false);
-  };
 
   // Buy purchase-result toasts — same pattern as Accumulators and Digits.
   useEffect(() => {
@@ -215,85 +179,22 @@ export function RiseFallBody({
     <Skeleton className="h-full w-full rounded-md" />
   );
 
-  // Buy button copy stays Rise/Fall's own (payout shown under "Buy") — only
-  // the shared wrapper/sizing/placement now comes from TradeBody, same as
-  // Digits keeps its own "Buy @ X USD" copy.
-  const buyButton = (
-    <div className="w-full mb-3 max-lg:relative max-lg:z-[9999]">
-      <Button
-        className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground h-8 text-xs"
-        disabled={!isConnected || !proposal || isBuying}
-        onClick={buyContract}
-      >
-        {isBuying ? (
-          'Purchasing...'
-        ) : (
-          <span className="flex flex-col items-center leading-tight gap-0.5">
-            <span>Buy</span>
-            {proposal && (
-              <span className="text-[9px] font-normal opacity-90">
-                {proposal.payout.toFixed(2)} USD
-              </span>
-            )}
-          </span>
-        )}
-      </Button>
-    </div>
-  );
-
   return (
-    <>
-      <TradeBody
-        chart={chart}
-        isLoading={isLoading}
-        tradeMode={tradeMode}
-        onModeChange={handleModeChange}
-        onOpenBotLibrary={() => setIsBotLibraryOpen(true)}
-        activeTradeType={activeTradeType}
-        onSelectTradeType={onSelectTradeType}
-        buyButton={buyButton}
-      >
-        {tradeMode === 'manual' ? (
-          <TradeControls
-            direction={direction}
-            onDirectionChange={setDirection}
-            allowEquals={allowEquals}
-            onAllowEqualsChange={setAllowEquals}
-            isConnected={isConnected}
-            stake={stake}
-            onStakeChange={onStakeChange}
-            duration={duration}
-            onDurationChange={setDuration}
-            durationOptions={durationOptions}
-            durationUnit={durationUnit}
-            onDurationUnitChange={setDurationUnit}
-            endDate={endDate}
-            onEndDateChange={setEndDate}
-            endTime={endTime}
-            onEndTimeChange={setEndTime}
-            ws={ws}
-            activeSymbol={activeSymbol}
-            proposal={proposal}
-            isAuthenticated={isAuthenticated}
-          />
-        ) : (
-          <AutomatedPanel
-            direction={direction}
-            onDirectionChange={setDirection}
-            allowEquals={allowEquals}
-            onAllowEqualsChange={setAllowEquals}
-            isConnected={isConnected}
-            isAuthenticated={!!isAuthenticated}
-            automation={automation}
-          />
-        )}
-      </TradeBody>
-
-      <BotLibraryPanel
-        open={isBotLibraryOpen}
-        onClose={() => setIsBotLibraryOpen(false)}
-        onSelectBot={handleSelectBot}
+    <TradeBody
+      chart={chart}
+      isLoading={isLoading}
+      activeTradeType={activeTradeType}
+      onSelectTradeType={onSelectTradeType}
+    >
+      <AutomatedPanel
+        direction={direction}
+        onDirectionChange={setDirection}
+        allowEquals={allowEquals}
+        onAllowEqualsChange={setAllowEquals}
+        isConnected={isConnected}
+        isAuthenticated={!!isAuthenticated}
+        automation={automation}
       />
-    </>
+    </TradeBody>
   );
 }
