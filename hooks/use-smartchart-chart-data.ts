@@ -94,16 +94,23 @@ function buildTradingTimesMap(response: TradingTimesResponse): TradingTimesMap {
  * from the `trading_times: 'today'` endpoint). Returns `undefined` until both
  * parts are ready, so the chart mounts with a complete map and its internal
  * `getDelayedMinutes()` / `isFeedUnavailable()` calls don't crash.
+ *
+ * MOBILE FIX: added `enabled` parameter (defaults to true). When a trade-type
+ * tab is inactive, pass `enabled=false` so this hook does NOT send the
+ * `trading_times` request and does NOT burn CPU transforming symbols for a
+ * chart that isn't even mounted. This shaves significant work off initial load
+ * on phones.
  */
 export function useSmartChartChartData(
   ws: DerivWS | null,
   isConnected: boolean,
-  symbols: ActiveSymbol[]
+  symbols: ActiveSymbol[],
+  enabled: boolean = true
 ): { chartData: SmartChartChartData | undefined } {
   const [tradingTimes, setTradingTimes] = useState<TradingTimesMap | undefined>();
 
   useEffect(() => {
-    if (!ws || !isConnected) return;
+    if (!enabled || !ws || !isConnected) return;
     let cancelled = false;
     ws
       .send({ trading_times: 'today' })
@@ -118,7 +125,7 @@ export function useSmartChartChartData(
     return () => {
       cancelled = true;
     };
-  }, [ws, isConnected]);
+  }, [ws, isConnected, enabled]);
 
   const chartData = useMemo((): SmartChartChartData | undefined => {
     if (symbols.length === 0 || !tradingTimes) return undefined;
