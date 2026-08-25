@@ -1,12 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
-import { AccumulatorTradePanel } from '@/components/custom/accumulator-trade-panel';
 import { AccumulatorAutomatedPanel } from '@/components/custom/accumulator-automated-panel';
 import { TradeModeToggle } from '@/components/custom/trade-mode-toggle';
 import { useAccumulatorAutomation } from '@/hooks/use-accumulator-automation';
@@ -68,6 +66,12 @@ export interface AccumulatorsBodyProps {
   onSelectTradeType?: (type: string) => void;
 }
 
+/**
+ * Manual trading (AccumulatorTradePanel + its own Buy/Close button) and
+ * the Bot library have been removed — Automated trading is now the only
+ * mode, so this always renders AccumulatorAutomatedPanel, which manages
+ * its own buy/close via the automation hook.
+ */
 export function AccumulatorsBody({
   isConnected,
   isLoading,
@@ -102,7 +106,6 @@ export function AccumulatorsBody({
 }: AccumulatorsBodyProps) {
   const isMobile = useIsMobile();
   const contractMarkers = useContractMarkers(openPositions, activeSymbol?.underlying_symbol, isMobile);
-  const [tradeMode, setTradeMode] = useState<'manual' | 'automated'>('manual');
 
   const automation = useAccumulatorAutomation({
     isConnected,
@@ -122,19 +125,6 @@ export function AccumulatorsBody({
     sellError,
     clearSellError,
   });
-
-  const handleModeChange = (mode: 'manual' | 'automated') => {
-    if (mode === 'manual' && automation.isRunning) {
-      automation.stop('Stopped manually');
-    }
-    setTradeMode(mode);
-  };
-
-  const handleOpenBotLibrary = () => {};
-
-  const activeAccuPosition = openPositions.find(
-    (p) => p.contract_type === 'ACCU' && p.underlying_symbol === activeSymbol?.underlying_symbol
-  ) ?? null;
 
   // Buy/Close purchase-result toasts — previously lived inside
   // AccumulatorTradePanel alongside the Buy button; moved here with the
@@ -207,9 +197,8 @@ export function AccumulatorsBody({
           </div>
         </div>
 
-        {/* Trade panel — the Manual/Automated/Bot-library icons now render
-            inline at the top of the card via TradeModeToggle, so this
-            column no longer shares width with a separate rail column. */}
+        {/* Trade panel — the Automated-trading badge and Market-contracts
+            icon render inline at the top of the card via TradeModeToggle. */}
         <div className="flex flex-col gap-3 pt-3 lg:pt-0 border-t border-border lg:border-0 lg:h-full lg:min-h-0">
           {isLoading ? (
             <Skeleton className="lg:h-full h-48 w-full rounded-xl" />
@@ -217,75 +206,21 @@ export function AccumulatorsBody({
             <Card className="lg:h-full lg:min-h-0 lg:overflow-y-auto">
               <CardContent className="pt-4">
                 <TradeModeToggle
-                  mode={tradeMode}
-                  onModeChange={handleModeChange}
-                  onOpenBotLibrary={handleOpenBotLibrary}
                   label="Accumulators"
                   activeTradeType={activeTradeType}
                   onSelectTradeType={onSelectTradeType}
                 />
 
-                {/* Buy / Close button — moved here so it sits right after
-                    Market contracts / the mode row instead of at the
-                    bottom of the panel, manual mode only (automated mode
-                    manages its own buy/sell via the automation panel). */}
-                {tradeMode === 'manual' && (
-                  <div className="w-full mb-3">
-                    {!activeAccuPosition && (
-                      <Button
-                        className="w-full rounded-full bg-primary hover:bg-primary/90 text-primary-foreground h-8 text-xs"
-                        disabled={!isConnected || !proposal || isBuying}
-                        onClick={buyContract}
-                      >
-                        {isBuying ? 'Purchasing...' : 'Buy'}
-                      </Button>
-                    )}
-
-                    {activeAccuPosition && (
-                      <Button
-                        variant="outline"
-                        className="w-full rounded-full border-black bg-white text-black hover:bg-white hover:text-black dark:border-white dark:bg-transparent dark:text-white dark:hover:bg-white/10 h-8 text-xs"
-                        disabled={!isConnected || sellingId === activeAccuPosition.contract_id || !activeAccuPosition.is_valid_to_sell}
-                        onClick={() => sellContract(activeAccuPosition.contract_id, activeAccuPosition.bid_price)}
-                      >
-                        {sellingId === activeAccuPosition.contract_id ? 'Closing...' : (
-                          <span className="flex flex-col items-center leading-tight gap-0.5">
-                            <span>Close</span>
-                            <span className="text-[10px] font-normal opacity-90">
-                              {(parseFloat(activeAccuPosition.buy_price) + parseFloat(activeAccuPosition.profit)).toFixed(2)} {activeAccuPosition.currency}
-                            </span>
-                          </span>
-                        )}
-                      </Button>
-                    )}
-                  </div>
-                )}
-
-                {tradeMode === 'manual' ? (
-                  <AccumulatorTradePanel
-                    growthRate={growthRate}
-                    onGrowthRateChange={setGrowthRate}
-                    growthRateOptions={growthRateOptions}
-                    stake={stake}
-                    onStakeChange={setStake}
-                    takeProfit={takeProfit}
-                    onTakeProfitChange={setTakeProfit}
-                    proposal={proposal}
-                    activePosition={activeAccuPosition}
-                    isAuthenticated={isAuthenticated}
-                  />
-                ) : (
-                  <AccumulatorAutomatedPanel
-                    growthRate={growthRate}
-                    onGrowthRateChange={setGrowthRate}
-                    growthRateOptions={growthRateOptions}
-                    takeProfit={takeProfit}
-                    onTakeProfitChange={setTakeProfit}
-                    isConnected={isConnected}
-                    isAuthenticated={isAuthenticated}
-                    automation={automation}
-                  />
-                )}
+                <AccumulatorAutomatedPanel
+                  growthRate={growthRate}
+                  onGrowthRateChange={setGrowthRate}
+                  growthRateOptions={growthRateOptions}
+                  takeProfit={takeProfit}
+                  onTakeProfitChange={setTakeProfit}
+                  isConnected={isConnected}
+                  isAuthenticated={isAuthenticated}
+                  automation={automation}
+                />
               </CardContent>
             </Card>
           )}
