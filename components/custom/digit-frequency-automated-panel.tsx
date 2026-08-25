@@ -305,7 +305,7 @@ export function DigitFrequencyAutomatedPanel({
           {results.map((result, index) => (
             <div key={result.contractId} className="flex justify-between leading-tight">
               <span className="text-muted-foreground">
-                R{index + 1} ${result.stake.toFixed(2)} (digit {result.predictedDigit})
+                Digit {result.predictedDigit}
               </span>
               <span className={`tabular-nums font-medium ${result.won ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
                 {result.won ? '+' : ''}
