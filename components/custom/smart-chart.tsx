@@ -216,6 +216,48 @@ export function SmartChartWrapper({
     };
   }, []);
 
+  // ── CRASH FIX: Visibility-based remount ──────────────────────────────────
+  // When the browser tab is backgrounded (user switches apps on mobile), the
+  // browser throttles JS timers and the WebSocket connection. Flutter's render
+  // loop breaks, and when the user returns the canvas is often frozen or
+  // crashed. Additionally, tick subscriptions can pile up while the tab is
+  // hidden, eventually exhausting the Deriv API connection limit.
+  //
+  // This effect unmounts the SmartChart when the tab is hidden, freeing
+  // Flutter's WASM memory and canceling all subscriptions. When the tab
+  // becomes visible again, the chart remounts fresh. If the tab was hidden
+  // for more than 30 seconds, we force a full remount (clearing isReadyToMount
+  // briefly) to guarantee a completely clean Flutter instance.
+  const [isTabVisible, setIsTabVisible] = useState(true);
+  const hiddenAtRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAtRef.current = Date.now();
+        setIsTabVisible(false); // Unmount chart → free Flutter memory
+      } else {
+        const hiddenAt = hiddenAtRef.current;
+        const wasHiddenLong = hiddenAt && Date.now() - hiddenAt > 30_000;
+        hiddenAtRef.current = null;
+
+        if (wasHiddenLong) {
+          // Force a full fresh remount after long inactivity
+          setIsReadyToMount(false);
+          // Small delay ensures React fully unmounts before remounting
+          requestAnimationFrame(() => setIsTabVisible(true));
+          const t = setTimeout(() => setIsReadyToMount(true), 50);
+          return () => clearTimeout(t);
+        } else {
+          setIsTabVisible(true);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
+
   // FIX (part 1 — page zoom): trackpad pinch and ctrl+scroll-wheel gestures
   // over the chart were zooming the WHOLE BROWSER PAGE instead of just the
   // chart. Browsers detect a pinch/zoom gesture as a `wheel` event with
@@ -316,7 +358,7 @@ export function SmartChartWrapper({
       className="relative h-full min-h-0 w-full overflow-clip rounded-md border border-border/50 dark:border-white/[0.08] bg-muted/30"
       style={{ pointerEvents: isChartReady ? 'auto' : 'none' }}
     >
-      {isReadyToMount && <SmartChart
+      {isReadyToMount && isTabVisible && <SmartChart
         // Theme is appended to the key so the chart remounts (and repaints
         // in the new theme) whenever it changes. This chart is backed by a
         // Flutter/WebAssembly widget that only reads `settings.theme` once,
