@@ -190,7 +190,7 @@ export function DigitFrequencyAutomatedPanel({
           step={1}
         />
         <NumberField
-          label="Boost multiplier (after a loss)"
+          label="Boost multiplier"
           value={settings.boostMultiplier}
           onChange={(value) => setSettings({ ...settings, boostMultiplier: Math.max(1, value ?? 4) })}
           suffix="×"
