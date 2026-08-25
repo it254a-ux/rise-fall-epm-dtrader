@@ -194,7 +194,7 @@ export function DigitConsecutiveAutomatedPanel({
 
       <div className="grid grid-cols-2 gap-1.5">
         <NumberField
-          label="Boost multiplier (after a loss)"
+          label="Boost multiplier"
           value={settings.boostMultiplier}
           onChange={(value) => setSettings({ ...settings, boostMultiplier: Math.max(1, value ?? 1) })}
           suffix="×"
