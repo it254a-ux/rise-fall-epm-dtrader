@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useDerivWS, useBalance } from '@deriv/core';
 import { useAuth } from '@/hooks/use-auth';
 import type { DerivWS } from '@deriv/core';
@@ -34,8 +34,40 @@ export function DerivWSProvider({ children }: { children: React.ReactNode }) {
   // refresh - no other component needs to change.
   useBalance(ws, isConnected, auth.authState === 'authenticated', auth.updateBalance);
 
+  // ── CRASH FIX: visibility-based reconnect ──────────────────────────────
+  // When the browser tab is backgrounded (user switches apps on mobile), the
+  // browser aggressively throttles JS timers and WebSocket pings. The Deriv
+  // server drops the connection after missing several pings. When the user
+  // returns, the old WS instance is dead but Flutter and the chart hooks may
+  // still be holding stale references, causing "exhausted" errors and crashes.
+  //
+  // This effect forces a full provider remount when the tab returns from
+  // background after >30 seconds. The remount creates a fresh WS connection,
+  // clears any stale subscriptions, and gives every child component a clean
+  // start. The 30-second threshold matches the auth hook's own reconnect logic.
+  const [visibilityKey, setVisibilityKey] = useState(0);
+  const hiddenAtRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAtRef.current = Date.now();
+      } else {
+        const hiddenAt = hiddenAtRef.current;
+        if (hiddenAt && Date.now() - hiddenAt > 30_000) {
+          // Force a full remount of the provider and all children
+          setVisibilityKey(k => k + 1);
+        }
+        hiddenAtRef.current = null;
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
+
   return (
-    <DerivWSContext.Provider value={{ ws, isConnected, isExhausted, auth }}>
+    <DerivWSContext.Provider key={visibilityKey} value={{ ws, isConnected, isExhausted, auth }}>
       {children}
     </DerivWSContext.Provider>
   );
