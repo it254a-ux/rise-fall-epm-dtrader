@@ -355,6 +355,7 @@ export function DigitsBody({
         label={TRADE_TYPE_LABELS[tradeType]}
         activeTradeType={activeTradeType}
         onSelectTradeType={onSelectTradeType}
+        cardContentClassName="px-2 pt-4"
       >
         {isOverUnder ? (
           <DigitEntryAutomatedPanel
