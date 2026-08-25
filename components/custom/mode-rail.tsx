@@ -3,9 +3,6 @@ import { useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface ModeRailProps {
-  mode: 'manual' | 'automated';
-  onModeChange: (mode: 'manual' | 'automated') => void;
-  onOpenBotLibrary: () => void;
   /** Currently selected trade type — when provided (together with
    * onSelectTradeType), a "Market contracts" icon is rendered in this row
    * that opens an upward menu of trade types, same list as the one on the
@@ -29,48 +26,29 @@ const MARKET_CONTRACT_TYPES = [
 ];
 
 /**
- * Manual / Automated / Bot-library icon row. Previously rendered as a
- * floating vertical column in its own grid cell outside the trade panel
- * card; now rendered horizontally, inline at the top of the card (see
- * TradeModeToggle), so it no longer eats a dedicated grid column or
- * squeezes the panel width.
+ * Automated-trading badge + Market-contracts ("view") icon row.
+ *
+ * Manual trading and the Bot library have been removed app-wide —
+ * Automated trading is now the only mode everywhere, so the first icon is
+ * an always-on status badge (not a toggle) rather than a button, and the
+ * old Manual + Bot-library buttons are gone entirely. Given a colorful,
+ * intentional treatment instead of flat black/white boxes.
  *
  * Mobile-only: given a relative position + elevated z-index so it sits
  * above whatever overlay/loading layer is covering it for the first ~2
  * minutes after reload on mobile (same tap-lock issue fixed on the
  * Rise/Fall trade-controls panel). Desktop (lg:) is untouched.
  */
-export function ModeRail({
-  mode,
-  onModeChange,
-  onOpenBotLibrary,
-  activeTradeType,
-  onSelectTradeType,
-}: ModeRailProps) {
+export function ModeRail({ activeTradeType, onSelectTradeType }: ModeRailProps) {
   const [isMarketMenuOpen, setIsMarketMenuOpen] = useState(false);
 
   return (
     <div className="flex flex-row items-center gap-2 mb-2 max-lg:relative max-lg:z-[9999]">
-      <button
-        onClick={() => onModeChange('manual')}
-        title="Manual trading"
-        className={`rounded-md p-2 border border-border transition-colors ${
-          mode === 'manual' ? 'bg-foreground/10 text-foreground' : 'text-muted-foreground hover:bg-foreground/5'
-        }`}
-      >
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-          <rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.3" />
-          <rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.3" />
-          <rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.3" />
-          <rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.3" />
-        </svg>
-      </button>
-      <button
-        onClick={() => onModeChange('automated')}
+      {/* Automated trading — always-on status badge, no longer a toggle
+          since Manual mode no longer exists. */}
+      <div
         title="Automated trading"
-        className={`rounded-full p-2 transition-colors ${
-          mode === 'automated' ? 'bg-orange-500/15 text-orange-500' : 'text-muted-foreground hover:bg-foreground/5'
-        }`}
+        className="flex items-center gap-1.5 rounded-full pl-2 pr-3 py-1.5 bg-gradient-to-br from-amber-400 via-orange-500 to-pink-500 text-white shadow-md shadow-orange-500/30"
       >
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
           <rect x="3" y="5" width="10" height="8" rx="2" stroke="currentColor" strokeWidth="1.3" />
@@ -79,20 +57,8 @@ export function ModeRail({
           <path d="M8 5V2" stroke="currentColor" strokeWidth="1.3" />
           <circle cx="8" cy="1.5" r="0.8" fill="currentColor" />
         </svg>
-      </button>
-      <button
-        onClick={onOpenBotLibrary}
-        title="Bot library"
-        className="rounded-full p-2 text-muted-foreground hover:bg-foreground/5 transition-colors"
-      >
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-          <rect x="2" y="3" width="12" height="10" rx="2" stroke="currentColor" strokeWidth="1.3" />
-          <path d="M2 6.5H14" stroke="currentColor" strokeWidth="1.3" />
-          <circle cx="5" cy="9.5" r="1" fill="currentColor" />
-          <circle cx="8" cy="9.5" r="1" fill="currentColor" />
-          <circle cx="11" cy="9.5" r="1" fill="currentColor" />
-        </svg>
-      </button>
+        <span className="text-[10px] font-semibold tracking-wide">Automated</span>
+      </div>
 
       {onSelectTradeType && (
         <Popover open={isMarketMenuOpen} onOpenChange={setIsMarketMenuOpen}>
@@ -100,7 +66,7 @@ export function ModeRail({
             <button
               type="button"
               title="Market contracts"
-              className="rounded-full p-2 text-muted-foreground hover:bg-foreground/5 transition-colors"
+              className="rounded-full p-2 bg-gradient-to-br from-sky-400 via-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-500/30 transition-transform hover:scale-105 active:scale-95"
             >
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                 <rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.3" />
@@ -121,7 +87,7 @@ export function ModeRail({
                 }}
                 className={`w-full rounded-md px-2 py-1.5 text-left text-[11px] transition-colors ${
                   activeTradeType === item.value
-                    ? 'bg-foreground/10 text-foreground font-medium'
+                    ? 'bg-gradient-to-r from-indigo-500/15 to-violet-500/15 text-foreground font-medium'
                     : 'text-muted-foreground hover:bg-foreground/5 hover:text-foreground'
                 }`}
               >
