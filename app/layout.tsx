@@ -27,16 +27,10 @@ export function generateMetadata(): Metadata {
   };
 }
 
-/* MOBILE FIX: added viewportFit: 'cover' so the page uses the full screen on
-   iPhones with notches/Dynamic Island. userScalable: false (paired with
-   maximumScale: 1) prevents the user from accidentally zooming the page,
-   which was breaking scroll and touch on mobile. */
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-  userScalable: false,
-  viewportFit: 'cover',
 };
 
 const fontClass =
