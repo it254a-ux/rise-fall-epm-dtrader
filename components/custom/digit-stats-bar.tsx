@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import type { DigitStats } from '@/lib/digit-types';
 
 interface DigitStatsBarProps {
@@ -31,7 +31,7 @@ function ScanStyles() {
       }
       @keyframes digit-selected-pulse {
         0% { box-shadow: 0 0 0 0 rgba(245,158,11,0.55); }
-        70% { box-shadow: 0 0 0 5px rgba(245,158,11,0); }
+        70% { box-shadow: 0 0 0 4px rgba(245,158,11,0); }
         100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
       }
     `}</style>
@@ -45,8 +45,8 @@ function ScanningIndicator() {
       style={{
         position: 'relative',
         display: 'inline-block',
-        width: '18px',
-        height: '10px',
+        width: '14px',
+        height: '8px',
         borderRadius: '2px',
         border: '1px solid rgba(0,210,211,0.5)',
         background: 'rgba(0,210,211,0.08)',
@@ -69,19 +69,6 @@ function ScanningIndicator() {
   );
 }
 
-function GripIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, opacity: 0.6 }}>
-      <circle cx="5" cy="3.5" r="1.2" fill="currentColor" />
-      <circle cx="11" cy="3.5" r="1.2" fill="currentColor" />
-      <circle cx="5" cy="8" r="1.2" fill="currentColor" />
-      <circle cx="11" cy="8" r="1.2" fill="currentColor" />
-      <circle cx="5" cy="12.5" r="1.2" fill="currentColor" />
-      <circle cx="11" cy="12.5" r="1.2" fill="currentColor" />
-    </svg>
-  );
-}
-
 function DigitCircle({
   digit,
   pct,
@@ -92,8 +79,8 @@ function DigitCircle({
   hasData,
   onClick,
 }: DigitCircleProps) {
-  const viewBoxSize = 64;
-  const strokeWidth = 4;
+  const viewBoxSize = 48;
+  const strokeWidth = 3;
   const radius = (viewBoxSize - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const fillRatio = hasData ? pct / 100 : 0;
@@ -117,7 +104,7 @@ function DigitCircle({
     : '#9ca3af';
 
   const ringBg = isSelected ? '#2b2210' : '#1f2937';
-  const outerGlow = isSelected ? '0 0 14px 4px rgba(245,158,11,0.45)' : 'none';
+  const outerGlow = isSelected ? '0 0 10px 3px rgba(245,158,11,0.45)' : 'none';
 
   return (
     <button
@@ -151,7 +138,7 @@ function DigitCircle({
             r={radius}
             fill="none"
             stroke={arcColor}
-            strokeWidth={isSelected ? strokeWidth + 1.5 : strokeWidth}
+            strokeWidth={isSelected ? strokeWidth + 1 : strokeWidth}
             strokeLinecap="round"
             strokeDasharray={circumference}
             strokeDashoffset={dashOffset}
@@ -181,7 +168,7 @@ function DigitCircle({
           <span
             style={{
               color: '#ffffff',
-              fontSize: '12px',
+              fontSize: '10px',
               fontWeight: 700,
               lineHeight: 1,
               fontFamily: 'system-ui, sans-serif',
@@ -192,7 +179,7 @@ function DigitCircle({
           <span
             style={{
               color: pctColor,
-              fontSize: '7.5px',
+              fontSize: '6px',
               fontWeight: 600,
               lineHeight: 1.3,
               fontFamily: 'monospace',
@@ -208,10 +195,10 @@ function DigitCircle({
           <div
             style={{
               position: 'absolute',
-              top: -3,
-              right: -3,
-              width: '11px',
-              height: '11px',
+              top: -2,
+              right: -2,
+              width: '9px',
+              height: '9px',
               borderRadius: '50%',
               background: '#f59e0b',
               border: '1.5px solid #2b2210',
@@ -220,7 +207,7 @@ function DigitCircle({
               justifyContent: 'center',
             }}
           >
-            <span style={{ color: '#1a1200', fontSize: '7px', fontWeight: 900, lineHeight: 1 }}>✓</span>
+            <span style={{ color: '#1a1200', fontSize: '6px', fontWeight: 900, lineHeight: 1 }}>✓</span>
           </div>
         )}
 
@@ -228,14 +215,14 @@ function DigitCircle({
           <div
             style={{
               position: 'absolute',
-              bottom: -6,
+              bottom: -4,
               left: '50%',
               transform: 'translateX(-50%)',
               width: 0,
               height: 0,
-              borderLeft: '5px solid transparent',
-              borderRight: '5px solid transparent',
-              borderTop: '6px solid #ef4444',
+              borderLeft: '4px solid transparent',
+              borderRight: '4px solid transparent',
+              borderTop: '5px solid #ef4444',
               transition: 'left 0.2s ease',
             }}
           />
@@ -245,103 +232,81 @@ function DigitCircle({
   );
 }
 
+/**
+ * Self-deduplicating digit stats bar.
+ * 
+ * BUGFIX: if multiple instances mount (e.g. old cached component + new one,
+ * or parent renders twice), only the FIRST instance stays visible. All
+ * subsequent instances detect that one already exists and render nothing.
+ * This guarantees exactly one bar on screen regardless of React double-
+ * mounts, HMR, or parent re-renders.
+ */
 export function DigitStatsBar({
   digitStats,
   selectedDigit,
   onDigitSelect,
   lastDigit = null,
 }: DigitStatsBarProps) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [shouldRender, setShouldRender] = useState(true);
+
+  useEffect(() => {
+    // Small delay so all instances in this render cycle have mounted
+    const t = setTimeout(() => {
+      const all = document.querySelectorAll('[data-digit-stats-bar-root]');
+      if (all.length > 1 && rootRef.current && all[0] !== rootRef.current) {
+        setShouldRender(false);
+      }
+    }, 0);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (!shouldRender) return null;
+
   const maxPct = Math.max(...digitStats.percentages);
   const minPct = Math.min(...digitStats.percentages);
   const hasData = digitStats.totalTicks > 0;
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
-  const dragState = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
-
-  const handlePointerMove = (e: PointerEvent) => {
-    if (!dragState.current || !containerRef.current) return;
-    const dx = e.clientX - dragState.current.startX;
-    const dy = e.clientY - dragState.current.startY;
-    let newX = dragState.current.origX + dx;
-    let newY = dragState.current.origY + dy;
-    const w = containerRef.current.offsetWidth;
-    const h = containerRef.current.offsetHeight;
-    newX = Math.min(Math.max(0, newX), window.innerWidth - w);
-    newY = Math.min(Math.max(0, newY), window.innerHeight - h);
-    setPos({ x: newX, y: newY });
-  };
-
-  const handlePointerUp = () => {
-    dragState.current = null;
-    window.removeEventListener('pointermove', handlePointerMove);
-    window.removeEventListener('pointerup', handlePointerUp);
-  };
-
-  const handlePointerDown = (e: React.PointerEvent) => {
-    if (!containerRef.current) return;
-    e.preventDefault();
-    const rect = containerRef.current.getBoundingClientRect();
-    dragState.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      origX: rect.left,
-      origY: rect.top,
-    };
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
-  };
-
-  useEffect(() => {
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   return (
     <div
-      ref={containerRef}
+      ref={rootRef}
+      data-digit-stats-bar-root
       style={{
-        position: 'fixed',
-        zIndex: 9999,
-        ...(pos
-          ? { left: pos.x, top: pos.y }
-          : { left: 'calc(50% + 10px)', top: '54px' }),
-        width: 'min(92vw, 260px)',
-        background: 'transparent',
-        border: 'none',
-        borderRadius: '12px',
-        padding: '8px 10px',
-        boxShadow: 'none',
+        position: 'absolute',
+        bottom: '8px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 50,
+        width: 'min(96%, 520px)',
+        background: 'rgba(17,24,39,0.85)',
+        backdropFilter: 'blur(6px)',
+        border: '1px solid rgba(255,255,255,0.06)',
+        borderRadius: '10px',
+        padding: '6px 8px',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
       }}
     >
       <ScanStyles />
       <div
-        onPointerDown={handlePointerDown}
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '6px',
-          marginBottom: '6px',
-          cursor: 'grab',
-          touchAction: 'none',
+          gap: '4px',
+          marginBottom: '4px',
           color: '#9ca3af',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span className="text-[10px] text-muted-foreground">Last digit prediction</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span className="text-[9px] text-muted-foreground">Last digit prediction</span>
           <ScanningIndicator />
         </div>
-        <GripIcon />
       </div>
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(5, minmax(32px, 1fr))',
-          gap: '6px 6px',
+          gridTemplateColumns: 'repeat(10, minmax(28px, 1fr))',
+          gap: '4px',
           placeItems: 'center',
           width: '100%',
         }}
