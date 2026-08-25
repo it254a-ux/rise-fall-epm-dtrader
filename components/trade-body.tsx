@@ -78,7 +78,12 @@ export function TradeBody({
       <div className={gridClassName}>
         {/* Column 1: Chart */}
         <div className={chartColClassName}>
-          <div className={chartWrapperClassName} style={{ touchAction: 'pan-y' }}>
+          {/* MOBILE FIX: added contain: 'layout paint' so the browser isolates
+              the heavy SmartCharts canvas from the rest of the page. Scroll and
+              touch events outside the chart no longer force the browser to
+              recalculate the chart's layout, eliminating the scroll-jank that
+              made the page feel "locked" on phones. */}
+          <div className={chartWrapperClassName} style={{ touchAction: 'pan-y', contain: 'layout paint' }}>
             {chart}
           </div>
         </div>
