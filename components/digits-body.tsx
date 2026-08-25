@@ -332,7 +332,12 @@ export function DigitsBody({
   /* LAYOUT FIX: wrap the chart and DigitStatsBar together in a relative
      container so the stats bar floats at the bottom of the chart canvas
      (not at the bottom of the screen). The stats bar is now absolutely
-     positioned inside this wrapper, sitting on top of the chart. */
+     positioned inside this wrapper, sitting on top of the chart.
+
+     BUGFIX: removed the standalone <DigitStatsBar /> that was rendered
+     before <TradeBody> — it was causing a duplicate bar to appear on
+     every digit tab (Matches/Differs, Over/Under, Even/Odd). Now only
+     one bar exists, inside the chart wrapper. */
   const chartWithOverlay = (
     <div className="relative h-full w-full">
       {chart}
