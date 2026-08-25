@@ -34,9 +34,9 @@ const MODE_OPTIONS: { value: ContractMode; label: string }[] = [
 const ROUND_OPTIONS = [3, 5, 10, 20];
 
 /**
- * ADDITIVE — the two entry strategies. Edge (default) is the original
- * behavior: waits for the digit adjacent to the barrier. Direct waits for
- * the barrier digit itself to appear, then fires.
+ * The two entry strategies. Edge (default) is the original behavior: waits
+ * for the digit adjacent to the barrier. Direct waits for the barrier
+ * digit itself to appear, then fires.
  */
 const ENTRY_STRATEGY_OPTIONS: { value: EntryStrategy; label: string }[] = [
   { value: 'edge', label: 'Edge' },
@@ -51,8 +51,8 @@ const ENTRY_STRATEGY_OPTIONS: { value: EntryStrategy; label: string }[] = [
  * appears, then lets the contract settle on its own like any other digit
  * contract.
  *
- * ADDITIVE: two new controls below the Rounds selector, both default-off /
- * default-Edge so behavior is unchanged unless explicitly turned on:
+ * Two controls below Stake/Duration, both default-off / default-Edge so
+ * behavior is unchanged unless explicitly turned on:
  *  - Entry Strategy — Edge (barrier ± 1, the original behavior) or Direct
  *    (the barrier digit itself).
  *  - Hybrid Mode — alternates the barrier automatically each round instead
@@ -60,6 +60,16 @@ const ENTRY_STRATEGY_OPTIONS: { value: EntryStrategy; label: string }[] = [
  *    barrier pair it alternates between is intentionally not shown on
  *    screen anywhere in this panel — same policy as the hidden internal
  *    trigger digit.
+ *
+ * LAYOUT: Stake+Duration paired two-per-row (the only two NumberFields
+ * this panel has). Entry Strategy (ToggleGroup) and Hybrid Mode (Switch)
+ * stay full-width, since pairing a selector control against another looks
+ * cramped and inconsistent with how they're used elsewhere in the app.
+ * Grid is unconditional (no breakpoint prefix) — same on mobile and
+ * desktop, since mobile already has the full device width here (this
+ * panel sits below the chart, not beside it). Rounds moved to sit
+ * immediately above the armed-status readout, as the last setting before
+ * Start/Stop. No trading logic, validation, or chart behavior changed.
  */
 export function DigitEntryAutomatedPanel({
   contractMode,
@@ -144,54 +154,31 @@ export function DigitEntryAutomatedPanel({
         </div>
       </div>
 
-      <NumberField
-        label="Stake"
-        value={stakeNum || 0}
-        onChange={(value) => onStakeChange(String(value ?? 0))}
-        suffix="USD"
-        disabled={isRunning}
-        step={0.01}
-      />
-      <NumberField
-        label="Duration"
-        value={duration}
-        onChange={(value) => onDurationChange(Math.max(1, Math.round(value ?? 1)))}
-        suffix="ticks"
-        disabled={isRunning}
-        step={1}
-      />
-
-      {/* Rounds selector — sets settings.maxRounds, which the hook already
-          reads to decide when a run stops on its own. Purely a settings
-          change, so it's disabled while a run is in progress like the
-          other controls above. */}
-      <div className="space-y-1">
-        <p className="text-[10px] text-muted-foreground">Rounds</p>
-        <ToggleGroup
-          type="single"
-          value={String(settings.maxRounds)}
+      {/* Stake + Duration paired two-per-row. Unconditional grid — same on
+          mobile and desktop. */}
+      <div className="grid grid-cols-2 gap-1.5">
+        <NumberField
+          label="Stake"
+          value={stakeNum || 0}
+          onChange={(value) => onStakeChange(String(value ?? 0))}
+          suffix="USD"
           disabled={isRunning}
-          onValueChange={(value) => {
-            if (value) setSettings({ ...settings, maxRounds: Number(value) });
-          }}
-          className="w-full gap-1"
-        >
-          {ROUND_OPTIONS.map((n) => (
-            <ToggleGroupItem
-              key={n}
-              value={String(n)}
-              className="flex-1 h-6 rounded-md border border-border text-[10px] font-medium text-muted-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:font-bold hover:text-foreground"
-            >
-              {n}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
+          step={0.01}
+        />
+        <NumberField
+          label="Duration"
+          value={duration}
+          onChange={(value) => onDurationChange(Math.max(1, Math.round(value ?? 1)))}
+          suffix="ticks"
+          disabled={isRunning}
+          step={1}
+        />
       </div>
 
-      {/* ADDITIVE — Entry Strategy selector. Edge (default) is the
-          original behavior. Direct waits for the barrier digit itself.
-          Combinable with Hybrid Mode below. Disabled while running, same
-          as Rounds above, since it's a Start-time setting. */}
+      {/* Entry Strategy selector. Edge (default) is the original behavior.
+          Direct waits for the barrier digit itself. Combinable with
+          Hybrid Mode below. Disabled while running, same as Stake/Duration
+          above, since it's a Start-time setting. */}
       <div className="space-y-1">
         <p className="text-[10px] text-muted-foreground">Entry Strategy</p>
         <ToggleGroup
@@ -229,6 +216,31 @@ export function DigitEntryAutomatedPanel({
           disabled={isRunning}
           onCheckedChange={(checked) => setSettings({ ...settings, hybridMode: checked })}
         />
+      </div>
+
+      {/* Rounds — moved here, immediately above the armed-status readout,
+          as the last setting before Start/Stop. */}
+      <div className="space-y-1">
+        <p className="text-[10px] text-muted-foreground">Rounds</p>
+        <ToggleGroup
+          type="single"
+          value={String(settings.maxRounds)}
+          disabled={isRunning}
+          onValueChange={(value) => {
+            if (value) setSettings({ ...settings, maxRounds: Number(value) });
+          }}
+          className="w-full gap-1"
+        >
+          {ROUND_OPTIONS.map((n) => (
+            <ToggleGroupItem
+              key={n}
+              value={String(n)}
+              className="flex-1 h-6 rounded-md border border-border text-[10px] font-medium text-muted-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:font-bold hover:text-foreground"
+            >
+              {n}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
       </div>
 
       {/* Armed-status readout — intentionally does not reveal the internal
