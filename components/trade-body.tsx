@@ -17,23 +17,17 @@ export interface TradeBodyProps {
   /** Whether the whole settings column should show a loading skeleton instead of the Card. */
   isLoading: boolean;
 
-  tradeMode: 'manual' | 'automated';
-  onModeChange: (mode: 'manual' | 'automated') => void;
-  onOpenBotLibrary: () => void;
   /** Passed straight through to TradeModeToggle (e.g. "Matches/Differs"). */
   label?: string;
   activeTradeType?: string;
   onSelectTradeType?: (type: string) => void;
 
   /**
-   * Buy button markup for manual mode. Each body keeps full control over its
-   * own button copy/formatting (Digits: "Buy @ X USD", Rise/Fall: "Buy" +
-   * payout beneath, Accumulators: Buy/Close) — TradeBody only decides
-   * *where* it sits and *when* it shows (manual mode only).
+   * The automated settings panel for the current trade type. Manual mode
+   * and its Buy button have been removed app-wide — every trade type now
+   * renders only its automated panel here, which manages its own buying
+   * internally (no separate buyButton slot needed anymore).
    */
-  buyButton?: ReactNode;
-
-  /** The manual or automated settings panel for the current mode. */
   children: ReactNode;
 
   // ---- Layout overrides ----
@@ -65,13 +59,9 @@ const DEFAULT_SKELETON = 'lg:h-full h-48 w-full rounded-xl';
 export function TradeBody({
   chart,
   isLoading,
-  tradeMode,
-  onModeChange,
-  onOpenBotLibrary,
   label,
   activeTradeType,
   onSelectTradeType,
-  buyButton,
   children,
   outerClassName = DEFAULT_OUTER,
   gridClassName = DEFAULT_GRID,
@@ -92,8 +82,9 @@ export function TradeBody({
           </div>
         </div>
 
-        {/* Column 2: Trade panel in a Card — Manual/Automated/Bot-library
-            icons render inline at the top via TradeModeToggle. */}
+        {/* Column 2: Trade panel in a Card — the Automated-trading badge
+            and Market-contracts icon render inline at the top via
+            TradeModeToggle. */}
         <div className={settingsColClassName}>
           {isLoading ? (
             <Skeleton className={skeletonClassName} />
@@ -101,15 +92,10 @@ export function TradeBody({
             <Card className={cardClassName}>
               <CardContent className={cardContentClassName}>
                 <TradeModeToggle
-                  mode={tradeMode}
-                  onModeChange={onModeChange}
-                  onOpenBotLibrary={onOpenBotLibrary}
                   label={label}
                   activeTradeType={activeTradeType}
                   onSelectTradeType={onSelectTradeType}
                 />
-
-                {tradeMode === 'manual' && buyButton}
 
                 {children}
               </CardContent>
