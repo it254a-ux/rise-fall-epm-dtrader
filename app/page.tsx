@@ -79,7 +79,10 @@ export default function RiseFallPage() {
     onAuthWSFailed: logout,
     enabled: activatedTabs.riseFall,
   });
-  const { chartData } = useSmartChartChartData(trading.ws, trading.isConnected, trading.symbols);
+  /* MOBILE FIX: pass activatedTabs.riseFall so inactive tabs don't waste
+     CPU fetching trading_times and transforming symbols for a chart that
+     isn't mounted. Same pattern applied to digits and accumulators below. */
+  const { chartData } = useSmartChartChartData(trading.ws, trading.isConnected, trading.symbols, activatedTabs.riseFall);
   const { getQuotes, subscribeQuotes, unsubscribeQuotes } = useSmartChartsApi(trading.ws);
 
   const digits = useDigitsTrading({
@@ -90,7 +93,7 @@ export default function RiseFallPage() {
     onAuthWSFailed: logout,
     enabled: activatedTabs.digits,
   });
-  const { chartData: digitsChartData } = useSmartChartChartData(digits.ws, digits.isConnected, digits.symbols);
+  const { chartData: digitsChartData } = useSmartChartChartData(digits.ws, digits.isConnected, digits.symbols, activatedTabs.digits);
   const {
     getQuotes: digitsGetQuotes,
     subscribeQuotes: digitsSubscribeQuotes,
@@ -105,16 +108,23 @@ export default function RiseFallPage() {
     onAuthWSFailed: logout,
     enabled: activatedTabs.accumulators,
   });
-  const { chartData: accumulatorsChartData } = useSmartChartChartData(accumulators.ws, accumulators.isConnected, accumulators.symbols);
+  const { chartData: accumulatorsChartData } = useSmartChartChartData(accumulators.ws, accumulators.isConnected, accumulators.symbols, activatedTabs.accumulators);
   const {
     getQuotes: accumulatorsGetQuotes,
     subscribeQuotes: accumulatorsSubscribeQuotes,
     unsubscribeQuotes: accumulatorsUnsubscribeQuotes,
   } = useSmartChartsApi(accumulators.ws);
 
-  if (isDigitsTab && digits.tradeType !== activeTradeType) {
-    digits.setTradeType(activeTradeType as typeof digits.tradeType);
-  }
+  /* MOBILE FIX: the original code called digits.setTradeType() directly during
+     render (a React anti-pattern that can cause infinite loops and extra work
+     on mobile). Moved into useEffect so it only runs when dependencies actually
+     change, and runs after paint instead of blocking it. */
+  const { tradeType: digitsTradeType, setTradeType: setDigitsTradeType } = digits;
+  useEffect(() => {
+    if (isDigitsTab && digitsTradeType !== activeTradeType) {
+      setDigitsTradeType(activeTradeType as typeof digitsTradeType);
+    }
+  }, [isDigitsTab, digitsTradeType, activeTradeType, setDigitsTradeType]);
 
   if (activeTradeType === 'accumulators') {
     return (
