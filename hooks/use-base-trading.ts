@@ -90,6 +90,30 @@ export function useBaseTrading({
 
   const { currentTick, prices, pipSize } = useTicks(ws, isConnected, activeSymbol);
 
+  // ── CRASH FIX: defensive tick cleanup ────────────────────────────────────
+  // useTicks from @deriv/core may not always send forget_all when the
+  // component unmounts or when the tab is hidden. If tick subscriptions pile
+  // up, the Deriv API eventually rejects new requests with "exhausted" errors.
+  // This effect sends an explicit forget_all on unmount and when the tab goes
+  // hidden, ensuring old subscriptions are cleared before new ones are made.
+  useEffect(() => {
+    if (!ws || !isConnected || !activeSymbol) return;
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden' && ws.isConnected) {
+        ws.send({ forget_all: 'ticks' }).catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      if (ws.isConnected) {
+        ws.send({ forget_all: 'ticks' }).catch(() => {});
+      }
+    };
+  }, [ws, isConnected, activeSymbol]);
+
   // Surface WS-level errors as toasts. Buy and sell errors are handled by
   // their own hooks and are excluded here to avoid double-reporting.
   useEffect(() => {
