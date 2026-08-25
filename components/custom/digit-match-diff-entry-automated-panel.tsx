@@ -48,7 +48,7 @@ const SHIFT_MODE_OPTIONS: { value: DigitShiftMode; label: string }[] = [
 ];
 
 /**
- * NEW — entry-watcher panel for Digit Matches/Differs, separate from the
+ * Entry-watcher panel for Digit Matches/Differs, separate from the
  * classic martingale-based DigitAutomatedPanel (still used, untouched, for
  * Even/Odd). Places no trade on Start — arms and watches the live digit
  * stream, firing exactly one buy the instant the selected digit appears,
@@ -60,16 +60,17 @@ const SHIFT_MODE_OPTIONS: { value: DigitShiftMode; label: string }[] = [
  * detectable pattern). Results ledger intentionally does not show which
  * digit each round watched, same privacy policy as the Over/Under panel.
  *
- * FIX: this panel previously rendered its own <DigitStatsBar> inline,
- * duplicating the single global instance that digits-body.tsx now renders
- * as a fixed overlay for every mode/bot. Having two mounted at once (one
- * from here, one global) was causing the overlapping "double floating
- * container" bug that only showed up in Watcher mode — the Frequency
- * panel never had its own copy, which is why it always looked correct.
- * Removed here; digitStats/lastDigit/selectedDigit/onSelectedDigitChange
- * props are still accepted (still used elsewhere in this panel and still
- * passed down from digits-body.tsx) but are no longer forwarded into a
- * second DigitStatsBar.
+ * LAYOUT FIX: the Rounds row's pills previously used a fixed
+ * `!w-5 !flex-none` width, so they clustered on the left of the row and
+ * left a large dead gap on the right — that's the asymmetry that was
+ * visible even though horizontal padding itself was already symmetric.
+ * Switched to `flex-1` (matching how the Entry/Over-Under panel's Rounds
+ * row already does it) so the pills stretch to fill the row edge to edge.
+ * Also added the Stake+Duration two-column pairing used by the other
+ * three digit panels, and tightened the outer spacing
+ * (space-y-1.5/space-y-2 → space-y-1, a few py-1 → py-0.5) for denser row
+ * spacing. No font sizes changed. No trading logic, validation, or chart
+ * behavior touched.
  */
 export function DigitMatchDiffEntryAutomatedPanel({
   contractMode,
@@ -105,7 +106,7 @@ export function DigitMatchDiffEntryAutomatedPanel({
   const isMatch = contractMode === 'DIGITMATCH';
 
   return (
-    <div className="w-full space-y-1.5 lg:max-w-[240px] lg:space-y-2">
+    <div className="w-full space-y-1 lg:max-w-[240px] lg:space-y-1">
       <ToggleGroup
         type="single"
         value={contractMode}
@@ -128,7 +129,7 @@ export function DigitMatchDiffEntryAutomatedPanel({
 
       {/* Prediction summary. While a non-Hold mode is running, this updates
           on its own each round since selectedDigit is driven by the hook. */}
-      <div className="rounded-md border border-border bg-muted/30 px-2 py-1 space-y-0.5">
+      <div className="rounded-md border border-border bg-muted/30 px-2 py-0.5 space-y-0.5">
         <p className="text-[10px] text-muted-foreground">Prediction</p>
         <div className="flex items-center gap-1.5">
           <p className="text-xs font-medium text-foreground">
@@ -147,24 +148,28 @@ export function DigitMatchDiffEntryAutomatedPanel({
         </div>
       </div>
 
-      <NumberField
-        label="Stake"
-        value={stakeNum || 0}
-        onChange={(value) => onStakeChange(String(value ?? 0))}
-        suffix="USD"
-        disabled={isRunning}
-        step={0.01}
-      />
-      <NumberField
-        label="Duration"
-        value={duration}
-        onChange={(value) => onDurationChange(Math.max(1, Math.round(value ?? 1)))}
-        suffix="ticks"
-        disabled={isRunning}
-        step={1}
-      />
+      {/* Stake + Duration paired two-per-row, matching the other three
+          digit panels. Unconditional grid — same on mobile and desktop. */}
+      <div className="grid grid-cols-2 gap-1.5">
+        <NumberField
+          label="Stake"
+          value={stakeNum || 0}
+          onChange={(value) => onStakeChange(String(value ?? 0))}
+          suffix="USD"
+          disabled={isRunning}
+          step={0.01}
+        />
+        <NumberField
+          label="Duration"
+          value={duration}
+          onChange={(value) => onDurationChange(Math.max(1, Math.round(value ?? 1)))}
+          suffix="ticks"
+          disabled={isRunning}
+          step={1}
+        />
+      </div>
 
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         <p className="text-[10px] text-muted-foreground">Rounds</p>
         <ToggleGroup
           type="single"
@@ -179,7 +184,7 @@ export function DigitMatchDiffEntryAutomatedPanel({
             <ToggleGroupItem
               key={n}
               value={String(n)}
-              className="!w-5 !h-5 !min-w-0 !flex-none !px-0 rounded-md border border-border text-[9px] font-medium text-muted-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:font-bold hover:text-foreground"
+              className="flex-1 h-5 rounded-md border border-border text-[9px] font-medium text-muted-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:font-bold hover:text-foreground"
             >
               {n}
             </ToggleGroupItem>
@@ -192,7 +197,7 @@ export function DigitMatchDiffEntryAutomatedPanel({
           so there's no detectable pattern). Defaults to Hold. Disabled
           while running, same as the other Start-time settings above.
           Section title kept generic on purpose — see file header note. */}
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         <p className="text-[10px] text-muted-foreground">Mode</p>
         <ToggleGroup
           type="single"
@@ -223,13 +228,13 @@ export function DigitMatchDiffEntryAutomatedPanel({
         )}
       </div>
 
-      <div className="pt-0.5">
+      <div>
         {isRunning || phase === 'entered' ? (
-          <Button variant="destructive" className="w-full h-7 text-[10px]" onClick={() => stop('Stopped manually')}>
+          <Button variant="destructive" className="w-full h-6 text-[10px]" onClick={() => stop('Stopped manually')}>
             Stop
           </Button>
         ) : (
-          <Button className="w-full h-7 text-[10px]" disabled={!canStart} onClick={start}>
+          <Button className="w-full h-6 text-[10px]" disabled={!canStart} onClick={start}>
             {!isAuthenticated
               ? 'Log in to trade'
               : !isConnected
@@ -242,7 +247,7 @@ export function DigitMatchDiffEntryAutomatedPanel({
       </div>
 
       {(isRunning || phase === 'entered') && (
-        <div className="rounded-md border border-blue-500/30 bg-blue-500/5 px-2 py-0.5 space-y-0.5 text-[10px]">
+        <div className="rounded-md border border-blue-500/30 bg-blue-500/5 px-2 py-0.5 space-y-0 text-[10px]">
           <p className="text-[10px] font-medium text-blue-500 dark:text-blue-400">
             {phase === 'entered' ? 'Trade placed — waiting to settle…' : 'Watching for entry signal…'}
           </p>
@@ -261,8 +266,8 @@ export function DigitMatchDiffEntryAutomatedPanel({
           Over/Under panel, so the running mode/pattern isn't visible on
           screen to anyone glancing at it. */}
       {results.length > 0 && (
-        <div className="rounded-md border border-border bg-muted/30 px-2 py-1 space-y-0.5 text-[10px]">
-          <div className="flex justify-between items-center border-b border-border pb-1">
+        <div className="rounded-md border border-border bg-muted/30 px-2 py-0.5 space-y-0 text-[10px]">
+          <div className="flex justify-between items-center border-b border-border pb-0.5">
             <span className="text-muted-foreground">RESULTS</span>
             <span className={`tabular-nums font-bold ${netProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
               {netProfit >= 0 ? '+' : ''}
@@ -284,7 +289,7 @@ export function DigitMatchDiffEntryAutomatedPanel({
       )}
 
       {lastError && !isRunning && phase !== 'entered' && (
-        <p className="text-[10px] text-muted-foreground rounded-md border border-border bg-muted/20 px-2 py-1">
+        <p className="text-[10px] text-muted-foreground rounded-md border border-border bg-muted/20 px-2 py-0.5">
           {lastError}
         </p>
       )}
