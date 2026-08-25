@@ -1,9 +1,7 @@
 'use client';
 import { ModeRail } from '@/components/custom/mode-rail';
+
 interface TradeModeToggleProps {
-  mode: 'manual' | 'automated';
-  onModeChange: (mode: 'manual' | 'automated') => void;
-  onOpenBotLibrary: () => void;
   /** e.g. "Rise/Fall", "Matches/Differs" — rendered as "Automate {label}". Defaults to "Rise/Fall". */
   label?: string;
   /** Currently selected trade type — when provided (together with
@@ -12,37 +10,21 @@ interface TradeModeToggleProps {
   activeTradeType?: string;
   onSelectTradeType?: (type: string) => void;
 }
+
 /**
- * Top of the trade panel card: the Manual/Automated/Bot-library icon row,
- * followed by the "Automate {label} ›" breadcrumb. The icon row used to be
- * a separate floating column (mode-rail.tsx) in its own grid cell outside
- * the card — it's now rendered inline here, horizontally, so the panel
- * itself gets that width back and doesn't need to be squeezed.
+ * Top of the trade panel card: the Automated-trading badge + Market
+ * contracts icon row (via ModeRail), followed by the "Automate {label}"
+ * label. Manual trading and the Bot library have been removed app-wide,
+ * so this no longer toggles between modes — Automated trading is the
+ * only mode, on every trade type.
  */
-export function TradeModeToggle({
-  mode,
-  onModeChange,
-  onOpenBotLibrary,
-  label = 'Rise/Fall',
-  activeTradeType,
-  onSelectTradeType,
-}: TradeModeToggleProps) {
+export function TradeModeToggle({ label = 'Rise/Fall', activeTradeType, onSelectTradeType }: TradeModeToggleProps) {
   return (
     <div className="mb-3">
-      <ModeRail
-        mode={mode}
-        onModeChange={onModeChange}
-        onOpenBotLibrary={onOpenBotLibrary}
-        activeTradeType={activeTradeType}
-        onSelectTradeType={onSelectTradeType}
-      />
-      <button
-        onClick={() => onModeChange('automated')}
-        className="flex items-center gap-1 text-[13px] font-semibold text-foreground hover:text-primary"
-      >
+      <ModeRail activeTradeType={activeTradeType} onSelectTradeType={onSelectTradeType} />
+      <div className="flex items-center gap-1 text-[13px] font-semibold text-foreground">
         Automate {label}
-        <span className="text-muted-foreground">›</span>
-      </button>
+      </div>
     </div>
   );
 }
