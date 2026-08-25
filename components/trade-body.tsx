@@ -9,8 +9,8 @@ export interface TradeBodyProps {
   /**
    * Fully rendered chart element (or its own Skeleton fallback while chart
    * data isn't ready yet). Each body component still owns its own chart
-   * wiring/props (symbolKey, contractsArray, isLive, endEpoch, etc.) — this
-   * component only places it inside the shared chart column.
+   * wiring/props (symbolKey, contractsArray, isLive, endEpoch, etc.) —
+   * this component only places it inside the shared chart column.
    */
   chart: ReactNode;
 
@@ -47,12 +47,13 @@ export interface TradeBodyProps {
 
 const DEFAULT_OUTER =
   'flex w-full flex-col px-3 py-2 sm:px-4 sm:py-4 gap-2 sm:gap-3 max-lg:pb-16 lg:pb-2 lg:px-3 lg:flex-1 lg:min-h-0 lg:overflow-hidden';
-const DEFAULT_GRID = 'flex flex-col lg:grid lg:grid-cols-[1fr_240px] lg:gap-3 lg:h-full lg:min-h-0';
+const DEFAULT_GRID =
+  'flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-3 lg:h-full lg:min-h-0';
 const DEFAULT_CHART_COL = 'flex flex-col gap-2 px-0 pt-2 lg:py-0 lg:h-full lg:min-h-0';
 const DEFAULT_CHART_WRAPPER = 'h-[70vh] min-h-[420px] max-h-[640px] lg:h-full lg:min-h-0 lg:max-h-none';
 const DEFAULT_SETTINGS_COL =
   'flex flex-col gap-3 pt-3 lg:pt-0 border-t border-border lg:border-0 lg:h-full lg:min-h-0';
-const DEFAULT_CARD = 'lg:h-full lg:overflow-y-auto';
+const DEFAULT_CARD = 'lg:h-full lg:overflow-y-auto thin-scrollbar';
 const DEFAULT_CARD_CONTENT = 'pt-4';
 const DEFAULT_SKELETON = 'lg:h-full h-48 w-full rounded-xl';
 
