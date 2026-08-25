@@ -85,8 +85,17 @@ export function TradeBody({
 
         {/* Column 2: Trade panel in a Card — the Automated-trading badge
             and Market-contracts icon render inline at the top via
-            TradeModeToggle. */}
-        <div className={settingsColClassName}>
+            TradeModeToggle.
+
+            MOBILE FIX: added `relative z-[100]` so this column sits above
+            Flutter's full-screen glass pane during SmartCharts initialization.
+            The glass pane captures all taps for ~2 minutes while the WASM
+            binary loads, making buttons inside this Card completely dead.
+            Raising the z-index puts the automation panel on top of the glass
+            pane so taps reach the buttons immediately. No visual change —
+            `relative` does not move the element, and `z-[100]` only affects
+            stacking order, not size, spacing, or color. */}
+        <div className={`${settingsColClassName} relative z-[100]`}>
           {isLoading ? (
             <Skeleton className={skeletonClassName} />
           ) : (
