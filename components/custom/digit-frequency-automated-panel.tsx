@@ -28,14 +28,24 @@ const MODE_OPTIONS: { value: ContractMode; label: string }[] = [
 const ROUND_OPTIONS = [3, 5, 10, 20, 50, 100];
 
 /**
- * NEW — second automation option for Matches/Differs, ported from the
- * uploaded DBot XML strategy (digit-frequency prediction + boost-after-loss
+ * Second automation option for Matches/Differs, ported from the uploaded
+ * DBot XML strategy (digit-frequency prediction + boost-after-loss
  * stake), then refined to fire only once one digit is BOTH strictly alone
  * in the lead (no tie) AND has reached "Minimum lead count" occurrences —
  * with no cap on how long the window can run while it waits for that.
  * Separate from, and does not alter, DigitMatchDiffEntryAutomatedPanel
  * (the "Watcher" bot) — see hooks/use-digit-frequency-automation.ts for the
  * full logic mapping back to the original XML and worked examples.
+ *
+ * LAYOUT: number-input settings are paired two-per-row (Stake+Duration,
+ * Minimum lead count+Boost multiplier, Boost rounds+Stop-loss), with
+ * Take-profit as the lone leftover full-width row, since 7 fields don't
+ * divide evenly into pairs. This grid is unconditional (no breakpoint
+ * prefix), so it applies identically on mobile and desktop — mobile
+ * already has the full device width available here since this panel sits
+ * below the chart there, not beside it. Rounds moved to sit immediately
+ * above the idle/watching status readout, as the last setting before
+ * Start/Stop. No trading logic, validation, or chart behavior changed.
  */
 export function DigitFrequencyAutomatedPanel({
   contractMode,
@@ -149,31 +159,75 @@ export function DigitFrequencyAutomatedPanel({
         </div>
       </div>
 
+      {/* Number-input settings, paired two-per-row. Unconditional grid —
+          same on mobile and desktop. */}
+      <div className="grid grid-cols-2 gap-1.5">
+        <NumberField
+          label="Stake"
+          value={stakeNum || 0}
+          onChange={(value) => onStakeChange(String(value ?? 0))}
+          suffix="USD"
+          disabled={isRunning}
+          step={0.01}
+        />
+        <NumberField
+          label="Duration"
+          value={duration}
+          onChange={(value) => onDurationChange(Math.max(1, Math.round(value ?? 1)))}
+          suffix="ticks"
+          disabled={isRunning}
+          step={1}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-1.5">
+        <NumberField
+          label="Minimum lead count"
+          value={settings.minLeadCount}
+          onChange={(value) => setSettings({ ...settings, minLeadCount: Math.max(2, Math.round(value ?? 3)) })}
+          suffix="ticks"
+          disabled={isRunning}
+          step={1}
+        />
+        <NumberField
+          label="Boost multiplier (after a loss)"
+          value={settings.boostMultiplier}
+          onChange={(value) => setSettings({ ...settings, boostMultiplier: Math.max(1, value ?? 4) })}
+          suffix="×"
+          disabled={isRunning}
+          step={0.5}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-1.5">
+        <NumberField
+          label="Boost rounds"
+          value={settings.boostRounds}
+          onChange={(value) => setSettings({ ...settings, boostRounds: Math.max(1, Math.round(value ?? 2)) })}
+          disabled={isRunning}
+          step={1}
+        />
+        <NumberField
+          label="Stop-loss"
+          value={settings.lossThreshold ?? 0}
+          onChange={(value) => setSettings({ ...settings, lossThreshold: value && value > 0 ? value : null })}
+          suffix="USD"
+          disabled={isRunning}
+          step={1}
+        />
+      </div>
+
       <NumberField
-        label="Stake"
-        value={stakeNum || 0}
-        onChange={(value) => onStakeChange(String(value ?? 0))}
+        label="Take-profit"
+        value={settings.profitThreshold ?? 0}
+        onChange={(value) => setSettings({ ...settings, profitThreshold: value && value > 0 ? value : null })}
         suffix="USD"
-        disabled={isRunning}
-        step={0.01}
-      />
-      <NumberField
-        label="Duration"
-        value={duration}
-        onChange={(value) => onDurationChange(Math.max(1, Math.round(value ?? 1)))}
-        suffix="ticks"
-        disabled={isRunning}
-        step={1}
-      />
-      <NumberField
-        label="Minimum lead count"
-        value={settings.minLeadCount}
-        onChange={(value) => setSettings({ ...settings, minLeadCount: Math.max(2, Math.round(value ?? 3)) })}
-        suffix="ticks"
         disabled={isRunning}
         step={1}
       />
 
+      {/* Rounds — moved here, immediately above the status readout, as the
+          last setting before Start/Stop. */}
       <div className="space-y-0.5">
         <p className="text-[9px] text-muted-foreground">Rounds</p>
         <ToggleGroup
@@ -196,38 +250,6 @@ export function DigitFrequencyAutomatedPanel({
           ))}
         </ToggleGroup>
       </div>
-
-      <NumberField
-        label="Boost multiplier (after a loss)"
-        value={settings.boostMultiplier}
-        onChange={(value) => setSettings({ ...settings, boostMultiplier: Math.max(1, value ?? 4) })}
-        suffix="×"
-        disabled={isRunning}
-        step={0.5}
-      />
-      <NumberField
-        label="Boost rounds"
-        value={settings.boostRounds}
-        onChange={(value) => setSettings({ ...settings, boostRounds: Math.max(1, Math.round(value ?? 2)) })}
-        disabled={isRunning}
-        step={1}
-      />
-      <NumberField
-        label="Stop-loss"
-        value={settings.lossThreshold ?? 0}
-        onChange={(value) => setSettings({ ...settings, lossThreshold: value && value > 0 ? value : null })}
-        suffix="USD"
-        disabled={isRunning}
-        step={1}
-      />
-      <NumberField
-        label="Take-profit"
-        value={settings.profitThreshold ?? 0}
-        onChange={(value) => setSettings({ ...settings, profitThreshold: value && value > 0 ? value : null })}
-        suffix="USD"
-        disabled={isRunning}
-        step={1}
-      />
 
       <div className="rounded-md border border-border bg-muted/30 px-2 py-0.5 text-[9px]">
         {isValidSetup ? (
