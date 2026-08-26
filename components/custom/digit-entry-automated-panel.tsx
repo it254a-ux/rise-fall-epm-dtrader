@@ -51,25 +51,9 @@ const ENTRY_STRATEGY_OPTIONS: { value: EntryStrategy; label: string }[] = [
  * appears, then lets the contract settle on its own like any other digit
  * contract.
  *
- * Two controls below Stake/Duration, both default-off / default-Edge so
- * behavior is unchanged unless explicitly turned on:
- *  - Entry Strategy — Edge (barrier ± 1, the original behavior) or Direct
- *    (the barrier digit itself).
- *  - Hybrid Mode — alternates the barrier automatically each round instead
- *    of staying on one. Combinable with Entry Strategy. The specific
- *    barrier pair it alternates between is intentionally not shown on
- *    screen anywhere in this panel — same policy as the hidden internal
- *    trigger digit.
- *
- * LAYOUT: Stake+Duration paired two-per-row (the only two NumberFields
- * this panel has). Entry Strategy (ToggleGroup) and Hybrid Mode (Switch)
- * stay full-width, since pairing a selector control against another looks
- * cramped and inconsistent with how they're used elsewhere in the app.
- * Grid is unconditional (no breakpoint prefix) — same on mobile and
- * desktop, since mobile already has the full device width here (this
- * panel sits below the chart, not beside it). Rounds moved to sit
- * immediately above the armed-status readout, as the last setting before
- * Start/Stop. No trading logic, validation, or chart behavior changed.
+ * LAYOUT FIX: removed lg:max-w-[240px] so content stretches to fill the
+ * full width of the parent Card, matching the left-edge alignment on the
+ * right side too. No other spacing or font sizes changed.
  */
 export function DigitEntryAutomatedPanel({
   contractMode,
@@ -77,7 +61,6 @@ export function DigitEntryAutomatedPanel({
   digitStats,
   lastDigit,
   selectedDigit,
-  onSelectedDigitChange,
   stake,
   onStakeChange,
   duration,
@@ -107,7 +90,7 @@ export function DigitEntryAutomatedPanel({
   const isOver = contractMode === 'DIGITOVER';
 
   return (
-    <div className="w-full space-y-1.5 lg:max-w-[240px] lg:space-y-2">
+    <div className="w-full space-y-1.5 lg:space-y-2">
       <ToggleGroup
         type="single"
         value={contractMode}
