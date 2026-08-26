@@ -60,17 +60,9 @@ const SHIFT_MODE_OPTIONS: { value: DigitShiftMode; label: string }[] = [
  * detectable pattern). Results ledger intentionally does not show which
  * digit each round watched, same privacy policy as the Over/Under panel.
  *
- * LAYOUT FIX: the Rounds row's pills previously used a fixed
- * `!w-5 !flex-none` width, so they clustered on the left of the row and
- * left a large dead gap on the right — that's the asymmetry that was
- * visible even though horizontal padding itself was already symmetric.
- * Switched to `flex-1` (matching how the Entry/Over-Under panel's Rounds
- * row already does it) so the pills stretch to fill the row edge to edge.
- * Also added the Stake+Duration two-column pairing used by the other
- * three digit panels, and tightened the outer spacing
- * (space-y-1.5/space-y-2 → space-y-1, a few py-1 → py-0.5) for denser row
- * spacing. No font sizes changed. No trading logic, validation, or chart
- * behavior touched.
+ * LAYOUT FIX: removed lg:max-w-[240px] so content stretches to fill the
+ * full width of the parent Card, matching the left-edge alignment on the
+ * right side too. No other spacing or font sizes changed.
  */
 export function DigitMatchDiffEntryAutomatedPanel({
   contractMode,
@@ -106,7 +98,7 @@ export function DigitMatchDiffEntryAutomatedPanel({
   const isMatch = contractMode === 'DIGITMATCH';
 
   return (
-    <div className="w-full space-y-1 lg:max-w-[240px] lg:space-y-1">
+    <div className="w-full space-y-1 lg:space-y-1">
       <ToggleGroup
         type="single"
         value={contractMode}
