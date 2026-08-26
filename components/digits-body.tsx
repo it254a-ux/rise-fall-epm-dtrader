@@ -400,7 +400,7 @@ export function DigitsBody({
           automation={overUnderAutomation}
         />
       ) : isMatchesDiffers ? (
-        <div className="w-full space-y-1.5 lg:max-w-[240px] lg:space-y-2">
+        <div className="w-full space-y-1.5 lg:space-y-2">
           {matchDiffBotToggle}
           {matchDiffBotType === 'watcher' ? (
             <DigitMatchDiffEntryAutomatedPanel
