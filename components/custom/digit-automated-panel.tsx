@@ -2,7 +2,6 @@
 
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { AutomationControls, NumberField } from '@/components/custom/automation-controls';
-import { DigitStatsBar } from '@/components/custom/digit-stats-bar';
 import type { UseMartingaleAutomationReturn } from '@/hooks/use-martingale-automation';
 import type { ContractMode, TradeType, DigitStats } from '@/lib/digit-types';
 
@@ -43,13 +42,20 @@ function showDigitGrid(tradeType: TradeType): boolean {
  * The contract-mode toggle, digit-prediction rings, and Initial stake field are
  * digit-specific; everything from the divider down is the same
  * AutomationControls block used by Rise/Fall's AutomatedPanel.
+ *
+ * LAYOUT FIX: removed lg:max-w-[240px] so content stretches to fill the
+ * full width of the parent Card, matching the left-edge alignment on the
+ * right side too.
+ *
+ * BUGFIX: removed the <DigitStatsBar> from inside this panel. The stats
+ * bar is now rendered once at the bottom of the chart (in digits-body.tsx)
+ * for ALL digit tabs, so having it here too would create a duplicate on
+ * the Even/Odd tab.
  */
 export function DigitAutomatedPanel({
   tradeType,
   contractMode,
   onContractModeChange,
-  digitStats,
-  lastDigit,
   selectedDigit,
   onSelectedDigitChange,
   isConnected,
@@ -65,7 +71,7 @@ export function DigitAutomatedPanel({
   const modeOptions = CONTRACT_MODE_OPTIONS[tradeType];
 
   return (
-    <div className="w-full space-y-1.5 lg:max-w-[240px] lg:space-y-2">
+    <div className="w-full space-y-1.5 lg:space-y-2">
       <ToggleGroup
         type="single"
         value={contractMode}
@@ -85,17 +91,6 @@ export function DigitAutomatedPanel({
           </ToggleGroupItem>
         ))}
       </ToggleGroup>
-
-      {showDigitGrid(tradeType) && (
-        <div>
-          <DigitStatsBar
-            digitStats={digitStats}
-            selectedDigit={selectedDigit}
-            onDigitSelect={onSelectedDigitChange}
-            lastDigit={lastDigit}
-          />
-        </div>
-      )}
 
       <NumberField
         label="Initial stake"
