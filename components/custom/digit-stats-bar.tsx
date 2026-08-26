@@ -272,7 +272,7 @@ export function DigitStatsBar({
       data-digit-stats-bar-root
       style={{
         position: 'absolute',
-        bottom: '8px',
+        bottom: '24px',
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 50,
