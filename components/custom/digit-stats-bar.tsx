@@ -251,7 +251,6 @@ export function DigitStatsBar({
   const [shouldRender, setShouldRender] = useState(true);
 
   useEffect(() => {
-    // Small delay so all instances in this render cycle have mounted
     const t = setTimeout(() => {
       const all = document.querySelectorAll('[data-digit-stats-bar-root]');
       if (all.length > 1 && rootRef.current && all[0] !== rootRef.current) {
@@ -278,12 +277,8 @@ export function DigitStatsBar({
         transform: 'translateX(-50%)',
         zIndex: 50,
         width: 'min(96%, 520px)',
-        background: 'rgba(17,24,39,0.85)',
-        backdropFilter: 'blur(6px)',
-        border: '1px solid rgba(255,255,255,0.06)',
-        borderRadius: '10px',
-        padding: '6px 8px',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+        /* No background, no border, no shadow — circles float directly on the chart */
+        padding: '4px',
       }}
     >
       <ScanStyles />
