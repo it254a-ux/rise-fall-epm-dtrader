@@ -458,9 +458,9 @@ export function useDigit3ConsecutiveAutomation({
     : phase === 'entered' && armedDigit !== null
     ? `Armed on digit ${armedDigit} — waiting for the current contract to settle.`
     : phase === 'entered'
-    ? 'Trade placed — waiting for it to settle (still watching for the next streak).'
+    ? 'Trade placed — waiting for it to settle.'
     : phase === 'collecting'
-    ? `Watching for 3-in-a-row — round ${Math.min(roundCount + 1, settings.maxRounds)} of ${settings.maxRounds}.`
+    ? `Working — round ${Math.min(roundCount + 1, settings.maxRounds)} of ${settings.maxRounds}.`
     : 'Idle';
 
   return {
