@@ -12,6 +12,7 @@ import { DigitMatchDiffEntryAutomatedPanel } from '@/components/custom/digit-mat
 import { DigitFrequencyAutomatedPanel } from '@/components/custom/digit-frequency-automated-panel';
 import { DigitConsecutiveAutomatedPanel } from '@/components/custom/digit-consecutive-automated-panel';
 import { Digit3ConsecutiveAutomatedPanel } from '@/components/custom/digit-3consecutive-automated-panel';
+import { DigitTwinAutomatedPanel } from '@/components/custom/digit-twin-automated-panel';
 import { DigitStatsBar } from '@/components/custom/digit-stats-bar';
 import { TradeBody } from '@/components/trade-body';
 import { useMartingaleAutomation } from '@/hooks/use-martingale-automation';
@@ -20,6 +21,7 @@ import { useDigitsMatchDiffEntryAutomation } from '@/hooks/use-digits-match-diff
 import { useDigitFrequencyAutomation } from '@/hooks/use-digit-frequency-automation';
 import { useDigitConsecutiveAutomation } from '@/hooks/use-digit-consecutive-automation';
 import { useDigit3ConsecutiveAutomation } from '@/hooks/use-digit-3consecutive-automation';
+import { useDigitTwinAutomation } from '@/hooks/use-digit-twin-automation';
 import type { AuthState, ActiveSymbol, ProposalInfo, DurationLimits, BuyResult, DerivWS } from '@deriv/core';
 import type { ContractMode, TradeType, DigitStats } from '@/lib/digit-types';
 import type { UseSmartChartsApiReturn } from '@/hooks/use-smartcharts-api';
@@ -45,19 +47,23 @@ const TRADE_TYPE_LABELS: Record<TradeType, string> = {
  * leader + minimum lead count), boosts stake after a loss. Consecutive =
  * fires the instant any digit lands twice in a row, no window/lead
  * logic, flat stake, same feature set as Watcher otherwise.
- * ThreeConsecutive = fires the instant any digit lands three times in a
- * row (rolling streak, resets to 0 the moment it fires — see
- * use-digit-3consecutive-automation.ts for full semantics), same
- * risk-management feature set as Consecutive (boost/SL/TP). Defaults to
+ * ThreeConsecutive (tab label "Nova") = fires the instant any digit
+ * lands three times in a row (rolling streak, resets to 0 the moment it
+ * fires — see use-digit-3consecutive-automation.ts for full semantics),
+ * same risk-management feature set as Consecutive (boost/SL/TP). Twin =
+ * same 2-in-a-row entry trigger as Consecutive, then a self-contained
+ * follow-up sequence with its own risk settings — see
+ * use-digit-twin-automation.ts for the full mechanism. Defaults to
  * Watcher — no change to existing behavior unless the user explicitly
  * switches. */
-type MatchDiffBotType = 'watcher' | 'frequency' | 'consecutive' | 'three-consecutive';
+type MatchDiffBotType = 'watcher' | 'frequency' | 'consecutive' | 'three-consecutive' | 'twin';
 
 const MATCH_DIFF_BOT_OPTIONS: { value: MatchDiffBotType; label: string }[] = [
   { value: 'watcher', label: 'Watcher' },
   { value: 'frequency', label: 'Frequency' },
   { value: 'consecutive', label: 'Consecutive' },
-  { value: 'three-consecutive', label: '3-Streak' },
+  { value: 'three-consecutive', label: 'Nova' },
+  { value: 'twin', label: 'Twin' },
 ];
 
 export interface DigitsBodyProps {
@@ -71,11 +77,12 @@ export interface DigitsBodyProps {
   lastDigit: number | null;
   /**
    * BUGFIX — the current tick's epoch (unix timestamp). Passed straight
-   * through to the Consecutive and 3-Streak bots so they can tell two
+   * through to the Consecutive, Nova, and Twin bots so they can tell two
    * back-to-back ticks with the SAME digit apart (lastDigit alone
    * doesn't change in that case, so React would otherwise skip
-   * re-running the detection effect). Optional — every other bot on this
-   * page is unaffected either way.
+   * re-running the detection effect). Twin also uses it to detect a
+   * genuinely new tick between follow-up trades in its sequence.
+   * Optional — every other bot on this page is unaffected either way.
    */
   lastTickEpoch?: number | null;
   tradeType: TradeType;
@@ -273,13 +280,40 @@ export function DigitsBody({
     setSelectedDigit,
   });
 
-  // "3-Streak" bot for Matches/Differs. Fires the instant any digit lands
-  // three times in a row (a rolling streak counter that resets to 0 the
-  // moment it fires, rather than a fixed 3-tick collection cycle — see
-  // use-digit-3consecutive-automation.ts for the full rules, including
-  // how it keeps watching even while a previous contract is still open).
+  // "Nova" bot for Matches/Differs (internal hook/file name unchanged —
+  // see use-digit-3consecutive-automation.ts). Fires the instant any
+  // digit lands three times in a row (a rolling streak counter that
+  // resets to 0 the moment it fires, rather than a fixed 3-tick
+  // collection cycle — see that file for the full rules, including how
+  // it keeps watching even while a previous contract is still open).
   // Same risk-management feature set as Consecutive (boost/SL/TP).
   const threeConsecutiveAutomation = useDigit3ConsecutiveAutomation({
+    isConnected,
+    isAuthenticated,
+    contractMode,
+    lastDigit,
+    tickEpoch: lastTickEpoch,
+    proposal,
+    buyContract,
+    isBuying,
+    buyResult,
+    buyError,
+    clearBuyResult,
+    openPositions,
+    stake,
+    setStake,
+    selectedDigit,
+    setSelectedDigit,
+  });
+
+  // "Twin" bot for Matches/Differs. Same 2-in-a-row entry trigger as
+  // Consecutive, then runs its own self-contained follow-up sequence with
+  // its own Stop-loss/Take-profit/Rounds settings — see
+  // use-digit-twin-automation.ts for the full mechanism. tickEpoch is
+  // passed through both for the same back-to-back-tick bugfix as
+  // Consecutive/Nova and because Twin also uses it to detect a fresh tick
+  // between the trades in its sequence.
+  const twinAutomation = useDigitTwinAutomation({
     isConnected,
     isAuthenticated,
     contractMode,
@@ -309,6 +343,7 @@ export function DigitsBody({
     if (frequencyAutomation.isRunning) frequencyAutomation.stop('Switched bot');
     if (consecutiveAutomation.isRunning) consecutiveAutomation.stop('Switched bot');
     if (threeConsecutiveAutomation.isRunning) threeConsecutiveAutomation.stop('Switched bot');
+    if (twinAutomation.isRunning) twinAutomation.stop('Switched bot');
     setMatchDiffBotType(next);
   };
 
@@ -477,7 +512,7 @@ export function DigitsBody({
               isAuthenticated={isAuthenticated}
               automation={consecutiveAutomation}
             />
-          ) : (
+          ) : matchDiffBotType === 'three-consecutive' ? (
             <Digit3ConsecutiveAutomatedPanel
               contractMode={contractMode}
               onContractModeChange={setContractMode}
@@ -488,6 +523,18 @@ export function DigitsBody({
               isConnected={isConnected}
               isAuthenticated={isAuthenticated}
               automation={threeConsecutiveAutomation}
+            />
+          ) : (
+            <DigitTwinAutomatedPanel
+              contractMode={contractMode}
+              onContractModeChange={setContractMode}
+              stake={stake}
+              onStakeChange={setStake}
+              duration={duration}
+              onDurationChange={setDuration}
+              isConnected={isConnected}
+              isAuthenticated={isAuthenticated}
+              automation={twinAutomation}
             />
           )}
         </div>
