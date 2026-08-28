@@ -11,6 +11,7 @@ import { DigitEntryAutomatedPanel } from '@/components/custom/digit-entry-automa
 import { DigitMatchDiffEntryAutomatedPanel } from '@/components/custom/digit-match-diff-entry-automated-panel';
 import { DigitFrequencyAutomatedPanel } from '@/components/custom/digit-frequency-automated-panel';
 import { DigitConsecutiveAutomatedPanel } from '@/components/custom/digit-consecutive-automated-panel';
+import { Digit3ConsecutiveAutomatedPanel } from '@/components/custom/digit-3consecutive-automated-panel';
 import { DigitStatsBar } from '@/components/custom/digit-stats-bar';
 import { TradeBody } from '@/components/trade-body';
 import { useMartingaleAutomation } from '@/hooks/use-martingale-automation';
@@ -18,6 +19,7 @@ import { useDigitsEntryAutomation } from '@/hooks/use-digits-entry-automation';
 import { useDigitsMatchDiffEntryAutomation } from '@/hooks/use-digits-match-diff-entry-automation';
 import { useDigitFrequencyAutomation } from '@/hooks/use-digit-frequency-automation';
 import { useDigitConsecutiveAutomation } from '@/hooks/use-digit-consecutive-automation';
+import { useDigit3ConsecutiveAutomation } from '@/hooks/use-digit-3consecutive-automation';
 import type { AuthState, ActiveSymbol, ProposalInfo, DurationLimits, BuyResult, DerivWS } from '@deriv/core';
 import type { ContractMode, TradeType, DigitStats } from '@/lib/digit-types';
 import type { UseSmartChartsApiReturn } from '@/hooks/use-smartcharts-api';
@@ -42,15 +44,20 @@ const TRADE_TYPE_LABELS: Record<TradeType, string> = {
  * Frequency = predicts the digit off a rolling stats window (unique
  * leader + minimum lead count), boosts stake after a loss. Consecutive =
  * fires the instant any digit lands twice in a row, no window/lead
- * logic, flat stake, same feature set as Watcher otherwise. Defaults to
+ * logic, flat stake, same feature set as Watcher otherwise.
+ * ThreeConsecutive = fires the instant any digit lands three times in a
+ * row (rolling streak, resets to 0 the moment it fires — see
+ * use-digit-3consecutive-automation.ts for full semantics), same
+ * risk-management feature set as Consecutive (boost/SL/TP). Defaults to
  * Watcher — no change to existing behavior unless the user explicitly
  * switches. */
-type MatchDiffBotType = 'watcher' | 'frequency' | 'consecutive';
+type MatchDiffBotType = 'watcher' | 'frequency' | 'consecutive' | 'three-consecutive';
 
 const MATCH_DIFF_BOT_OPTIONS: { value: MatchDiffBotType; label: string }[] = [
   { value: 'watcher', label: 'Watcher' },
   { value: 'frequency', label: 'Frequency' },
   { value: 'consecutive', label: 'Consecutive' },
+  { value: 'three-consecutive', label: '3-Streak' },
 ];
 
 export interface DigitsBodyProps {
@@ -64,10 +71,11 @@ export interface DigitsBodyProps {
   lastDigit: number | null;
   /**
    * BUGFIX — the current tick's epoch (unix timestamp). Passed straight
-   * through to the Consecutive bot so it can tell two back-to-back ticks
-   * with the SAME digit apart (lastDigit alone doesn't change in that
-   * case, so React would otherwise skip re-running the detection effect).
-   * Optional — every other bot on this page is unaffected either way.
+   * through to the Consecutive and 3-Streak bots so they can tell two
+   * back-to-back ticks with the SAME digit apart (lastDigit alone
+   * doesn't change in that case, so React would otherwise skip
+   * re-running the detection effect). Optional — every other bot on this
+   * page is unaffected either way.
    */
   lastTickEpoch?: number | null;
   tradeType: TradeType;
@@ -265,6 +273,31 @@ export function DigitsBody({
     setSelectedDigit,
   });
 
+  // "3-Streak" bot for Matches/Differs. Fires the instant any digit lands
+  // three times in a row (a rolling streak counter that resets to 0 the
+  // moment it fires, rather than a fixed 3-tick collection cycle — see
+  // use-digit-3consecutive-automation.ts for the full rules, including
+  // how it keeps watching even while a previous contract is still open).
+  // Same risk-management feature set as Consecutive (boost/SL/TP).
+  const threeConsecutiveAutomation = useDigit3ConsecutiveAutomation({
+    isConnected,
+    isAuthenticated,
+    contractMode,
+    lastDigit,
+    tickEpoch: lastTickEpoch,
+    proposal,
+    buyContract,
+    isBuying,
+    buyResult,
+    buyError,
+    clearBuyResult,
+    openPositions,
+    stake,
+    setStake,
+    selectedDigit,
+    setSelectedDigit,
+  });
+
   const isOverUnder = tradeType === 'over-under';
   const isMatchesDiffers = tradeType === 'matches-differs';
 
@@ -275,6 +308,7 @@ export function DigitsBody({
     if (matchDiffAutomation.isRunning) matchDiffAutomation.stop('Switched bot');
     if (frequencyAutomation.isRunning) frequencyAutomation.stop('Switched bot');
     if (consecutiveAutomation.isRunning) consecutiveAutomation.stop('Switched bot');
+    if (threeConsecutiveAutomation.isRunning) threeConsecutiveAutomation.stop('Switched bot');
     setMatchDiffBotType(next);
   };
 
@@ -359,7 +393,7 @@ export function DigitsBody({
       onValueChange={(value) => {
         if (value) handleMatchDiffBotTypeChange(value as MatchDiffBotType);
       }}
-      className="w-full gap-0 rounded-full bg-muted p-0.5 lg:max-w-[240px]"
+      className="w-full gap-0 rounded-full bg-muted p-0.5 lg:max-w-[320px]"
     >
       {MATCH_DIFF_BOT_OPTIONS.map((opt) => (
         <ToggleGroupItem
@@ -431,7 +465,7 @@ export function DigitsBody({
               isAuthenticated={isAuthenticated}
               automation={frequencyAutomation}
             />
-          ) : (
+          ) : matchDiffBotType === 'consecutive' ? (
             <DigitConsecutiveAutomatedPanel
               contractMode={contractMode}
               onContractModeChange={setContractMode}
@@ -442,6 +476,18 @@ export function DigitsBody({
               isConnected={isConnected}
               isAuthenticated={isAuthenticated}
               automation={consecutiveAutomation}
+            />
+          ) : (
+            <Digit3ConsecutiveAutomatedPanel
+              contractMode={contractMode}
+              onContractModeChange={setContractMode}
+              stake={stake}
+              onStakeChange={setStake}
+              duration={duration}
+              onDurationChange={setDuration}
+              isConnected={isConnected}
+              isAuthenticated={isAuthenticated}
+              automation={threeConsecutiveAutomation}
             />
           )}
         </div>
