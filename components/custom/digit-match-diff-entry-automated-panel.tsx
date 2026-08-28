@@ -130,17 +130,17 @@ export function DigitMatchDiffEntryAutomatedPanel({
 
       {/* Prediction summary. While a non-Hold mode is running, this updates
           on its own each round since selectedDigit is driven by the hook. */}
-      <div className="rounded-md border border-border bg-muted/30 px-2 py-0.5 space-y-0.5">
-        <p className="text-[10px] text-muted-foreground">Prediction</p>
+      <div className="rounded-md border border-border bg-muted/30 px-2 py-0.5 space-y-0">
+        <p className="text-[9px] text-muted-foreground">Prediction</p>
         <div className="flex items-center gap-1.5">
-          <p className="text-xs font-medium text-foreground">
+          <p className="text-[11px] font-medium text-foreground">
             Last digit of the price will{' '}
             <span className={isMatch ? 'font-bold text-green-600 dark:text-green-400' : 'font-bold text-red-500'}>
               {isMatch ? 'match' : 'differ from'}
             </span>
           </p>
           <span
-            className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${
+            className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${
               isMatch ? 'bg-green-600' : 'bg-red-500'
             }`}
           >
@@ -210,8 +210,37 @@ export function DigitMatchDiffEntryAutomatedPanel({
         />
       </div>
 
+      {/* Boost multiplier + Stop-loss — these already exist in this bot's
+          hook (settings.multiplier drives the elevated-stake-after-a-loss
+          streak; settings.lossThreshold drives the stop-loss check) and
+          were already being used by the trading logic, just never exposed
+          as controls in this panel. No new hook state was added — these
+          two fields simply surface settings that already existed. Boost
+          rounds and Take-profit are intentionally NOT added here: boost
+          rounds is a hardcoded constant in this hook (not a settings
+          field), and there is no take-profit/profitThreshold concept in
+          this hook at all. */}
+      <div className="grid grid-cols-2 gap-1.5">
+        <NumberField
+          label="Boost multiplier"
+          value={settings.multiplier}
+          onChange={(value) => setSettings({ ...settings, multiplier: Math.max(1, value ?? 10) })}
+          suffix="×"
+          disabled={isRunning}
+          step={0.5}
+        />
+        <NumberField
+          label="Stop-loss"
+          value={settings.lossThreshold ?? 0}
+          onChange={(value) => setSettings({ ...settings, lossThreshold: value && value > 0 ? value : null })}
+          suffix="USD"
+          disabled={isRunning}
+          step={1}
+        />
+      </div>
+
       <div className="space-y-0.5">
-        <p className="text-[10px] text-muted-foreground">Rounds</p>
+        <p className="text-[9px] text-muted-foreground">Rounds</p>
         <ToggleGroup
           type="single"
           value={String(settings.maxRounds)}
@@ -225,7 +254,7 @@ export function DigitMatchDiffEntryAutomatedPanel({
             <ToggleGroupItem
               key={n}
               value={String(n)}
-              className="flex-1 h-5 rounded-md border border-border text-[9px] font-medium text-muted-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:font-bold hover:text-foreground"
+              className="!w-5 !h-4 !min-w-0 !flex-none !px-0 rounded-md border border-border text-[9px] font-medium text-muted-foreground data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:font-bold hover:text-foreground"
             >
               {n}
             </ToggleGroupItem>
