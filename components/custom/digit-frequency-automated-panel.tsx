@@ -46,6 +46,13 @@ const ROUND_OPTIONS = [3, 5, 10, 20, 50, 100];
  * below the chart there, not beside it. Rounds moved to sit immediately
  * above the idle/watching status readout, as the last setting before
  * Start/Stop. No trading logic, validation, or chart behavior changed.
+ *
+ * STATUS GRID: markup now matches the Consecutive/3-Streak bots' Status
+ * grid exactly (fill-percentage-of-container with the percentage printed
+ * inside the bar, idle/watching label) instead of the previous
+ * height-relative-to-max-count bar style. Still driven by the same
+ * freqCounts / ticksCollected / predictedDigit already returned by this
+ * panel's hook — no new state was added anywhere.
  */
 export function DigitFrequencyAutomatedPanel({
   contractMode,
@@ -80,7 +87,6 @@ export function DigitFrequencyAutomatedPanel({
   const canStart =
     isConnected && isAuthenticated && !isRunning && isValidSetup && !!stakeNum && stakeNum > 0;
   const isMatch = contractMode === 'DIGITMATCH';
-  const maxCount = Math.max(1, ...freqCounts);
 
   return (
     <div className="w-full space-y-1 lg:max-w-[240px] lg:space-y-1">
@@ -123,35 +129,40 @@ export function DigitFrequencyAutomatedPanel({
         </div>
       </div>
 
-      {/* Live progress readout. Label intentionally generic — deliberately
-          doesn't describe the underlying tick-frequency mechanism. Window
-          is unbounded, so this shows a running tick count, not a
-          count-toward-a-cap. */}
+      {/* Live 10-slot percentage readout — same visual style as the
+          Consecutive/3-Streak bots' Status grid. Each column's container
+          fills from empty toward full exactly as its percentage grows,
+          with the percentage shown inside the container itself and the
+          digit number below it. */}
       <div className="rounded-md border border-border bg-muted/30 px-2 py-0.5 space-y-0.5">
         <div className="flex items-center justify-between">
           <p className="text-[9px] text-muted-foreground">Status</p>
           <p className="text-[9px] tabular-nums text-muted-foreground">
-            {ticksCollected} tick{ticksCollected === 1 ? '' : 's'}
+            {ticksCollected > 0 ? 'watching' : 'idle'}
           </p>
         </div>
         <div className="grid grid-cols-10 gap-0.5">
           {freqCounts.map((count, digit) => {
             const pct = ticksCollected > 0 ? Math.round((count / ticksCollected) * 100) : 0;
             return (
-              <div key={digit} className="flex flex-col items-center gap-0">
-                <div className="h-3 w-full flex items-end rounded-sm bg-muted overflow-hidden">
+              <div key={digit} className="flex flex-col items-center gap-0.5">
+                <div className="relative h-8 w-full rounded-sm bg-muted overflow-hidden">
                   <div
-                    className={`w-full ${digit === predictedDigit ? 'bg-primary' : 'bg-foreground/30'}`}
-                    style={{ height: `${(count / maxCount) * 100}%` }}
+                    className={`absolute bottom-0 left-0 w-full transition-all duration-300 ${
+                      digit === predictedDigit ? 'bg-primary' : 'bg-foreground/30'
+                    }`}
+                    style={{ height: `${pct}%` }}
                   />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span
+                      className={`text-[7px] font-bold tabular-nums ${
+                        digit === predictedDigit ? 'text-primary-foreground' : 'text-foreground'
+                      }`}
+                    >
+                      {pct}%
+                    </span>
+                  </div>
                 </div>
-                <span
-                  className={`text-[7px] tabular-nums leading-none ${
-                    digit === predictedDigit ? 'text-primary font-bold' : 'text-muted-foreground'
-                  }`}
-                >
-                  {pct}%
-                </span>
                 <span className="text-[7px] text-muted-foreground leading-none">{digit}</span>
               </div>
             );
