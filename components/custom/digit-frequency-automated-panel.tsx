@@ -89,7 +89,7 @@ export function DigitFrequencyAutomatedPanel({
   const isMatch = contractMode === 'DIGITMATCH';
 
   return (
-    <div className="w-full space-y-1 lg:max-w-[240px] lg:space-y-1">
+    <div className="w-full space-y-1 lg:space-y-1">
       <ToggleGroup
         type="single"
         value={contractMode}
