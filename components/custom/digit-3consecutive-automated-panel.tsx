@@ -45,6 +45,12 @@ const ROUND_OPTIONS = [3, 5, 10, 20, 50, 100];
  * which this hook fixes at 3 (so 1/3 = 33%, 2/3 = 66%, 3/3 = 100%) —
  * so this component's JSX is otherwise unchanged from the 2-in-a-row
  * version.
+ *
+ * LAYOUT FIX: removed lg:max-w-[240px] so content stretches to fill the
+ * full width of the parent Card, matching the Watcher panel — this
+ * panel was previously stuck at a narrower fixed width than the card
+ * actually gives it, forcing scrolling instead of filling the column.
+ * No other spacing or font sizes changed.
  */
 export function Digit3ConsecutiveAutomatedPanel({
   contractMode,
@@ -81,7 +87,7 @@ export function Digit3ConsecutiveAutomatedPanel({
   const isMatch = contractMode === 'DIGITMATCH';
 
   return (
-    <div className="w-full space-y-1 lg:max-w-[240px] lg:space-y-1">
+    <div className="w-full space-y-1 lg:space-y-1">
       <ToggleGroup
         type="single"
         value={contractMode}
