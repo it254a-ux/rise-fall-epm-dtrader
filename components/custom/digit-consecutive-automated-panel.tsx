@@ -48,11 +48,15 @@ const ROUND_OPTIONS = [3, 5, 10, 20, 50, 100];
  * LAYOUT: number-input settings paired two-per-row (Stake+Duration,
  * Boost multiplier+Boost rounds, Stop-loss+Take-profit) — 6 fields, 3
  * even pairs. Grid is unconditional (no breakpoint prefix), so it's the
- * same on mobile and desktop — mobile already has the full device width
- * here since this panel sits below the chart, not beside it. Rounds moved
- * to sit immediately above the idle/watching status readout, as the last
- * setting before Start/Stop. No trading logic, validation, or chart
- * behavior changed.
+ * same on mobile and desktop. Rounds moved to sit immediately above the
+ * idle/watching status readout, as the last setting before Start/Stop.
+ * No trading logic, validation, or chart behavior changed.
+ *
+ * LAYOUT FIX: removed lg:max-w-[240px] so content stretches to fill the
+ * full width of the parent Card, matching the Watcher panel — this
+ * panel was previously stuck at a narrower fixed width than the card
+ * actually gives it, forcing scrolling instead of filling the column.
+ * No other spacing or font sizes changed.
  */
 export function DigitConsecutiveAutomatedPanel({
   contractMode,
@@ -89,7 +93,7 @@ export function DigitConsecutiveAutomatedPanel({
   const isMatch = contractMode === 'DIGITMATCH';
 
   return (
-    <div className="w-full space-y-1 lg:max-w-[240px] lg:space-y-1">
+    <div className="w-full space-y-1 lg:space-y-1">
       <ToggleGroup
         type="single"
         value={contractMode}
