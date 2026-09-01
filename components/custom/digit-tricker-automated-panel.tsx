@@ -2,11 +2,14 @@
 
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { NumberField } from '@/components/custom/automation-controls';
-import type {
-  UseDigitTrickerAutomationReturn,
-  DigitShiftMode,
+import {
+  TRICKER_ROTATION_SYMBOLS,
+  type UseDigitTrickerAutomationReturn,
+  type DigitShiftMode,
 } from '@/hooks/use-digit-tricker-automation';
+import { getSymbolDisplayName } from '@/lib/active-symbols-display-names';
 import type { ContractMode, DigitStats } from '@/lib/digit-types';
 import type { DurationLimits } from '@deriv/core';
 
@@ -40,13 +43,44 @@ const SHIFT_MODE_OPTIONS: { value: DigitShiftMode; label: string }[] = [
   { value: 'random', label: 'Flex' },
 ];
 
+/** Native select for picking a slot's starting volatility symbol. */
+function SlotSelect({
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  onChange: (symbol: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="space-y-0.5">
+      <Label className="text-[10px] text-muted-foreground">{label}</Label>
+      <select
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full h-6 rounded-md border border-input bg-background px-2 text-[10px] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {TRICKER_ROTATION_SYMBOLS.map((symbol) => (
+          <option key={symbol} value={symbol}>
+            {getSymbolDisplayName(symbol)}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 /**
- * "Tricker" panel — same layout and fields as Watcher's panel
- * (digit-match-diff-entry-automated-panel.tsx, untouched by this file),
- * plus one added section: Volatility rotation, showing the symbol Tricker
- * is currently trading on and a "Rounds per volatility" stepper (default
- * 1). Everything else — Stake/Duration/Boost/Stop-loss/Rounds/Mode — is
- * identical in behavior to Watcher.
+ * "Tricker" panel. Same Stake/Duration/Boost/Stop-loss/Rounds/Mode fields
+ * as Watcher's panel. Volatility rotation section: two independently
+ * configurable starting symbols (Slot A = odd rounds, Slot B = even
+ * rounds) — from each slot's second turn onward its next symbol is
+ * chosen live by the background scanner (best Differ odds for the
+ * current digit), shown via currentSymbolDisplayName / activeSlot below.
  */
 export function DigitTrickerAutomatedPanel({
   contractMode,
@@ -74,6 +108,7 @@ export function DigitTrickerAutomatedPanel({
     settings,
     setSettings,
     currentSymbolDisplayName,
+    activeSlot,
   } = automation;
 
   const stakeNum = parseFloat(stake);
@@ -121,10 +156,6 @@ export function DigitTrickerAutomatedPanel({
         </div>
       </div>
 
-      {/* Live Status readout — identical to Watcher's panel. Missing from
-          the first version of this file; restored here. Shows selectedDigit
-          at 100% and every other digit at 0%, same as Watcher (this bot has
-          no multi-tick buildup to plot either). */}
       <div className="rounded-md border border-border bg-muted/30 px-2 py-0.5 space-y-0.5">
         <div className="flex items-center justify-between">
           <p className="text-[9px] text-muted-foreground">Status</p>
@@ -159,12 +190,29 @@ export function DigitTrickerAutomatedPanel({
         </div>
       </div>
 
-      {/* Volatility rotation — new section. Shows the symbol Tricker is
-          currently on (or will start on) and lets the trader set how many
-          rounds to stay on each volatility before switching. */}
-      <div className="rounded-md border border-border bg-muted/30 px-2 py-0.5 space-y-0.5">
-        <p className="text-[9px] text-muted-foreground">Volatility rotation</p>
+      {/* Volatility rotation — two alternating slots. Round 1 uses Slot A's
+          starting symbol, round 2 uses Slot B's, round 3 is Slot A's next
+          (live-ranked) pick, and so on. */}
+      <div className="rounded-md border border-border bg-muted/30 px-2 py-0.5 space-y-1">
+        <div className="flex items-center justify-between">
+          <p className="text-[9px] text-muted-foreground">Volatility rotation</p>
+          <p className="text-[9px] tabular-nums text-muted-foreground">active: slot {activeSlot}</p>
+        </div>
         <p className="text-[11px] font-medium text-foreground">{currentSymbolDisplayName}</p>
+        <div className="grid grid-cols-2 gap-1.5">
+          <SlotSelect
+            label="Slot A start (odd rounds)"
+            value={settings.slotAStart}
+            onChange={(symbol) => setSettings({ ...settings, slotAStart: symbol })}
+            disabled={isRunning}
+          />
+          <SlotSelect
+            label="Slot B start (even rounds)"
+            value={settings.slotBStart}
+            onChange={(symbol) => setSettings({ ...settings, slotBStart: symbol })}
+            disabled={isRunning}
+          />
+        </div>
         <NumberField
           label="Rounds per volatility"
           value={settings.roundsPerVolatility}
