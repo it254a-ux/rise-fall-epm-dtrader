@@ -13,6 +13,7 @@ import { DigitFrequencyAutomatedPanel } from '@/components/custom/digit-frequenc
 import { DigitConsecutiveAutomatedPanel } from '@/components/custom/digit-consecutive-automated-panel';
 import { Digit3ConsecutiveAutomatedPanel } from '@/components/custom/digit-3consecutive-automated-panel';
 import { DigitTwinAutomatedPanel } from '@/components/custom/digit-twin-automated-panel';
+import { DigitTrickerAutomatedPanel } from '@/components/custom/digit-tricker-automated-panel';
 import { DigitStatsBar } from '@/components/custom/digit-stats-bar';
 import { TradeBody } from '@/components/trade-body';
 import { useMartingaleAutomation } from '@/hooks/use-martingale-automation';
@@ -22,6 +23,7 @@ import { useDigitFrequencyAutomation } from '@/hooks/use-digit-frequency-automat
 import { useDigitConsecutiveAutomation } from '@/hooks/use-digit-consecutive-automation';
 import { useDigit3ConsecutiveAutomation } from '@/hooks/use-digit-3consecutive-automation';
 import { useDigitTwinAutomation } from '@/hooks/use-digit-twin-automation';
+import { useDigitTrickerAutomation } from '@/hooks/use-digit-tricker-automation';
 import type { AuthState, ActiveSymbol, ProposalInfo, DurationLimits, BuyResult, DerivWS } from '@deriv/core';
 import type { ContractMode, TradeType, DigitStats } from '@/lib/digit-types';
 import type { UseSmartChartsApiReturn } from '@/hooks/use-smartcharts-api';
@@ -53,10 +55,13 @@ const TRADE_TYPE_LABELS: Record<TradeType, string> = {
  * same risk-management feature set as Consecutive (boost/SL/TP). Twin =
  * same 2-in-a-row entry trigger as Consecutive, then a self-contained
  * follow-up sequence with its own risk settings — see
- * use-digit-twin-automation.ts for the full mechanism. Defaults to
+ * use-digit-twin-automation.ts for the full mechanism. Tricker = same
+ * entry-watcher mechanics as Watcher, but also rotates the traded symbol
+ * through a fixed list of seven Volatility (1s) indices after every N
+ * rounds (default 1) — see use-digit-tricker-automation.ts. Defaults to
  * Watcher — no change to existing behavior unless the user explicitly
  * switches. */
-type MatchDiffBotType = 'watcher' | 'frequency' | 'consecutive' | 'three-consecutive' | 'twin';
+type MatchDiffBotType = 'watcher' | 'frequency' | 'consecutive' | 'three-consecutive' | 'twin' | 'tricker';
 
 const MATCH_DIFF_BOT_OPTIONS: { value: MatchDiffBotType; label: string }[] = [
   { value: 'watcher', label: 'Watcher' },
@@ -64,6 +69,7 @@ const MATCH_DIFF_BOT_OPTIONS: { value: MatchDiffBotType; label: string }[] = [
   { value: 'consecutive', label: 'Consecutive' },
   { value: 'three-consecutive', label: 'Nova' },
   { value: 'twin', label: 'Twin' },
+  { value: 'tricker', label: 'Tricker' },
 ];
 
 export interface DigitsBodyProps {
@@ -73,6 +79,13 @@ export interface DigitsBodyProps {
   ws: DerivWS | null;
   activeSymbol: ActiveSymbol | null;
   selectSymbol: (symbol: string) => void;
+  /**
+   * NEW — the account's real tradable symbol list (digits.symbols from
+   * useDigitsTrading). Optional; only consumed by Tricker, to filter its
+   * volatility rotation down to symbols actually available on this
+   * account/broker feed. No other bot uses this prop.
+   */
+  symbols?: ActiveSymbol[];
   digitStats: DigitStats;
   lastDigit: number | null;
   /**
@@ -133,6 +146,7 @@ export function DigitsBody({
   isLoading,
   activeSymbol,
   selectSymbol,
+  symbols,
   digitStats,
   lastDigit,
   lastTickEpoch,
@@ -332,6 +346,31 @@ export function DigitsBody({
     setSelectedDigit,
   });
 
+  // "Tricker" bot for Matches/Differs — NEW. Same entry-watcher mechanics
+  // as Watcher, plus symbol rotation through the seven Volatility (1s)
+  // indices. activeSymbol/selectSymbol/symbols are only ever passed to
+  // this hook — no other bot on this page touches the traded symbol.
+  const trickerAutomation = useDigitTrickerAutomation({
+    isConnected,
+    isAuthenticated,
+    contractMode,
+    selectedDigit,
+    lastDigit,
+    proposal,
+    buyContract,
+    isBuying,
+    buyResult,
+    buyError,
+    clearBuyResult,
+    openPositions,
+    stake,
+    setStake,
+    setSelectedDigit,
+    activeSymbol,
+    selectSymbol,
+    availableSymbols: symbols,
+  });
+
   const isOverUnder = tradeType === 'over-under';
   const isMatchesDiffers = tradeType === 'matches-differs';
 
@@ -344,6 +383,7 @@ export function DigitsBody({
     if (consecutiveAutomation.isRunning) consecutiveAutomation.stop('Switched bot');
     if (threeConsecutiveAutomation.isRunning) threeConsecutiveAutomation.stop('Switched bot');
     if (twinAutomation.isRunning) twinAutomation.stop('Switched bot');
+    if (trickerAutomation.isRunning) trickerAutomation.stop('Switched bot');
     setMatchDiffBotType(next);
   };
 
@@ -524,7 +564,7 @@ export function DigitsBody({
               isAuthenticated={isAuthenticated}
               automation={threeConsecutiveAutomation}
             />
-          ) : (
+          ) : matchDiffBotType === 'twin' ? (
             <DigitTwinAutomatedPanel
               contractMode={contractMode}
               onContractModeChange={setContractMode}
@@ -535,6 +575,23 @@ export function DigitsBody({
               isConnected={isConnected}
               isAuthenticated={isAuthenticated}
               automation={twinAutomation}
+            />
+          ) : (
+            <DigitTrickerAutomatedPanel
+              contractMode={contractMode}
+              onContractModeChange={setContractMode}
+              digitStats={digitStats}
+              lastDigit={lastDigit}
+              selectedDigit={selectedDigit}
+              onSelectedDigitChange={setSelectedDigit}
+              stake={stake}
+              onStakeChange={setStake}
+              duration={duration}
+              onDurationChange={setDuration}
+              durationLimits={durationLimits}
+              isConnected={isConnected}
+              isAuthenticated={isAuthenticated}
+              automation={trickerAutomation}
             />
           )}
         </div>
