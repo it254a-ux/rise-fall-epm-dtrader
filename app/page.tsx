@@ -214,6 +214,7 @@ export default function RiseFallPage() {
           ws={digits.ws}
           activeSymbol={digits.activeSymbol}
           selectSymbol={digits.selectSymbol}
+          symbols={digits.symbols}
           digitStats={digits.digitStats}
           lastDigit={digits.lastDigit}
           lastTickEpoch={digits.currentTick?.epoch ?? null}
