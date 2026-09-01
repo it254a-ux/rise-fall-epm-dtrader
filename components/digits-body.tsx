@@ -413,16 +413,7 @@ export function DigitsBody({
   const chart = useMemo(() => {
     return chartData ? (
       <RiseFallChart
-        // BUGFIX: was a static "digits-chart" string, so every symbol
-        // switch (manual, or Tricker's automatic rotation) updated the
-        // underlying Flutter/WASM chart widget's `symbol` prop LIVE
-        // in-place, instead of remounting it. That live-update path is
-        // what's unstable — see smart-chart.tsx's `key={symbolKey-theme}`,
-        // the same remount mechanism already used there for theme changes.
-        // Including the symbol itself in the key forces a clean remount on
-        // every switch instead, which is a proven-stable path for this
-        // widget (already used for theme) rather than its live-update path.
-        symbolKey={`digits-chart-${activeSymbol?.underlying_symbol ?? 'default'}`}
+        symbolKey="digits-chart"
         symbol={activeSymbol?.underlying_symbol}
         isConnectionOpened={isConnected}
         isMobile={isMobile}
