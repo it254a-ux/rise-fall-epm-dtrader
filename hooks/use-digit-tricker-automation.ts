@@ -12,40 +12,16 @@ export interface TrickerEntryResult {
   contractId: number;
   profit: number;
   won: boolean;
-  /** The stake this specific round was placed at (base stake, or elevated after a loss). */
   stake: number;
   selectedDigit?: number;
-  /** Which volatility symbol this round was placed on. */
   symbol?: string;
 }
 
-/**
- * NEW — "Tricker" bot for Matches/Differs. Same entry-watcher mechanics as
- * "Watcher" (use-digits-match-diff-entry-automation.ts, untouched by this
- * file — Tricker is a separate hook, not a modification of it): watches
- * for the selected digit itself, fires one buy, lets it settle, same
- * Boost-multiplier / Stop-loss / Rounds / Mode (Hold/Swing/Flex) feature
- * set for the DIGIT.
- *
- * On top of that, Tricker rotates the TRADED SYMBOL through a fixed list
- * of seven Volatility (1s) indices after every N rounds (N = "rounds per
- * volatility", default 1, user-configurable). The rotation alternates
- * direction each full pass through the list — forward through all seven,
- * then backward, then forward again — the same bounce pattern Watcher
- * already uses for its own Swing digit mode, just applied to the symbol
- * list instead of to a digit.
- */
 export type DigitShiftMode = 'fixed' | 'bounce' | 'random';
 
 /**
- * Rotation order as specified: Volatility 90, 25, 100, 75, 30, 50, 15, 10
- * (all "(1s) Index" variants). '1HZ15V' and '1HZ90V' and '1HZ30V' were not
- * found in lib/active-symbols-display-names.ts (that file only had 10/25/
- * 50/75/100) — they are still valid Deriv symbol codes following the same
- * '1HZ{n}V' convention as the confirmed ones, but display names for them
- * will fall back to the raw code unless added to that file. Availability
- * on your specific account is checked at runtime — see availableSymbols
- * below.
+ * Rotation list: Volatility 90, 25, 100, 75, 30, 50, 15, 10 — all "(1s)
+ * Index" variants, in the order originally specified.
  */
 export const TRICKER_ROTATION_SYMBOLS = [
   '1HZ90V',
@@ -58,17 +34,39 @@ export const TRICKER_ROTATION_SYMBOLS = [
   '1HZ10V',
 ] as const;
 
+export type TrickerSlot = 'A' | 'B';
+
+/**
+ * ROTATION MODEL — two independent, alternating "slots":
+ *
+ *   - Slot A fires on odd rounds (1, 3, 5, 7…), Slot B on even rounds
+ *     (2, 4, 6, 8…) — round 1 uses slot A's starting symbol, round 2
+ *     uses slot B's, round 3 is slot A's NEXT pick, etc.
+ *   - Each slot's STARTING symbol is fully configurable
+ *     (settings.slotAStart / slotBStart) — not locked to a fixed
+ *     position in the list.
+ *   - From each slot's second turn onward, its next symbol is chosen
+ *     LIVE: getBestDifferSymbol(selectedDigit) (from
+ *     use-tricker-background-scanner.ts, which watches ticks on all 8
+ *     rotation symbols in the background) picks whichever symbol
+ *     currently has the lowest observed rate of the selected digit
+ *     repeating immediately after it lands — the best odds for a Differ
+ *     bet. If the scanner doesn't have enough background data yet for a
+ *     fair comparison, that slot falls back to a simple bounce step
+ *     (0→9→0-style, applied to the symbol list) so the bot never stalls
+ *     waiting for data.
+ */
 export interface TrickerAutomationSettings {
-  /** Same as Watcher — multiplier applied to base stake, held for 3 rounds after a loss at base stake. */
   multiplier: number;
-  /** Hard cap on the number of rounds a single run will place before stopping on its own. */
   maxRounds: number;
-  /** Stop the run once cumulative loss reaches this amount. Null = no limit. */
   lossThreshold: number | null;
-  /** How the watched DIGIT moves between rounds — identical semantics to Watcher's Mode. */
   digitShiftMode: DigitShiftMode;
-  /** How many rounds to stay on each volatility before rotating to the next one. Default 1. */
+  /** How many consecutive rounds a slot stays active before alternating to the other slot. Default 1 — alternates every round. */
   roundsPerVolatility: number;
+  /** Starting symbol for Slot A (odd-round turns). */
+  slotAStart: string;
+  /** Starting symbol for Slot B (even-round turns). */
+  slotBStart: string;
 }
 
 export const DEFAULT_TRICKER_SETTINGS: TrickerAutomationSettings = {
@@ -77,6 +75,8 @@ export const DEFAULT_TRICKER_SETTINGS: TrickerAutomationSettings = {
   lossThreshold: 10,
   digitShiftMode: 'fixed',
   roundsPerVolatility: 1,
+  slotAStart: TRICKER_ROTATION_SYMBOLS[0],
+  slotBStart: TRICKER_ROTATION_SYMBOLS[7],
 };
 
 const ELEVATED_STAKE_ROUND_COUNT = 3;
@@ -97,18 +97,15 @@ interface UseDigitTrickerAutomationParams {
   stake: string;
   setStake: (value: string) => void;
   setSelectedDigit?: (digit: number) => void;
-  /** Currently active chart symbol. */
   activeSymbol: ActiveSymbol | null;
-  /** Switches the traded/charted symbol — same function DigitsBody already passes to the chart. */
   selectSymbol: (symbol: string) => void;
-  /**
-   * Optional — the account's actual tradable symbol list (digits.symbols
-   * in DigitsBody). When provided, Tricker's rotation is filtered to only
-   * symbols confirmed available, skipping any of the seven that aren't
-   * offered rather than switching to an invalid symbol. If omitted,
-   * Tricker uses the full rotation list as-is.
-   */
   availableSymbols?: ActiveSymbol[];
+  /**
+   * From use-tricker-background-scanner.ts. Returns the rotation symbol
+   * with the best (lowest) Differ repeat-rate for the given digit, or
+   * null if not enough background data has been collected yet.
+   */
+  getBestDifferSymbol: (targetDigit: number) => string | null;
 }
 
 export interface UseDigitTrickerAutomationReturn {
@@ -128,18 +125,14 @@ export interface UseDigitTrickerAutomationReturn {
   roundCount: number;
   netProfit: number;
   stopReason: string | null;
-  /** The volatility symbol Tricker is currently trading / about to trade on. */
   currentSymbol: string;
-  /** Human-readable name for currentSymbol (e.g. "Volatility 90 (1s) Index"). */
   currentSymbolDisplayName: string;
+  /** Which slot is due to fire next round — for optional status display. */
+  activeSlot: TrickerSlot;
 }
 
-/** Steps an index by 1 within [0, length-1], reversing direction at either boundary instead of overshooting. */
-function nextBounceIndex(
-  current: number,
-  direction: 1 | -1,
-  length: number
-): { next: number; direction: 1 | -1 } {
+/** Steps an index by 1 within [0, length-1], reversing direction at either boundary. Used as the no-data fallback only. */
+function nextBounceIndex(current: number, direction: 1 | -1, length: number): { next: number; direction: 1 | -1 } {
   const candidate = current + direction;
   if (candidate > length - 1 || candidate < 0) {
     const reversed: 1 | -1 = direction === 1 ? -1 : 1;
@@ -148,7 +141,6 @@ function nextBounceIndex(
   return { next: candidate, direction };
 }
 
-/** Steps a digit by 1 in the given direction, reversing direction at the 0/9 boundary. Identical to Watcher's helper. */
 function nextBounceDigit(current: number, direction: 1 | -1): { next: number; direction: 1 | -1 } {
   const candidate = current + direction;
   if (candidate > 9 || candidate < 0) {
@@ -160,6 +152,11 @@ function nextBounceDigit(current: number, direction: 1 | -1): { next: number; di
 
 function randomDigit(): number {
   return Math.floor(Math.random() * 10);
+}
+
+function indexOfSymbol(symbol: string): number {
+  const idx = TRICKER_ROTATION_SYMBOLS.indexOf(symbol as (typeof TRICKER_ROTATION_SYMBOLS)[number]);
+  return idx === -1 ? 0 : idx;
 }
 
 export function useDigitTrickerAutomation({
@@ -180,7 +177,7 @@ export function useDigitTrickerAutomation({
   setSelectedDigit,
   activeSymbol,
   selectSymbol,
-  availableSymbols,
+  getBestDifferSymbol,
 }: UseDigitTrickerAutomationParams): UseDigitTrickerAutomationReturn {
   const [isRunning, setIsRunning] = useState(false);
   const [phase, setPhase] = useState<TrickerEntryPhase>('idle');
@@ -192,7 +189,8 @@ export function useDigitTrickerAutomation({
   const [roundCount, setRoundCount] = useState(0);
   const [netProfit, setNetProfit] = useState(0);
   const [stopReason, setStopReason] = useState<string | null>(null);
-  const [currentSymbol, setCurrentSymbol] = useState<string>(TRICKER_ROTATION_SYMBOLS[0]);
+  const [currentSymbol, setCurrentSymbol] = useState<string>(DEFAULT_TRICKER_SETTINGS.slotAStart);
+  const [activeSlot, setActiveSlot] = useState<TrickerSlot>('A');
 
   const hasFired = useRef(false);
   const pendingContractId = useRef<number | null>(null);
@@ -208,10 +206,15 @@ export function useDigitTrickerAutomation({
   }, [proposal]);
   const staleProposalId = useRef<string | null>(null);
 
-  // Rotation state — separate from the digit-shift state above.
-  const rotationListRef = useRef<string[]>([...TRICKER_ROTATION_SYMBOLS]);
-  const rotationIndexRef = useRef(0);
-  const rotationDirectionRef = useRef<1 | -1>(1);
+  // Per-slot state: current symbol for each slot, plus a fallback
+  // bounce index/direction used only when the scanner has no data yet.
+  const slotSymbolRef = useRef<Record<TrickerSlot, string>>({
+    A: DEFAULT_TRICKER_SETTINGS.slotAStart,
+    B: DEFAULT_TRICKER_SETTINGS.slotBStart,
+  });
+  const slotFallbackIndexRef = useRef<Record<TrickerSlot, number>>({ A: 0, B: 7 });
+  const slotFallbackDirectionRef = useRef<Record<TrickerSlot, 1 | -1>>({ A: 1, B: -1 });
+  const activeSlotRef = useRef<TrickerSlot>('A');
   const roundsOnVolatilityRef = useRef(0);
 
   const triggerDigit = selectedDigit;
@@ -220,15 +223,6 @@ export function useDigitTrickerAutomation({
   const start = useCallback(() => {
     const parsedStake = parseFloat(stake);
     const startingStake = Number.isFinite(parsedStake) && parsedStake > 0 ? parsedStake : 0;
-
-    // Filter rotation to symbols confirmed available on this account, if
-    // the caller supplied the real symbol list. Falls back to the full
-    // list if nothing could be confirmed, rather than blocking the run.
-    const filtered =
-      availableSymbols && availableSymbols.length > 0
-        ? TRICKER_ROTATION_SYMBOLS.filter((sym) => availableSymbols.some((s) => s.underlying_symbol === sym))
-        : [...TRICKER_ROTATION_SYMBOLS];
-    rotationListRef.current = filtered.length > 0 ? filtered : [...TRICKER_ROTATION_SYMBOLS];
 
     hasFired.current = false;
     pendingContractId.current = null;
@@ -239,10 +233,15 @@ export function useDigitTrickerAutomation({
     bounceDirectionRef.current = 1;
     elevatedRoundsLeftRef.current = 0;
 
-    rotationIndexRef.current = 0;
-    rotationDirectionRef.current = 1;
+    // Reset both slots to their configured starting symbols.
+    slotSymbolRef.current = { A: settings.slotAStart, B: settings.slotBStart };
+    slotFallbackIndexRef.current = { A: indexOfSymbol(settings.slotAStart), B: indexOfSymbol(settings.slotBStart) };
+    slotFallbackDirectionRef.current = { A: 1, B: -1 };
+    activeSlotRef.current = 'A';
+    setActiveSlot('A');
     roundsOnVolatilityRef.current = 0;
-    const firstSymbol = rotationListRef.current[0];
+
+    const firstSymbol = settings.slotAStart;
     setCurrentSymbol(firstSymbol);
     if (activeSymbol?.underlying_symbol !== firstSymbol) {
       staleProposalId.current = latestProposalRef.current?.id ?? null;
@@ -259,7 +258,7 @@ export function useDigitTrickerAutomation({
     setStake(String(startingStake));
     setPhase('watching');
     setIsRunning(true);
-  }, [stake, setStake, activeSymbol, selectSymbol, availableSymbols]);
+  }, [stake, setStake, activeSymbol, selectSymbol, settings.slotAStart, settings.slotBStart]);
 
   const stop = useCallback((reason?: string) => {
     isRunningRef.current = false;
@@ -280,8 +279,7 @@ export function useDigitTrickerAutomation({
     }
   }, [isConnected, isAuthenticated, isRunning, stop]);
 
-  // WATCH — fire the buy the instant the selected digit lands on the
-  // currently active symbol, once a fresh, correctly priced proposal is available.
+  // WATCH
   useEffect(() => {
     if (!isRunning || phase !== 'watching') return;
     if (hasFired.current) return;
@@ -291,8 +289,6 @@ export function useDigitTrickerAutomation({
     if (!proposal) return;
     if (staleProposalId.current !== null && proposal.id === staleProposalId.current) return;
     if (Math.abs(proposal.askPrice - currentStakeRef.current) > 0.01) return;
-    // Defensive guard: don't fire if the chart's active symbol hasn't
-    // caught up to the symbol Tricker intends to trade on yet.
     if (activeSymbol && activeSymbol.underlying_symbol !== currentSymbol) return;
 
     staleProposalId.current = null;
@@ -399,6 +395,7 @@ export function useDigitTrickerAutomation({
 
     // Digit shift — identical rule to Watcher's Mode (Hold/Swing/Flex).
     let digitChanged = false;
+    let nextTriggerDigit = selectedDigit;
     if (settings.digitShiftMode !== 'fixed' && setSelectedDigit) {
       let nextDigit: number;
       if (settings.digitShiftMode === 'random') {
@@ -410,39 +407,51 @@ export function useDigitTrickerAutomation({
       }
       if (nextDigit !== selectedDigit) {
         digitChanged = true;
+        nextTriggerDigit = nextDigit;
         setSelectedDigit(nextDigit);
       }
     }
 
-    // Volatility rotation — after every settings.roundsPerVolatility
-    // rounds, move to the next symbol in the rotation list. Direction
-    // alternates each full pass through the list (forward, then
-    // backward, then forward again…), the same bounce pattern as Swing
-    // mode, applied to the symbol list instead of a digit.
+    // Slot alternation — after every settings.roundsPerVolatility rounds
+    // on the current slot, switch to the OTHER slot. That slot's next
+    // symbol is picked live via getBestDifferSymbol (best Differ odds for
+    // the current trigger digit), falling back to a simple bounce step
+    // if the scanner doesn't have enough data yet.
     roundsOnVolatilityRef.current += 1;
     let symbolChanged = false;
     if (roundsOnVolatilityRef.current >= Math.max(1, settings.roundsPerVolatility)) {
       roundsOnVolatilityRef.current = 0;
-      const list = rotationListRef.current;
-      const { next, direction } = nextBounceIndex(
-        rotationIndexRef.current,
-        rotationDirectionRef.current,
-        list.length
-      );
-      rotationIndexRef.current = next;
-      rotationDirectionRef.current = direction;
-      const nextSymbol = list[next];
-      if (nextSymbol !== currentSymbol) {
+      const nextSlot: TrickerSlot = activeSlotRef.current === 'A' ? 'B' : 'A';
+
+      const ranked = getBestDifferSymbol(nextTriggerDigit);
+      let nextSymbolForSlot: string;
+      if (ranked) {
+        nextSymbolForSlot = ranked;
+        // Keep the fallback bounce pointer roughly in sync so, if data
+        // dries up later, the fallback resumes from a sensible place.
+        slotFallbackIndexRef.current[nextSlot] = indexOfSymbol(ranked);
+      } else {
+        const { next, direction } = nextBounceIndex(
+          slotFallbackIndexRef.current[nextSlot],
+          slotFallbackDirectionRef.current[nextSlot],
+          TRICKER_ROTATION_SYMBOLS.length
+        );
+        slotFallbackIndexRef.current[nextSlot] = next;
+        slotFallbackDirectionRef.current[nextSlot] = direction;
+        nextSymbolForSlot = TRICKER_ROTATION_SYMBOLS[next];
+      }
+
+      slotSymbolRef.current[nextSlot] = nextSymbolForSlot;
+      activeSlotRef.current = nextSlot;
+      setActiveSlot(nextSlot);
+
+      if (nextSymbolForSlot !== currentSymbol) {
         symbolChanged = true;
-        setCurrentSymbol(nextSymbol);
-        selectSymbol(nextSymbol);
+        setCurrentSymbol(nextSymbolForSlot);
+        selectSymbol(nextSymbolForSlot);
       }
     }
 
-    // Mark the current proposal stale whenever the digit and/or symbol
-    // actually changed, so WATCH waits for a fresh quote priced for the
-    // new digit/symbol before firing again — same guard Watcher already
-    // uses for digit shifts, extended here to also cover symbol switches.
     if (digitChanged || symbolChanged) {
       staleProposalId.current = latestProposalRef.current?.id ?? null;
     }
@@ -459,6 +468,7 @@ export function useDigitTrickerAutomation({
     setSelectedDigit,
     currentSymbol,
     selectSymbol,
+    getBestDifferSymbol,
   ]);
 
   const activePosition =
@@ -469,7 +479,7 @@ export function useDigitTrickerAutomation({
   const statusMessage = !isValidSetup
     ? 'Entry watching only supports Matches/Differs.'
     : phase === 'watching'
-    ? `Watching ${currentSymbolDisplayName} — round ${Math.min(roundCount + 1, settings.maxRounds)} of ${settings.maxRounds}.`
+    ? `Watching ${currentSymbolDisplayName} (slot ${activeSlot}) — round ${Math.min(roundCount + 1, settings.maxRounds)} of ${settings.maxRounds}.`
     : phase === 'entered'
     ? 'Trade placed — waiting for it to settle.'
     : 'Idle';
@@ -493,5 +503,6 @@ export function useDigitTrickerAutomation({
     stopReason,
     currentSymbol,
     currentSymbolDisplayName,
+    activeSlot,
   };
 }
