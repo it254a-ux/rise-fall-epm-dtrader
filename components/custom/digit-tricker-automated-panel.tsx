@@ -121,6 +121,44 @@ export function DigitTrickerAutomatedPanel({
         </div>
       </div>
 
+      {/* Live Status readout — identical to Watcher's panel. Missing from
+          the first version of this file; restored here. Shows selectedDigit
+          at 100% and every other digit at 0%, same as Watcher (this bot has
+          no multi-tick buildup to plot either). */}
+      <div className="rounded-md border border-border bg-muted/30 px-2 py-0.5 space-y-0.5">
+        <div className="flex items-center justify-between">
+          <p className="text-[9px] text-muted-foreground">Status</p>
+          <p className="text-[9px] tabular-nums text-muted-foreground">{isRunning ? 'watching' : 'idle'}</p>
+        </div>
+        <div className="grid grid-cols-10 gap-0.5">
+          {Array.from({ length: 10 }, (_, digit) => digit).map((digit) => {
+            const pct = digit === selectedDigit ? 100 : 0;
+            return (
+              <div key={digit} className="flex flex-col items-center gap-0.5">
+                <div className="relative h-8 w-full rounded-sm bg-muted overflow-hidden">
+                  <div
+                    className={`absolute bottom-0 left-0 w-full transition-all duration-300 ${
+                      digit === selectedDigit ? 'bg-primary' : 'bg-foreground/30'
+                    }`}
+                    style={{ height: `${pct}%` }}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span
+                      className={`text-[7px] font-bold tabular-nums ${
+                        digit === selectedDigit ? 'text-primary-foreground' : 'text-foreground'
+                      }`}
+                    >
+                      {pct}%
+                    </span>
+                  </div>
+                </div>
+                <span className="text-[7px] text-muted-foreground leading-none">{digit}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Volatility rotation — new section. Shows the symbol Tricker is
           currently on (or will start on) and lets the trader set how many
           rounds to stay on each volatility before switching. */}
