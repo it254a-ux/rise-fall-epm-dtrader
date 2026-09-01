@@ -24,6 +24,7 @@ import { useDigitConsecutiveAutomation } from '@/hooks/use-digit-consecutive-aut
 import { useDigit3ConsecutiveAutomation } from '@/hooks/use-digit-3consecutive-automation';
 import { useDigitTwinAutomation } from '@/hooks/use-digit-twin-automation';
 import { useDigitTrickerAutomation } from '@/hooks/use-digit-tricker-automation';
+import { useTrickerBackgroundScanner } from '@/hooks/use-tricker-background-scanner';
 import type { AuthState, ActiveSymbol, ProposalInfo, DurationLimits, BuyResult, DerivWS } from '@deriv/core';
 import type { ContractMode, TradeType, DigitStats } from '@/lib/digit-types';
 import type { UseSmartChartsApiReturn } from '@/hooks/use-smartcharts-api';
@@ -142,6 +143,7 @@ export interface DigitsBodyProps {
  * only ever used by the now-removed manual panel).
  */
 export function DigitsBody({
+  ws,
   isConnected,
   isLoading,
   activeSymbol,
@@ -346,10 +348,26 @@ export function DigitsBody({
     setSelectedDigit,
   });
 
+  // Background scanner for Tricker — watches ticks on all 8 rotation
+  // symbols concurrently (independent of whichever symbol is currently
+  // charted) and ranks them by how rarely the selected digit repeats
+  // immediately after landing. Enabled whenever the Tricker tab is open
+  // (not just while running) so it has a head start collecting data
+  // before the first slot switch needs a live pick.
+  const trickerScanner = useTrickerBackgroundScanner({
+    ws,
+    isConnected,
+    enabled: matchDiffBotType === 'tricker',
+    symbols,
+  });
+
   // "Tricker" bot for Matches/Differs — NEW. Same entry-watcher mechanics
-  // as Watcher, plus symbol rotation through the seven Volatility (1s)
-  // indices. activeSymbol/selectSymbol/symbols are only ever passed to
-  // this hook — no other bot on this page touches the traded symbol.
+  // as Watcher, plus symbol rotation through two alternating slots (odd
+  // rounds / even rounds), each starting from a configurable symbol and
+  // then picked live via trickerScanner.getBestDifferSymbol from each
+  // slot's second turn onward. activeSymbol/selectSymbol/symbols/ws are
+  // only ever passed to this hook and the scanner above — no other bot on
+  // this page touches the traded symbol.
   const trickerAutomation = useDigitTrickerAutomation({
     isConnected,
     isAuthenticated,
@@ -369,6 +387,7 @@ export function DigitsBody({
     activeSymbol,
     selectSymbol,
     availableSymbols: symbols,
+    getBestDifferSymbol: trickerScanner.getBestDifferSymbol,
   });
 
   const isOverUnder = tradeType === 'over-under';
